@@ -1,12 +1,33 @@
 # Finance release and Actions incident
 
-Engineering incident remains OPEN. Primary promotion and production **NO-GO** until the
-relevant application regressions and both resulting remote jobs actually pass.
-Finance functionality/office acceptance remain separate required gates. See
-[handoff](../CONTINUE.md), [foundation gap register](FINANCE_FOUNDATION_GATE.md)
-and [candidate validation](FINANCE_V154_RELEASE_VALIDATION.md).
+Installed Version Manager released v0.7.157 at
+`739e36574a4596eab5a6d0225e288cd98df1feff`. Its exact-SHA
+[candidate run 38431327925](https://github.com/tepong32/grand/actions/runs/38431327925)
+completed SUCCESS: security, verify, mysql and all sixteen regression workers.
+Both aggregate gates verified all 2,468 discovered IDs exactly once. MySQL passed
+all 2,468 tests with zero skips, including all 195 identities skipped on SQLite;
+SQLite passed 2,273 tests with those 195 unchanged native-only skips. Full terminal
+logs, metadata, annotations, identities and both-store cleanup were verified.
 
-## Current candidate runtime blocker (October 14)
+After fresh policy/ref/cleanliness checks, the clean primary checkout was advanced
+by fast-forward to that exact tested release. Atomic push published master and
+only v0.7.157; both remote refs were verified at `739e3657`. The automatic
+[primary run 38436008732](https://github.com/tepong32/grand/actions/runs/38436008732)
+completed SUCCESS on the exact released SHA: all 19 jobs, including security,
+verify, mysql and all sixteen regression workers. Primary MySQL passed all 2,468
+tests without skips; SQLite retained its 195 native-only skips. Complete raw
+logs, exact identities, cleanup and all twelve failure-level annotations mapped
+to passing negative permission cases were verified. Watcher 2518 completed exit 0;
+do not poll or redispatch it. Engineering CI incident RESOLVED / GO for the next
+Finance checkpoint. Provider dependency-alert refresh remains separately tracked;
+no alert was dismissed. Finance production remains NO-GO pending functional
+completion, operational scrutiny, critical-gap verification and LGU acceptance.
+
+This current status supersedes the historical then-pending statements below.
+Original causes, severity, attribution and failed producer evidence remain
+retained; candidate success does not establish LGU acceptance or production safety.
+
+## Historical candidate runtime repair (October 12–14)
 
 Latest repair is CI workload distribution, locally validated but unaccepted remotely:
 [v157 candidate evidence](FINANCE_V157_CI_VALIDATION.md). It preserves complete

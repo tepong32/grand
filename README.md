@@ -79,23 +79,31 @@ The reporting seed command is idempotent: it creates or preserves the five MSWD 
 
 ## Verification
 
-Development status, October 14: Finance retrieval and retained Form 1 source,
-review, register and draft-output work are on the development branch. Guided
-whole-package intake/review, statutory issuance and LGU acceptance remain open.
-See [the current handoff](CONTINUE.md) and [Finance roadmap](docs/FINANCE_ROADMAP.md)
-for the exact implementation and validation boundaries.
+Release status, October 14: v0.7.157 / `739e3657` is integrated and pushed to
+master with its tag. Finance retrieval and retained Form 1 sources, internal
+review services, register and draft outputs are included. Guided whole-package
+intake/review, statutory issuance and LGU acceptance remain open. See
+[handoff](CONTINUE.md) and [Finance roadmap](docs/FINANCE_ROADMAP.md).
 
-The [Actions incident](docs/FINANCE_CI_INCIDENT_2026-10-12.md) remains open.
-The [CI workload repair](docs/FINANCE_V157_CI_VALIDATION.md) preserves complete
-discovery across isolated SQLite/MySQL workers and mandatory aggregate coverage
-checks. SQLite's 195 native-only skips must execute on MySQL with zero native
-skips. The candidate's complete local rehearsal passed all 2,468 native tests
-without skips, including all 195 SQLite-skipped identities; all eight SQLite
-shards and security/system/migration preflight passed. These local results do
-not establish remote acceptance. Primary promotion and
-production remain NO-GO. If the new remote verify attempt remains unaccepted,
-retain its evidence and continue independently validated Finance work without
-claiming that the failing release gate passed.
+The [candidate GitHub run](https://github.com/tepong32/grand/actions/runs/38431327925)
+passed security, verify and mysql. All 2,468 native tests passed with zero skips,
+including every one of SQLite's 195 native-only skips. The
+[resulting master run](https://github.com/tepong32/grand/actions/runs/38436008732)
+passed security, verify and mysql; the Actions incident is resolved. The
+[CI workload repair](docs/FINANCE_V157_CI_VALIDATION.md) preserves complete
+discovery, security checks, isolated two-store MySQL workers and existing job limits.
+Finance production remains **NO-GO** pending functional completion, operational
+scrutiny, critical-gap verification and LGU acceptance. See the
+[incident findings](docs/FINANCE_CI_INCIDENT_2026-10-12.md).
+
+The next development checkpoint adds the
+[whole-package internal review screen](docs/FINANCE_FORM1_REVIEW_UI_2026-10-14.md)
+through the existing governed service. Five new HTTP cases passed on both
+backends and three actual browser office decisions retained original evidence.
+Final affected/dependent validation passed 20 cases on both backends (one
+native-only race skipped on SQLite; MySQL zero skips), including original evidence,
+exports and three native races. This v160 candidate awaits its own remote
+release checks; it is not part of v0.7.157. Preparation intake remains open.
 
 Install the development-only audit tool when performing security maintenance:
 

@@ -6,15 +6,69 @@ Last updated: 2026-10-14
 
 ## Current checkpoint - Finance foundation release
 
-Current v157 CI repair checkpoint, October 14: all local publication gates PASS.
-SQLite: 2,468 tests, 2,273 passed / 195 unchanged native-only skips. MySQL:
-all 2,468 passed with zero skips, including every one of those 195 identities.
-Launcher 26124 completed exit 0; do not poll/restart it. All eight shards on
-each backend have exact complete coverage, verified raw logs/hashes and two-store
-cleanup. Preflight and all 1,136 source hashes pass. Publication is GO for the
-development candidate only; actual release/ref and GitHub outcomes must be
-verified before primary promotion. Remote/primary/production acceptance remains
-NO-GO. See [complete validation](docs/FINANCE_V157_CI_VALIDATION.md).
+Following the green v157 candidate and verified master/tag push, the bounded
+[whole-package internal review screen](docs/FINANCE_FORM1_REVIEW_UI_2026-10-14.md)
+is implemented in the development checkout. Five new HTTP cases pass on SQLite
+and fresh MySQL; three real browser office decisions preserve original evidence
+and journals. Final dependent SQLite passed 20 tests / 1503.432s with one
+native-only race skip; native passed all 20 / 1716.625s, zero skips, including
+three decision/return/successor races. Both handles 83198/90413 are terminal exit 0;
+do not poll/restart them. Raw logs, exact identities, two-store cleanup and the
+1,138-source fingerprint match. System/drift and current audit pass. Complete
+local publication gate PASS. Installed Version Manager preview/scope guard selects
+v160 (18 intended files plus VERSION/CHANGELOG), preserving the separate v158/v159
+releases. Release execution and new exact-SHA CI remain pending. Preparation
+intake, statutory signatures/issuance and LGU acceptance remain open.
+
+Installed Version Manager previews v158/v159 are historical, unexecuted previews:
+both numbers were concurrently taken by unrelated authorized authentication/UI
+releases on other branches. The scope guard refused reuse before staging or
+commit. Preserve those tags/history and allocate the next available version
+only when this Finance checkpoint is ready; do not integrate unrelated work merely
+to obtain a version number.
+
+Installed Version Manager released v0.7.157 at
+`739e36574a4596eab5a6d0225e288cd98df1feff`. Its exact-SHA
+[candidate run 38431327925](https://github.com/tepong32/grand/actions/runs/38431327925)
+completed SUCCESS: security, verify, mysql and all sixteen regression workers.
+Both aggregate gates verified all 2,468 discovered IDs exactly once. MySQL passed
+all 2,468 tests with zero skips, including all 195 identities skipped on SQLite;
+SQLite passed 2,273 tests with those 195 unchanged native-only skips. Full terminal
+logs, metadata, annotations, identities and both-store cleanup were verified.
+
+After fresh policy/ref/cleanliness checks, the clean primary checkout was advanced
+by fast-forward to that exact tested release. Atomic push published master and
+only v0.7.157; both remote refs were verified at `739e3657`. The automatic
+[primary run 38436008732](https://github.com/tepong32/grand/actions/runs/38436008732)
+completed SUCCESS on the exact released SHA: all 19 jobs, including security,
+verify, mysql and all sixteen regression workers. Primary MySQL passed all 2,468
+tests without skips; SQLite retained its 195 native-only skips. Complete raw
+logs, exact identities, cleanup and all twelve failure-level annotations mapped
+to passing negative permission cases were verified. Watcher 2518 completed exit 0;
+do not poll or redispatch it. Engineering CI incident RESOLVED / GO for the next
+Finance checkpoint. Provider dependency-alert refresh remains separately tracked;
+no alert was dismissed. Finance production remains NO-GO pending functional
+completion, operational scrutiny, critical-gap verification and LGU acceptance.
+
+Complete local publication proof also passed both 2,468-ID suites, six runner
+checks, security/system/migration/dependency checks and five Telegram tests. Do
+not poll or restart completed local launchers 26124/21064/13291 or candidate
+watcher 88932. Retained source proof allows only the verified final CRLF removal
+in the CI runner, with identical AST and six rerun checks; all other 1,135 sources
+match the original fingerprint. No application validator, ledger, permission,
+assertion, native constraint or existing job limit was weakened for the CI repair.
+
+Next Finance checkpoint: guided whole Form 1 preparation/intake and independent
+Budget, Accounting and Treasury review through the existing governed services.
+Do not create new posting authority or infer statutory signatures/issuance.
+Manual LGU decisions remain deferred tonight. See
+[CI evidence](docs/FINANCE_V157_CI_VALIDATION.md) and
+[roadmap](docs/FINANCE_ROADMAP.md).
+
+### Historical validation records
+
+The records below describe earlier checkpoints; their then-pending publication
+statements are historical and do not override the current status above.
 
 Prior candidate, October 13: v0.7.156 / `d666f3ab` is published to the
 development branch; primary/tag promotion remains NO-GO. Its actual
@@ -508,66 +562,23 @@ dependent suite. Never reuse an earlier producer's pass as latest proof.
 
 ## Next actions and release/incident boundary
 
-1. Preserve the complete terminal evidence from [candidate run 38294180301](https://github.com/tepong32/grand/actions/runs/38294180301)
-   on `bc8e482bafa7da33550b1aad3380ad293638d3d0`. Verify is CANCELLED at 20 minutes;
-   its dependency consistency, security audit, Django system check and migration
-   steps passed but the project suite did not finish. MySQL is also CANCELLED at
-   60 minutes. Both complete job logs/annotations are retained. Their interrupted
-   suites have no terminal summary/full passing count; do not repeat an old
-   dispatch or infer assertion outcomes from denial annotations or fixture users.
-   Repaired full local runs are now PASS as recorded above. Inspect the live
-   exact-SHA repaired run 38311451830, not the old cancelled run. Investigate
-   every actionable failure before dependent implementation; no duplicate dispatch.
-2. The actual Version Manager commit/local tag, exact 402-file release and candidate
-   branch push/dispatch are DONE. Do not repeat that release. The dispatch helper
-   used the documented proportional local publication gate: retained full SQLite
-   PASS/native FAIL, five fixture repairs, AST-identical EOF cleanup, focused and
-   all 280 ordered native PASS, exact source/branch/tag provenance. This permits
-   candidate publication, never primary integration without both actual CI passes.
-   The later local follow-up now includes the scoped runtime service repair and
-   two added regression methods. Fresh discovery preserves all 2,462 original
-   IDs and adds four IDs (two inherited), total 2,466. Full fresh SQLite/native
-   and the complete local publication gate PASS are recorded above. Preserve
-   original v154 evidence. Installed Version Manager actually released v0.7.155,
-   development push and guarded exact-SHA dispatch are DONE as recorded above.
-   Installed `GitService.commit` stages only its managed VERSION/CHANGELOG files
-   and commits the existing index. This release explicitly staged and verified
-   exactly the intended repair scope; no blanket staging or metadata-only release.
-   Executed scope
-   is the two Accounting files, two-line CI diagnostic change, AGENTS/CONTINUE,
-   incident/gap/native-testing documents and v154/v155 validation records (ten
-   paths), plus the tool's two metadata updates. `.tmp/execute_ci_runtime_release.py`
-   verified parent/tag, clean state, exact twelve committed paths and source proof.
-   `.tmp/dispatch_ci_runtime_candidate.py` passed its dry-run guard and then
-   dispatched once against clean HEAD/local tag/remote equality and complete local
-   proof. Saved dispatch evidence forbids a duplicate; inspect run 38311451830.
-   Original v154 helper, failed run and evidence remain unchanged.
-3. Diagnose the remaining verify runtime from run 38311451830's complete log and
-   exact named cases. The current export profile is running; its measured call
-   graph, not the last header alone, must guide any further repair. Preserve
-   v155 local PASS/release/failed CI evidence and await MySQL's actual outcome.
-   Obtain a further validated exact-SHA repaired candidate CI gate. After
-   both repaired candidate jobs pass, integrate intended dependencies into clean
-   master, push primary/tag and verify the remote SHA/tag and resulting primary
-   run. Record actual run URLs, outcomes and remaining limitations, then resume
-   the existing Finance roadmap as requested by the latest steering. Do not
-   declare incident resolution from local checks alone or treat CI green as
-   production/LGU acceptance.
+1. Primary run 38436008732 on exact `739e3657` passed all checks; incident
+   engineering repair and master/tag publication are complete. Preserve terminal
+   evidence, failed v154/v155/v156 records and all unrelated release tags. Do not
+   recreate this release/dispatch or poll completed watcher 2518.
+2. Release the validated internal review screen, verify its exact-SHA candidate
+   security/verify/mysql, then integrate/push and verify the primary run. Continue
+   guided whole Form 1 preparation intake using
+   original source permissions, explicit checks, immutable history and existing
+   locks. Validate affected HTTP/security cases and dependent/native contracts,
+   then use installed Version Manager for the next documented checkpoint.
+3. Update README, roadmap, gaps and feature contracts with actual outcomes.
+   Statutory certifiers, Chief Executive approval, issuance, representative source
+   retrieval, exact local outputs and operational/LGU acceptance remain open.
 
-The clean integration checkout is synchronized to remote master `c5bd920a`;
-candidate `e6e1cb8e` contains that intended history plus the runtime repair.
-No candidate merge, primary push, remote v0.7.154/v0.7.155 tag or operator migration has
-occurred. Recheck remote primary and worktree cleanliness immediately before
-integration; preserve the operator checkout and historical PR 114.
-
-The Finance goal is not complete. Whole-package intake/review UI, representative
-varied-source retrieval latency, statutory certifiers/Chief Executive approval/
-issuance, exact local form acceptance and all remaining foundation/Finance/
-operational gates remain governed by [foundation gate](docs/FINANCE_FOUNDATION_GATE.md),
-[Finance roadmap](docs/FINANCE_ROADMAP.md),
-[required outputs](docs/FINANCE_REQUIRED_OUTPUT_MAP.md) and
-[operational scrutiny](docs/FINANCE_OPERATIONAL_SCRUTINY.md).
-eGAPS is closed and untouched. Earmark-before-ARO semantics remain unconfirmed;
+eGAPS remains closed and untouched. Earmark-before-ARO semantics remain unconfirmed;
 limited office use of eGAPS reports does not waive output/parity requirements.
 Keep separate databases, independent maker/checker and immutable financial/custody
-history. Production remains NO-GO pending the preserved gates and LGU acceptance.
+history. See [foundation gate](docs/FINANCE_FOUNDATION_GATE.md),
+[required outputs](docs/FINANCE_REQUIRED_OUTPUT_MAP.md) and
+[operational scrutiny](docs/FINANCE_OPERATIONAL_SCRUTINY.md).

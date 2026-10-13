@@ -1,16 +1,64 @@
 # Complete CI workload distribution - candidate validation
 
-Status October 14: **IN PROGRESS; NO-GO for primary promotion and production.**
-The v157 repair is based on v0.7.156 / `d666f3ab`. Full SQLite rehearsal passed;
-all eight native shards passed all 2,468 tests without skips. Complete independent
-local publication gate PASS; development candidate publication is GO, while
-actual GitHub and primary acceptance remain unproven.
-Dependent Finance implementation is held for the current bounded CI attempt;
-if verify remains unaccepted, the latest user direction permits independently
-validated Finance work while keeping the failed release gate explicit.
-Inspect actual release refs and run evidence for publication state. Follow
-[handoff](../CONTINUE.md), [incident](FINANCE_CI_INCIDENT_2026-10-12.md) and
-[gap register](FINANCE_GAP_REGISTER.md#fin-gap-038---security-and-native-regression-release-gate).
+Installed Version Manager released v0.7.157 at
+`739e36574a4596eab5a6d0225e288cd98df1feff`. Its exact-SHA
+[candidate run 38431327925](https://github.com/tepong32/grand/actions/runs/38431327925)
+completed SUCCESS: security, verify, mysql and all sixteen regression workers.
+Both aggregate gates verified all 2,468 discovered IDs exactly once. MySQL passed
+all 2,468 tests with zero skips, including all 195 identities skipped on SQLite;
+SQLite passed 2,273 tests with those 195 unchanged native-only skips. Full terminal
+logs, metadata, annotations, identities and both-store cleanup were verified.
+
+After fresh policy/ref/cleanliness checks, the clean primary checkout was advanced
+by fast-forward to that exact tested release. Atomic push published master and
+only v0.7.157; both remote refs were verified at `739e3657`. The automatic
+[primary run 38436008732](https://github.com/tepong32/grand/actions/runs/38436008732)
+completed SUCCESS on the exact released SHA: all 19 jobs, including security,
+verify, mysql and all sixteen regression workers. Primary MySQL passed all 2,468
+tests without skips; SQLite retained its 195 native-only skips. Complete raw
+logs, exact identities, cleanup and all twelve failure-level annotations mapped
+to passing negative permission cases were verified. Watcher 2518 completed exit 0;
+do not poll or redispatch it. Engineering CI incident RESOLVED / GO for the next
+Finance checkpoint. Provider dependency-alert refresh remains separately tracked;
+no alert was dismissed. Finance production remains NO-GO pending functional
+completion, operational scrutiny, critical-gap verification and LGU acceptance.
+
+Actual native workers 6/7 passed 354 tests / 684.491s and 325 / 704.581s,
+respectively, both zero skips. Final complete raw-worker verification passes all
+sixteen logs. Aggregate verify job 115423827781 and mysql job 115429096779 passed
+every step, including original same-run coverage artifact download and complete
+union verification. MySQL's 24,368-byte terminal log SHA-256 is
+`8a423b46523572fc52c4e24448327f36e185e70e3979dbc3cf86be7df4562d45`;
+verify's 24,482-byte hash is
+`9ade4fe084e4fcfdb79062fe30e2323118b071ad85b4deef2522d318d36961f2`.
+Security passed all 13 steps: no known vulnerabilities, six runner tests and five
+Telegram tests. Evidence is retained in ignored
+`.tmp/actions-release-20261012/completed-jobs` and the primary promotion receipt.
+
+LOW maintenance: successful artifact v4 actions emit a Node runtime migration
+warning; Ubuntu image migration notices are informational. Expected permission
+denials in passing negative tests do not establish failed assertions. All
+annotations and complete source contexts are retained; no assertion or permission
+check was suppressed.
+
+Primary completion: verify job 115437541048 and mysql job 115445856552 passed
+every step and their complete 2,468-ID coverage gates. MySQL's 24,090-byte full
+log hash is `dfad5c920854111aa066b8e9863930594e7dc1c6cdab89a44359d59ef7ea5633`;
+verify's 24,205-byte hash is
+`6f5b8170666d9bb022b0bd2ac6efe6bf8fc6ac1c0fc73aaf5a941a08fc717bc7`.
+All sixteen full worker logs and twelve failure-level annotations were checked;
+each annotation maps to a completed passing negative permission case. Exact
+master/tag refs match `739e3657`. Acceptance receipt is retained under ignored
+`.tmp/ci-v157-primary-acceptance.json`. Historical promotion receipt retains its
+then-pending primary status rather than rewriting that earlier evidence.
+
+The post-push authenticated Dependabot snapshot still returns 24 open alerts
+(one Critical, 15 High, eight Medium). The exact released pins fall outside
+every returned affected range, including Critical PyJWT GHSA-ffc3-869f-jxw9;
+the actual security audit passes. Provider alert refresh is unresolved separately;
+no alert was manually dismissed or downgraded. The accepted-primary snapshot still returns the same 24 alerts; exact pins
+are outside all returned affected ranges. Preserve both snapshots. This provider
+state remains OPEN separately from the now-resolved Actions incident.
 
 ## Evidence and bounded repair
 
@@ -26,7 +74,9 @@ discovery has grown from the original master incident's 1,193 IDs. Current
 genuine export profiling passed one test in 96.329s under instrumentation,
 versus the prior producer's 191.746s. Fresh migration setup is separate;
 overlapping profile times are not added or described as ordinary latency.
-Runtime remains HIGH/OPEN; old-master dependency findings remain CRITICAL/OPEN.
+Those historical runtime and dependency blockers were HIGH and CRITICAL,
+respectively; the released v157 repair and complete primary validation resolve
+the source/Actions findings as recorded above. Provider refresh remains separate.
 
 The workflow candidate retains security audit, dependency consistency, system,
 migration and explicit Telegram checks in `security`. Eight `sqlite` workers
@@ -57,7 +107,11 @@ Primary references: [Django 5.2 custom runners](https://docs.djangoproject.com/e
 [GitHub matrix jobs](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/run-job-variations)
 and [coverage artifacts](https://github.com/actions/upload-artifact).
 
-## Actual validation so far
+## Retained local and interim validation
+
+The dated progress records below retain each producer's actual outcomes. Earlier
+pending/NO-GO statements describe those earlier gates; current complete primary
+acceptance is recorded above and must not overwrite failed historical evidence.
 
 PASS: YAML parsing and structural comparison preserve the original security
 steps, triggers, permissions, pinned MySQL service and limits, with mandatory
@@ -230,6 +284,39 @@ Full application suites were not repeated for this formatting-only change;
 their original complete evidence is preserved rather than relabelled as a rerun.
 The source guard permits only this exact verified EOF difference, with no other
 source exception. Guard-owned staging is recovered without changing working files.
+
+Actual GitHub native worker 0 PASS: 206 tests / 302.162s, zero skips. Complete
+828,708-byte raw log retained, SHA-256
+`9b365f8ffa44e1d7d68bbb7623ca550dad1e0fe1307c81e5ddbc7163aec44126`.
+Independent raw-log inspection confirms all 206 exact planned identities once,
+passing terminal summary and both database teardowns. Its two annotations are
+Node action maintenance and Ubuntu migration warnings/notices; no financial
+or assertion failure. Remaining native workers and both aggregate gates pending.
+
+Subsequent GitHub worker results PASS: SQLite 2, 369 tests / 578.945s / 13
+expected native-only skips, raw SHA-256
+`5de37fe9eeb6bc1244a1f4ee979833aed597829bc176d448928e7f1a408f1c37`;
+native 1, 205 tests / 572.315s / zero skips, raw SHA-256
+`d18ee86a492420d0041842a11ff1f38175c82fcfb808ee0b585127e805c82af7`.
+Complete logs/metadata/annotations retained. Independent collected-log verifier
+PASS for all six completed worker logs: exact planned IDs once, actual passing
+summaries, original skip identities and both-store cleanup. This establishes
+four SQLite workers / 984 tests and two native workers / 411 tests, not full
+remote coverage or either aggregate gate. Source and required checks unchanged.
+
+Further GitHub workers PASS: SQLite 4, 413 tests / 482.517s / 20 expected skips;
+SQLite 5, 392 / 412.273s / 22 expected skips; native 2, 369 / 815.325s / zero
+skips; native 3, 204 / 685.612s / zero skips. Complete raw logs/metadata/all
+annotations retained. The collected-log verifier passes all ten completed workers:
+exact planned identities once, expected skip identities, terminal summaries and
+both-store cleanup. Totals: six SQLite workers / 1,789 tests; four native workers /
+984 tests without skips. Remaining workers and both aggregate gates remain pending.
+
+GitHub SQLite 6 PASS: 354 tests / 588.758s / 30 expected native-only skips,
+raw SHA-256 `8001d9d05538068ff3b46448dd8083f94cd376e0641546a18f087eea3b9e3aa3`.
+The collected-log verifier passes eleven completed workers. Current totals:
+seven SQLite workers / 2,143 tests; four native workers / 984 tests without skips.
+SQLite 7, native 4–7 and both aggregate gates remain pending.
 
 Finance next milestone remains guided whole Form 1 preparation/intake and
 independent review through existing governed services, after the CI gate.

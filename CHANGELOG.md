@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.160] - 2026-10-14
+### Feat
+- feat(budget): expose independent whole Form 1 reviews
+
 ## [0.7.157] - 2026-10-14
 ### Fixed
 - fix(ci): distribute complete regressions across isolated workers

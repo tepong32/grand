@@ -1,17 +1,15 @@
 # Finance foundation completion gate — 2026-09-18
 
-2026-10-12 release blocker: [Actions incident and local regression defects](FINANCE_CI_INCIDENT_2026-10-12.md).
-Master scheduled run 139 failed security/native checks on the same SHA as passing
-run 136. Candidate regressions separately reproduced contaminated inherited
-Accounting fixtures. Full SQLite passed; full native found five failing cases.
-Certification fixture repair passed 138 affected native cases; three unchanged
-officer-return errors reproduced after new Form 1 factories leaked their fixture clock.
-Cleanup repair now passes 24 focused native cases and all 280 ordered native
-follow-up cases without skips. See FIN-GAP-038 in the
+October 14 release status: v0.7.157 is integrated/pushed to master at exact
+`739e3657`, with candidate security/verify/mysql PASS and all 2,468 native tests
+passed without skips. Resulting primary run 38436008732 passed security/verify/mysql.
+Original pre-existing dependency/calendar failures, candidate fixture defects
+and runtime repairs are retained in the
+[incident](FINANCE_CI_INCIDENT_2026-10-12.md) and
 [gap register](FINANCE_GAP_REGISTER.md#fin-gap-038---security-and-native-regression-release-gate).
-Candidate publication is GO; primary integration and dependent implementation
-remain NO-GO until
-both resulting remote jobs pass. This does not waive any foundation gap below.
+The subsequent [guided internal review screen](FINANCE_FORM1_REVIEW_UI_2026-10-14.md)
+is under affected/dependent validation; preparation intake remains open.
+This does not close FG-03/FG-06 or waive any foundation/LGU acceptance gate below.
 
 Overnight instruction, 2026-10-13: complete the pending validated vm-commit/CI
 repair, then continue the existing Finance plan and vm-commit subsequent validated
