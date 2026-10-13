@@ -5,10 +5,15 @@ from accounting import summary_actuals
 from accounting import budget_actuals_preparations as preparations
 from accounting import budget_actuals_certifications as certifications
 from accounting.cash_classifications import checksum
+from .form1_integrity import pure_payload
 
 
 def project_native(captured):
-    body = certifications.verify_snapshot(captured)
+    return _project_native(certifications.verify_snapshot(captured))
+
+
+def _project_native(body):
+    """Project a body freshly verified within this operation."""
     if body['status'] != 'jointly_certified':
         raise ValidationError('Select jointly certified native actuals, with both officer decisions.')
     original = body['original_preparation']
@@ -47,12 +52,13 @@ def capture(*, actor, budget_department_id, identity, route):
         decision=deepcopy(summary_actuals.decision_snapshot(record)))
 
 
+@pure_payload
 def verify(source):
     try:
         if source['route'] == 'native':
             body = certifications.verify_snapshot(source['snapshot'])
             if (source['id'] != body['original_preparation']['identity']['public_id']
-                or source['payload'] != project_native(source['snapshot'])
+                or source['payload'] != _project_native(body)
                 or source['payload_checksum'] != checksum(source['payload'])):
                 raise ValidationError('Retained native reconciliation source changed.')
         elif source['route'] == 'historical':

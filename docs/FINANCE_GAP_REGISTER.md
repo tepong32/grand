@@ -50,8 +50,39 @@ classification, user/control impact and dependencies. Historical findings remain
   full-native failures. Complete local publication gate PASS, including separate
   source-backed Telegram discovery and exact source/CI proof. Actual new-producer
   CI remains pending; local measurements do not establish the remote timeout cause.
-- Next action: validate the runtime repair, inspect the terminal native result,
-  actual vm-commit/candidate CI/primary integration and verify both GitHub jobs. Resume
+  Installed Version Manager executed/pushed development v0.7.155 / `e6e1cb8e`;
+  [exact-SHA run 38311451830](https://github.com/tepong32/grand/actions/runs/38311451830)
+  has verify CANCELLED at its unchanged 20-minute limit and MySQL CANCELLED at its
+  unchanged 60-minute limit. Complete native log/annotations are retained: 809
+  distinct original headers, no terminal summary, service/dependency steps passed.
+  Four denied-access annotations map to completed passing permission cases.
+  Complete verify logs/annotations are retained: 797 distinct named headers,
+  no terminal suite summary; two denied-export annotations are passing negative
+  cases. Runtime remains High/OPEN; measured optimization is insufficient for CI.
+  Genuine export profiling completed: one case PASS / 191.746s under cProfile,
+  1,840 joint snapshot reconstructions. Subsequent exact operation-local reuse
+  measures same-package reads at 0.915/0.862s without changing retained sources or
+  store bytes. First four-file focus PASS: 13 SQLite / 16 native cases, no skips.
+  Fresh scoped-reuse/full/remote validation remains pending; see
+  [subsequent repair evidence](FINANCE_V156_RUNTIME_VALIDATION.md). Runtime remains
+  High/OPEN; no timeout or assertion is relaxed and no remote pass is inferred.
+  Master and remote tag remain pending. Resume check October 13, 20:25 local
+  found the previous full runs interrupted with no terminal summary; their
+  complete logs were preserved. No application failure/pass is inferred from
+  partial output. Full fresh reruns began 12:26:37 UTC on the unchanged frozen
+  producer, with separately retained actual process exit/log-hash metadata;
+  see the v156 validation record for new handles and interruption limitations.
+  The new full SQLite rerun completed PASS: 2,468 discovered / 2,273 passed /
+  195 unchanged native-only skips, 3,465.705s, exit 0, both stores destroyed,
+  every expected ID once and all 1,133 source hashes unchanged. Native subsequently
+  completed PASS: all 2,468 IDs exactly once, 5,084.954s, zero skips, exit 0 and
+  both stores destroyed. Combined local publication gate PASS; candidate
+  publication is GO, primary/dependent implementation NO-GO pending actual CI.
+  Raw binary log decoding was corrected to its verified CP1252 encoding;
+  original bytes/result hashes remain. No remote pass or primary promotion is claimed.
+- Next action: validate the measured remaining runtime repair, inspect MySQL outcome,
+  obtain a passing repaired candidate, integrate primary after both passes
+  and verify the resulting primary jobs to finish the vm-commit workflow. Resume
   guided whole Form 1 intake/review after that gate. Manual LGU requirements remain
   deferred tonight and open; production/full Finance remains NO-GO.
 

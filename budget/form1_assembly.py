@@ -6,8 +6,10 @@ from accounting.cash_classifications import checksum
 from . import form1_spa_output as spa, form1_spa_reviews as reviews
 from . import form1_philhealth as philhealth, form1_flows as flows
 from .models import Form1SPAReview
+from .form1_integrity import operation
 
 
+@operation
 def compose(spa_source,philhealth_source):
     """Reproduce all rows from one exact original flow, without granting approval."""
     try:
@@ -53,6 +55,7 @@ def compose(spa_source,philhealth_source):
         raise ValidationError('Retain complete original Form 1 schedules and source evidence.') from error
 
 
+@operation
 def verify(envelope):
     try:
         body=envelope['payload']

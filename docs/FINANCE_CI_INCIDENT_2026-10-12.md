@@ -8,6 +8,26 @@ and [candidate validation](FINANCE_V154_RELEASE_VALIDATION.md).
 
 ## Current candidate runtime blocker (October 13)
 
+Resume at 20:25 local confirmed the goal ACTIVE, but the earlier full local test
+processes no longer existed. Their logs stopped at 06:59 without terminal summaries;
+neither is a pass. Complete interrupted logs were preserved before restarting the
+owned disposable MySQL fixture and both full runs at 12:26:37 UTC. The new runs
+retain actual process exit codes and complete log hashes. No frozen application or
+test source changed. See [current v156 evidence](FINANCE_V156_RUNTIME_VALIDATION.md).
+This local environment interruption does not reclassify the actual candidate CI
+20/60-minute timeouts or resolve the release blocker.
+
+New full SQLite rerun PASS: 2,468 expected IDs exactly once, 2,273 passed /
+195 unchanged native-only skips, 3,465.705s, exit 0 and both stores destroyed.
+Frozen 1,133-source proof remains exact. The independent proof initially failed
+on raw CP1252 log decoding; documented Python pipe/locale encoding was verified,
+then only the reader was corrected. Raw logs/result hashes remain unchanged.
+Native subsequently completed PASS: all 2,468 exact IDs, 5,084.954s, zero skips,
+exit 0, both stores destroyed. Combined local publication gate PASS, including
+actual log/result hashes and all 1,133 frozen source hashes. Candidate publication
+is GO; actual new-candidate verify/mysql, primary promotion and resulting checks
+remain pending. See the v156 report for exact proof, hashes, commands and limits.
+
 **High - OPEN, introduced on the expanded candidate, not the original email
 failure.** [Run 38294180301](https://github.com/tepong32/grand/actions/runs/38294180301)
 tests exact v0.7.154 SHA `bc8e482bafa7da33550b1aad3380ad293638d3d0`.
@@ -64,6 +84,35 @@ The exact source/CI and complete local publication gate passed. Its initial
 Telegram namespace/root-membership assumptions were corrected against actual
 scoped discovery and source; the separate five-test CI step passes unchanged.
 Candidate publication is GO; primary/dependent work awaits actual remote passes.
+Installed Version Manager executed v0.7.155 / `e6e1cb8e1a65121dcd392271a23f9cf618da3d23`,
+exactly twelve repair/metadata paths. Development push and local tag were verified.
+Guarded dispatch created [repaired run 38311451830](https://github.com/tepong32/grand/actions/runs/38311451830)
+on that exact SHA. Verify completed CANCELLED at its unchanged 20-minute limit;
+MySQL also completed CANCELLED at its unchanged 60-minute limit, ending 22:34:36
+UTC on October 12 (actual annotation 1h0m0s). Its complete log has 809 distinct
+original test headers, ending in the package permission/UAT case, no terminal
+summary or method-failure marker. Service/dependency steps passed. All seven
+annotations and 2,234,354 raw log bytes are retained; SHA-256
+`e193b85977e95c172e4d7b8c7bfc4417a71cbadb2ea0c2eec80994f26bb01622`.
+The four denied-access annotations map to completed passing negative-permission
+cases; none establishes an assertion failure. Partial native intervals include
+340.901s package history and 224.231s account history (setup/body/cleanup included).
+These do not establish a whole-suite pass. The complete verify log contains 797 distinct named
+test headers and no terminal summary. Its last named test is whole-package export;
+that does not establish the sole bottleneck. Full log/metadata/five annotations
+are retained in the current validation record. Two denied-export annotations
+map to completed passing negative-permission cases. The scoped optimization is
+insufficient for CI; runtime remains High/OPEN. The genuine export profile has
+since completed: one case PASS / 191.746s under cProfile, 1,840 joint snapshot
+reconstructions. The [subsequent bounded repair](FINANCE_V156_RUNTIME_VALIDATION.md)
+removes duplicate summary/SPA construction and reuses complete exact pure evidence
+within one operation. Its first four-file focus passed 13 SQLite / 16 native cases;
+fresh scoped-reuse runs and full new-producer/remote proof remain pending.
+Same-package reads now measure 0.915/0.862s with original snapshot/checksum and
+both synthetic stores unchanged. This remains diagnostic, not a complete CI result.
+Do not raise limits for green.
+Master/remote-tag integration and resulting primary checks remain pending.
+Do not repeat release/dispatch or reinterpret v154's cancellations as passes.
 
 Controlled fresh-actor reads fell from 5.313/5.379s to 2.420/2.440s; profile calls
 fell from 43,828,078 to 20,937,138 (13.764s to 6.591s). Exact original joint

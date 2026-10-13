@@ -1,8 +1,15 @@
 # Joint actuals reconstruction repair - candidate validation
 
-Status, October 13: **GO for candidate publication; NO-GO for primary integration,
+Status, October 13: **GO for bounded runtime diagnosis; NO-GO for primary integration,
 dependent Finance implementation and production.** The installed Version Manager
-preview selects v0.7.155; no v0.7.155 commit, tag, push or remote pass is claimed.
+executed v0.7.155 / `e6e1cb8e1a65121dcd392271a23f9cf618da3d23`, exactly twelve
+reviewed repair/metadata paths. Clean HEAD, parent, local tag and exact source
+proof passed; the development push was verified. Master and remote tag remain
+unpublished. Guarded dispatch created [candidate run 38311451830](https://github.com/tepong32/grand/actions/runs/38311451830)
+on that exact SHA; verify completed CANCELLED at the unchanged 20-minute limit;
+mysql also completed CANCELLED at its unchanged 60-minute limit. No remote pass is
+claimed. These post-publication documentation updates are
+later than the released candidate; its original evidence remains retained.
 See [handoff](../CONTINUE.md), [CI incident](FINANCE_CI_INCIDENT_2026-10-12.md),
 [gap register](FINANCE_GAP_REGISTER.md#fin-gap-038---security-and-native-regression-release-gate)
 and the retained [v0.7.154 evidence](FINANCE_V154_RELEASE_VALIDATION.md).
@@ -43,6 +50,47 @@ two inherited cases; the full suite now contains 2,466 unique IDs.
 
 ## Actual evidence
 
+- FAIL - remaining CI runtime; exact-SHA run 38311451830:
+  verify job `115017911166` completed CANCELLED; its actual annotation says
+  20m0s. Complete log has 797 distinct named test headers and no terminal suite
+  summary, last named case in whole-package export. Log is retained under
+  `.tmp/actions-release-20261012/completed-jobs/38311451830-attempt1-verify-115017911166.log`,
+  2,101,766 bytes, SHA-256
+  `3a61ffcb1562302284de8f4c8d69be9e6389e937fac3e7d947ee37b2b5a0ba67`,
+  with matching metadata and all five annotations. The two denied historical
+  document-export annotations belong to completed passing negative-permission
+  cases; they are not assertion failures. MySQL's terminal result is recorded below.
+  Authenticated job metadata confirms verify dependency
+  installation/consistency, audit, Django checks and migration drift PASS;
+  MySQL container initialization and dependency installation PASS. Its complete
+  job log is now retained, with no terminal test summary. These individual step
+  results do not establish either job's pass or incident resolution.
+  MySQL job `115017911366` completed CANCELLED at 22:34:36 UTC on October 12;
+  actual annotation 1h0m0s. Complete log has 809 distinct original test headers,
+  ending in `Form1PackageTests.test_three_office_sources_permissions_export_only_and_uat_mutation_denial`,
+  with no terminal summary or method-failure marker. Its service/dependency steps
+  passed. Log:
+  `.tmp/actions-release-20261012/completed-jobs/38311451830-attempt1-mysql-115017911366.log`,
+  2,234,354 bytes, SHA-256
+  `e193b85977e95c172e4d7b8c7bfc4417a71cbadb2ea0c2eec80994f26bb01622`.
+  All seven annotations are retained. Four denied-access annotations map to completed
+  passing package history/export and cash-source permission cases; the other three
+  are timeout, cancellation and runner notice. Native partial header intervals include
+  340.901s package history, 224.231s account history, 170.457s whole print and
+  125.981s package retention; these include setup/body/cleanup, not method benchmarks.
+  Private parser initially decoded a UTF-8 annotation with Windows' default encoding;
+  explicit UTF-8 fixed its matching. Failed parser evidence and original bytes remain.
+  Partial header intervals include setup/body/cleanup: account-register case
+  162.400s, first whole-export case 82.231s, three assembly cases 41.628–53.118s.
+  These are diagnostic intervals, not method timings or operational benchmarks;
+  private evidence `.tmp/ci-runtime-v155-verify-header-intervals.log`.
+  The scoped optimization was insufficient for CI. A genuine fresh-store export
+  case profile completed PASS as handle 89995, exit 0: one test / 191.746s under
+  cProfile, 1,840 joint snapshot reconstructions. Log/profile:
+  `.tmp/ci-runtime-package-export-case.log` and `.prof`. The subsequent bounded
+  repair is recorded separately in [v156 work](FINANCE_V156_RUNTIME_VALIDATION.md);
+  its changes and proof are not this released v155 producer. No further release,
+  timeout change or complete remote new-producer pass is claimed here.
 - PASS - focused fresh SQLite:
   `python .tmp/my_work_sqlite.py accounting.test_budget_actuals_certifications.NativeActualsCertificationTests --verbosity 2`;
   49 tests in 19.381s, no skips, both stores destroyed. Private log:
@@ -127,11 +175,14 @@ release. No operator-store writes or production acceptance were performed.
 
 ## Remaining gate and next Finance milestone
 
-Affected/full local regressions have passed. Execute the actual installed
-Version Manager, publish the repaired development
-candidate and inspect both exact-SHA remote verify/mysql jobs. Only their actual
-passes permit primary integration, primary/tag publication and inspection of the
-resulting primary run. Record actual commits, logs, tests and URLs when available.
+Affected/full local regressions, installed Version Manager execution and repaired
+development publication are complete. Both exact-SHA jobs from run 38311451830
+were inspected and CANCELLED at their limits; do not repeat release/dispatch or
+promote this failed candidate. Continue the separately fingerprinted
+[subsequent repair](FINANCE_V156_RUNTIME_VALIDATION.md). Only its actual complete
+local validation and resulting verify/mysql passes permit primary integration,
+primary/tag publication and inspection of the resulting primary run. Record actual
+commits, logs, tests and URLs when available.
 Default master still contains the Critical dependency finding until the patched
 candidate is integrated; neither the candidate audit nor this measurement closes it.
 

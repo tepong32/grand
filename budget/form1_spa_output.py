@@ -12,6 +12,7 @@ from accounting.cash_classifications import checksum
 from accounting.summary_actuals import text
 from . import form1_flow_output as flows, form1_spa_proposals as subdivisions
 from . import form1_itemization as itemization
+from .form1_integrity import operation
 
 SOURCE_COLUMNS=('prior_amount','half_amount','estimate','proposed')
 DECISION_FIELDS={'review','payload_checksum','role','approve','actor_id','actor_department_id',
@@ -34,12 +35,18 @@ def _uuid(value):
         raise ValidationError('Retain the original public source identity.')
 
 
+@operation
 def verify_snapshot(snapshot):
     """Structural checks after the public service verifies model/attachment access.
 
     Checksums do not authorize a source or establish authenticity of unattached
     documents. Export callers must use the existing service's verified snapshot.
     """
+    return _verify_snapshot(snapshot)[0]
+
+
+def _verify_snapshot(snapshot):
+    """Retain the flow reproduced during this same snapshot verification."""
     try:
         if set(snapshot)!={'payload','payload_checksum','status','decisions',
             'independently_reviewed','form_issued','cash_available'}:
@@ -57,7 +64,7 @@ def verify_snapshot(snapshot):
         for key in ('public_id','proposal','account_review'): _uuid(identity[key])
         prepared=_date(identity['prepared_at'])
         original=payload['source_account_review']; source=original['payload']['identity']
-        flows.package(original)
+        flow=flows.package(original)
         if (original['decision']['status']!='approved'
             or original['independently_reviewed'] is not True or original['code_authority_approved'] is not True
             or source['public_id']!=identity['account_review']
@@ -97,14 +104,14 @@ def verify_snapshot(snapshot):
         if (snapshot['status']!=status or snapshot['independently_reviewed'] is not (status=='approved')
             or len(returned)>1 or (returned and any(_date(row['decided_at'])>returned[0] for row in rows))):
             raise ValidationError('Printable SPA state must reproduce the original retained decisions.')
-        return body
+        return body,flow
     except (KeyError,TypeError,ValueError,AttributeError) as error:
         raise ValidationError('Invalid exact-source SPA output evidence.') from error
 
 
+@operation
 def package(snapshot):
-    body=verify_snapshot(snapshot)
-    flow=flows.package(snapshot['payload']['source_account_review'])
+    body,flow=_verify_snapshot(snapshot)
     original_members={member['entity_key']:member for member in flow['payload']['itemization']['payload']['members']}
     if not body['members'] or {member['entity_key'] for member in body['members']}!=set(original_members):
         raise ValidationError('Retain every original reporting entity in the combined draft.')

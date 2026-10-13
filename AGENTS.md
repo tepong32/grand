@@ -27,6 +27,12 @@ the same actor/source; it never creates authority or approval. See the
 [assembly design](docs/FINANCE_FORM1_ASSEMBLY_DESIGN.md) and
 [review/delivery contract](docs/FINANCE_FORM1_PACKAGE_REVIEW_DESIGN.md).
 
+Pure Form 1 integrity reuse is limited to the outer operation and keys the complete
+actual JSON evidence, including its claimed checksums. Non-JSON/coercible inputs
+receive full uncached verification. Keep returned payloads caller-owned; never cache
+models, permissions, attachment access, currentness or financial decisions. See the
+[runtime repair evidence](docs/FINANCE_V156_RUNTIME_VALIDATION.md).
+
 Cheque exceptions (2026-09-15): user has no local procedures and authorizes public-source
 research, modular implementation and human resolution of rare cases. Missing local
 paperwork must not block ordinary Finance development. Separate reported presentation,

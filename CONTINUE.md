@@ -9,7 +9,7 @@ Last updated: 2026-10-13
 Worktree: `C:/Users/Administrator/.codex/worktrees/grand-finance-my-work`, branch
 `codex/finance-budget-attribution`, based on v0.7.153 / `61e690e4`.
 This handoff covers the released development v0.7.154 candidate and the later
-working-tree v0.7.155 runtime repair. Master integration,
+published development v0.7.155 runtime repair. Master integration,
 resulting remote checks and deployment are not yet confirmed here; inspect the
 actual branch/tag/run evidence before continuing dependent implementation.
 
@@ -29,6 +29,101 @@ to pass, clean primary integration/push/tag verification and the resulting prima
 run. Preserve the failed v154 candidate commit/tag/logs; a later producer's pass
 does not rewrite that candidate's result.
 
+Actual runtime release update, October 13: installed Version Manager executed
+v0.7.155 / `e6e1cb8e1a65121dcd392271a23f9cf618da3d23`, exactly the ten reviewed
+repair paths plus VERSION/CHANGELOG. Clean HEAD, parent, local tag and unchanged
+source proof were verified; the development branch push matches that SHA.
+The guarded dispatch returned HTTP 204 at 21:34:15 UTC on October 12 and created
+[repaired candidate run 38311451830](https://github.com/tepong32/grand/actions/runs/38311451830)
+on the exact SHA. Verify job `115017911166` completed CANCELLED at the unchanged
+20-minute limit; MySQL job `115017911366` also completed CANCELLED at its unchanged
+60-minute limit (actual annotation 1h0m0s), ending 22:34:36 UTC on October 12.
+The full native log has 809 distinct original test headers, no terminal summary,
+and ends in the package permission/UAT case. Its service/dependency steps passed.
+All four denial annotations map to completed passing permission cases; the other
+annotations are the timeout, cancellation and runner notice. Complete native log
+is 2,234,354 bytes, SHA-256
+`e193b85977e95c172e4d7b8c7bfc4417a71cbadb2ea0c2eec80994f26bb01622`.
+Complete verify logs/annotations show 797 distinct named test headers, ending
+in whole-package export, and no terminal suite summary. Its security/system/drift
+checks passed. The two denied-export annotations belong to completed passing
+negative-permission cases, not failed assertions. The runtime repair is therefore
+insufficient for the CI budget; do not promote it or raise limits merely for green.
+The actual export profile completed PASS (handle 89995, exit 0): one genuine
+scenario / 191.746s under cProfile. Its 873,287,954 calls include fresh migrations;
+overlapping function times must not be summed. It recorded 1,840 joint snapshot
+reconstructions, including a duplicate in native summary projection. A subsequent
+bounded repair removes that duplicate and an ignored/repeated SPA flow construction.
+The subsequent scoped-reuse focus passed 13 SQLite / 16 native cases with no skips,
+exit 0 and both stores destroyed; separate Telegram passed five cases. System,
+drift, dependency consistency and audit checks pass. These changes are not the
+released v155 producer and require their own full regression and remote proof. See
+[subsequent runtime work](docs/FINANCE_V156_RUNTIME_VALIDATION.md).
+Earlier full fresh scoped-reuse runs used SQLite handle 18438, native handle 15756;
+logs `.tmp/ci-summary-reuse-full-sqlite.log` and `full-native.log`. Frozen producer
+has 1,133 source hashes / 2,468 discovered root IDs, all prior IDs preserved.
+Use `.tmp/ci_summary_reuse_source_gate.py` for this producer. Do not overlap native
+runners or substitute earlier producer passes. Version Manager preview for v156
+updates only VERSION/CHANGELOG; actual execution has not occurred. Manual overnight
+deferrals and next guided whole Form 1 intake/review milestone remain unchanged.
+Earlier bounded observation: full SQLite had started 799 distinct original/new
+cases and full native 783, without failure headers or terminal summaries. Both
+handles were then reconfirmed live and all 1,133 source hashes remained exact. These were
+started-case counts, not passes or percentages. The integration checkout is clean
+at `c5bd920a`; operator checkout remains `ce0c724` with its pre-existing dirty
+database, untracked policy test and historical output evidence preserved.
+The guarded actual-release helper is `.tmp/execute_ci_summary_release.py`; it
+requires `.tmp/verify_ci_summary_candidate_gate.py` to prove both complete suites,
+exact 2,468 IDs, unchanged 195 SQLite native-only skips, zero native skips, focused/
+Telegram/system/security results and the producer fingerprint. Do not execute
+until complete actual local results exist. After actual release, push only the
+development branch, verify its SHA, preview then execute guarded
+`.tmp/dispatch_ci_summary_candidate.py <actual-SHA>` once and inspect both actual
+jobs. Primary integration/tag publication requires those passes and a fresh remote/
+policy check; do not publish old failed v154/v155 tags or force-push.
+Resume verified October 13, 20:25 local: the app goal is ACTIVE. Both previously
+reported test handles are gone; no matching Python test process or disposable
+MySQL listener remained. The logs stopped at 06:59 local with 817 SQLite / 803
+native started cases and no terminal summary. These runs are INTERRUPTED,
+not PASS or demonstrated application failures. Their complete bytes were preserved
+as `.tmp/ci-summary-reuse-full-*-interrupted-20261013-0659.log`; the cause of the
+process interruption is not established. No source change followed the frozen capture.
+The owned MySQL fixture was restarted and its loopback port/data directory/strict
+mode verified. Full fresh runs restarted at 12:26:37 UTC: SQLite handle 98606 /
+worker PID 33156; native handle 84146 / worker PID 28224. Follow these new handles,
+not 18438/15756. `.tmp/rerun_full_reuse.py` retains separate start/result JSON with
+actual exit codes and log hashes; a missing result is never a pass. Native schemas
+remain exclusively owned by that runner. Release and dependent implementation
+remain gated on complete current-producer local validation and both actual remote
+jobs passing. Manual overnight deferrals remain unchanged.
+Full new-producer SQLite completed PASS: 2,468 discovered / 2,273 passed /
+195 unchanged native-only skips, 3,465.705s, handle 98606 exit 0; both test
+stores destroyed. Exact unique IDs and all prior skip IDs/reasons match; all
+1,133 source hashes remain unchanged. Complete raw log SHA-256 is
+`59c906aa4b124ea71f862b36cd883835ccbd0ffb2b7a28041da4b41b62e81354`;
+proof `.tmp/ci-summary-reuse-sqlite-completion-proof.json`. Native handle 84146
+was still live at that SQLite proof; it subsequently completed as recorded below.
+Do not poll the completed SQLite handle again. New binary captures
+use the verified Windows Python pipe encoding CP1252; the initial strict-UTF8
+proof reader failed on an expected permission-message apostrophe. Only the
+reader was corrected; original bytes/hashes and passing process result remain.
+Full new-producer native completed PASS: all 2,468 expected IDs exactly once,
+5,084.954s, zero skips, handle 84146 exit 0 at 13:54:51 UTC; both test stores
+destroyed. Raw log SHA-256:
+`172794e6c1418e4971202328624d3cd5e1def3f888b5b2786384dcafa2f11fef`.
+Do not poll either completed full handle. Combined local publication gate PASS,
+exit 0, including actual result/log hashes, exact full/focus/Telegram IDs, unchanged
+195 SQLite skips, zero native skips, cleanup, system/drift/audit/consistency and
+all 1,133 frozen source hashes. Candidate publication is GO. This checkpoint's
+report records validation before publication: inspect actual Git/tag/execution
+evidence for v156 rather than inferring execution from its refreshed preview.
+Exact-SHA remote verify/mysql remain required before primary integration/tag
+publication or dependent implementation. Production/full Finance remains NO-GO.
+The old GitHub watcher (49890) completed exit 1; do not poll or repeat it.
+Do not repeat release/dispatch. Master integration, remote tag publication and
+resulting primary checks remain pending. These post-publication documentation
+updates are later than the released candidate; retain its original evidence.
+
 GitHub's push notification also exposed one Critical default-branch alert:
 PyJWT [GHSA-ffc3-869f-jxw9](https://github.com/advisories/GHSA-ffc3-869f-jxw9),
 affected <=2.13.0, fixed 2.14.0. Candidate 2.15.1 is outside that range.
@@ -36,8 +131,9 @@ Authenticated alert reads show 24 open old-master alerts: one Critical, 15 High,
 eight Medium. Exact candidate pins are outside every returned affected range;
 local pip-audit also passes. This does not close default-branch alerts or replace
 actual CI. Keep dependent implementation NO-GO while those checks are pending.
-These actual-result updates and the working-tree runtime repair are later than
-the released SHA; do not misrepresent them as part of the candidate under test.
+The application/test runtime repair belongs to v155, not the older v154 producer.
+These post-publication outcome updates are later than the v155 release; do not
+misrepresent them as part of the candidate under test.
 
 Current runtime repair: repeated pure joint-actuals reconstruction is a measured
 application bottleneck, not yet proof of the entire CI timeout's cause. Reuse the
@@ -70,7 +166,7 @@ not validate the new application/test producer. No timeout or coverage was relax
 The [runtime repair validation](docs/FINANCE_V155_RUNTIME_VALIDATION.md) records
 the new 2,466-ID discovery, independent source fingerprint, actual focused/system
 results and completed full SQLite/native handles. Version Manager preview
-is complete; v0.7.155 execution and actual new-producer CI remain pending.
+and actual execution are complete; new-producer CI remains pending as recorded above.
 The workflow now appends `--verbosity 2` to its two full test commands, matching
 the local suites already running. This prints exact test identities for future
 timeout diagnosis; every other workflow byte, timeout and test selection is
@@ -309,9 +405,9 @@ dependent suite. Never reuse an earlier producer's pass as latest proof.
    60 minutes. Both complete job logs/annotations are retained. Their interrupted
    suites have no terminal summary/full passing count; do not repeat an old
    dispatch or infer assertion outcomes from denial annotations or fixture users.
-   Finish the live repaired local runs; re-poll the same handles if observation
-   expires rather than restarting. Investigate every actionable failure before
-   dependent implementation and obtain new exact-SHA candidate CI afterward.
+   Repaired full local runs are now PASS as recorded above. Inspect the live
+   exact-SHA repaired run 38311451830, not the old cancelled run. Investigate
+   every actionable failure before dependent implementation; no duplicate dispatch.
 2. The actual Version Manager commit/local tag, exact 402-file release and candidate
    branch push/dispatch are DONE. Do not repeat that release. The dispatch helper
    used the documented proportional local publication gate: retained full SQLite
@@ -320,24 +416,27 @@ dependent suite. Never reuse an earlier producer's pass as latest proof.
    candidate publication, never primary integration without both actual CI passes.
    The later local follow-up now includes the scoped runtime service repair and
    two added regression methods. Fresh discovery preserves all 2,462 original
-   IDs and adds four IDs (two inherited), total 2,466. Full fresh SQLite and
-   native verification are running; affected native PASS is recorded above.
-   Preserve original v154 evidence. The installed Version Manager preview selects
-   v0.7.155; actual execution still awaits the repaired producer's release gates.
+   IDs and adds four IDs (two inherited), total 2,466. Full fresh SQLite/native
+   and the complete local publication gate PASS are recorded above. Preserve
+   original v154 evidence. Installed Version Manager actually released v0.7.155,
+   development push and guarded exact-SHA dispatch are DONE as recorded above.
    Installed `GitService.commit` stages only its managed VERSION/CHANGELOG files
-   and commits the existing index. After all gates pass, explicitly stage and
-   verify exactly the intended repair scope before executing the installed adapter;
-   do not use blanket staging or release metadata alone. Current intended scope
+   and commits the existing index. This release explicitly staged and verified
+   exactly the intended repair scope; no blanket staging or metadata-only release.
+   Executed scope
    is the two Accounting files, two-line CI diagnostic change, AGENTS/CONTINUE,
    incident/gap/native-testing documents and v154/v155 validation records (ten
-   paths), plus the tool's two metadata updates. The index was empty on inspection.
-   After actual v155 commit and candidate push, use the separately prepared
-   `.tmp/dispatch_ci_runtime_candidate.py <exact-SHA>` first without `--dispatch`.
-   It requires clean HEAD/local v155 tag/remote branch equality and the complete
-   repaired local gate. Only then dispatch once; inspect existing exact-SHA runs
-   if the POST outcome is unknown. Prior saved dispatch evidence forbids a duplicate.
-   Original v154 helper and evidence remain unchanged; no v155 dispatch occurred yet.
-3. Finish the runtime repair's regression and exact-SHA candidate CI gate. After
+   paths), plus the tool's two metadata updates. `.tmp/execute_ci_runtime_release.py`
+   verified parent/tag, clean state, exact twelve committed paths and source proof.
+   `.tmp/dispatch_ci_runtime_candidate.py` passed its dry-run guard and then
+   dispatched once against clean HEAD/local tag/remote equality and complete local
+   proof. Saved dispatch evidence forbids a duplicate; inspect run 38311451830.
+   Original v154 helper, failed run and evidence remain unchanged.
+3. Diagnose the remaining verify runtime from run 38311451830's complete log and
+   exact named cases. The current export profile is running; its measured call
+   graph, not the last header alone, must guide any further repair. Preserve
+   v155 local PASS/release/failed CI evidence and await MySQL's actual outcome.
+   Obtain a further validated exact-SHA repaired candidate CI gate. After
    both repaired candidate jobs pass, integrate intended dependencies into clean
    master, push primary/tag and verify the remote SHA/tag and resulting primary
    run. Record actual run URLs, outcomes and remaining limitations, then resume
@@ -346,8 +445,8 @@ dependent suite. Never reuse an earlier producer's pass as latest proof.
    production/LGU acceptance.
 
 The clean integration checkout is synchronized to remote master `c5bd920a`;
-candidate `bc8e482b` contains that history and is 48 intended commits ahead.
-No candidate merge, primary push, remote v0.7.154 tag or operator migration has
+candidate `e6e1cb8e` contains that intended history plus the runtime repair.
+No candidate merge, primary push, remote v0.7.154/v0.7.155 tag or operator migration has
 occurred. Recheck remote primary and worktree cleanliness immediately before
 integration; preserve the operator checkout and historical PR 114.
 

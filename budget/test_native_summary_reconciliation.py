@@ -25,6 +25,7 @@ from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
 from .test_office_forms import OfficeFormTests
 from .test_actuals_selection import ActualsSelectionTests
 from . import office_forms, summary_reconciliations as service, summary_sources
+from .form1_integrity import _scope
 
 
 class NativeSummaryReconciliationFixture(TestCase):
@@ -271,3 +272,43 @@ class NativeSummaryReconciliationTests(NativeSummaryReconciliationFixture):
         self.assertEqual(mixed.payload['actuals']['prior']['route'], 'historical')
         self.assertEqual(mixed.payload['actuals']['half']['route'], 'native')
         self.assertEqual(self.accept(mixed).status, 'accepted')
+
+    def test_native_source_projection_retains_exact_verified_scope_rows_and_totals(self):
+        source = summary_sources.capture(actor=self.preparer,
+            budget_department_id=self.budget_office.pk, identity=self.half.public_id, route='native')
+        original = deepcopy(source)
+        with _scope(), self.assertNumQueries(0, using='finance'), self.assertNumQueries(0, using='default'):
+            self.assertEqual(summary_sources.verify(source), source['payload'])
+            self.assertEqual(summary_sources.project_native(source['snapshot']), source['payload'])
+            same = deepcopy(source)
+            self.assertIs(summary_sources.verify(same), same['payload'])
+            for mutation in ('scope', 'rows', 'totals', 'snapshot', 'tuple_rows'):
+                shadow = deepcopy(source)
+                if mutation == 'scope':
+                    shadow['payload']['scope']['treasury_department_id'] = self.budget_office.pk
+                elif mutation == 'rows':
+                    shadow['payload']['rows'].reverse()
+                elif mutation == 'totals':
+                    shadow['payload']['totals']['receipt'] = '123.00'
+                elif mutation == 'snapshot':
+                    shadow['snapshot']['payload']['original_preparation']['identity']['entity_label'] = 'Changed retained entity'
+                else:
+                    shadow['payload']['rows'] = tuple(shadow['payload']['rows'])
+                shadow['payload_checksum'] = checksum(shadow['payload'])
+                with self.subTest(mutation=mutation), self.assertRaises(ValidationError):
+                    summary_sources.verify(shadow)
+            same['payload']['scope']['entity_label'] = 'Changed caller copy'
+        self.assertEqual(source, original)
+
+    def test_native_projection_and_source_reject_genuine_pending_successor(self):
+        source = summary_sources.capture(actor=self.preparer,
+            budget_department_id=self.budget_office.pk, identity=self.half.public_id, route='native')
+        pending = self.make_actuals(2026, 6, certify=False, expected_latest=1)
+        captured = certifications.snapshot(pending, self.preparer)
+        shadow = deepcopy(source)
+        shadow.update(id=str(pending.public_id), snapshot=captured)
+        for operation in (lambda: summary_sources.project_native(captured),
+                          lambda: summary_sources.verify(shadow)):
+            with self.assertRaisesMessage(ValidationError, 'jointly certified'):
+                operation()
+        self.assertEqual(summary_sources.verify(source), source['payload'])

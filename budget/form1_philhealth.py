@@ -8,6 +8,7 @@ from accounting.cash_classifications import checksum
 from accounting.summary_actuals import text,document
 from . import form1_stocks as stocks,form1_components as components,form1_itemization as rows
 from .models import BudgetReceiptForecast
+from .form1_integrity import operation
 
 PART_FIELDS={'key','source','amount','treatment','counterpart','basis'}
 COVERAGE_FIELDS={'entity','column','kind','coverage','basis'}
@@ -17,6 +18,7 @@ TREATMENTS={'receipt':('deduct','claimed_overlap','unresolved'),
     'expense':('shf','counterpart','other','unresolved')}
 
 
+@operation
 def inventory(stock):
     try:
         original=stocks.verify(stock); flow=components.inventory(original['flow']); catalog=[]

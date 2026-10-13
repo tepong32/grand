@@ -14,6 +14,7 @@ from .access import department_for_user, has_budget_permission
 from .models import BudgetVersion,Form1AccountReview,Form1SPAReview as Record,Form1SPADecision as Decision
 from .services import record_event
 from . import form1_account_reviews as accounts,form1_spa_proposals as drafts
+from .form1_integrity import operation
 
 RELATED=('proposal__fiscal_year','fund','account_review__proposal__fiscal_year',
     'account_review__fund','account_review__forecast')
@@ -50,6 +51,7 @@ def _status(rows):
     return 'approved' if len(rows)==2 else 'partially_approved' if rows else 'prepared'
 
 
+@operation
 def verify(record,decisions=None):
     try:
         payload=record.payload; source=record.account_review

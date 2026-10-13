@@ -107,7 +107,7 @@ class Form1SPAOutputTests(fixtures.Form1SPAReviewFixture):
 
     def test_rehashed_pair_role_owner_state_and_derived_rows_fail_closed(self):
         record=self.approve_spa(self.prepare_spa()); original=self.retained(record)
-        for label in ('pair','role','owner','state','date'):
+        for label in ('pair','role','owner','state','date','account_source','draft_source'):
             changed=deepcopy(original)
             if label=='pair':
                 changed['payload']['identity']['fund_id']+=1
@@ -119,11 +119,34 @@ class Form1SPAOutputTests(fixtures.Form1SPAReviewFixture):
                 changed['decisions'][1]['actor_id']=changed['decisions'][0]['actor_id']
             elif label=='owner': changed['decisions'][0]['actor_department_id']+=1
             elif label=='state': changed['status']='prepared'
-            else: changed['decisions'][0]['decided_at']='2020-01-01T00:00:00+00:00'
+            elif label=='date': changed['decisions'][0]['decided_at']='2020-01-01T00:00:00+00:00'
+            elif label=='account_source':
+                account=changed['payload']['source_account_review']
+                draft=account['payload']['draft']
+                draft['payload']['allocations'][0]['amount']='999.00'
+                draft['checksum']=checksum(draft['payload'])
+                account['payload_checksum']=checksum(account['payload'])
+                account['decision']['payload_checksum']=account['payload_checksum']
+                account['decision_checksum']=checksum(account['decision'])
+                changed['payload_checksum']=checksum(changed['payload'])
+                for row in changed['decisions']:
+                    row['payload_checksum']=changed['payload_checksum']
+                    row['checksum']=checksum({key:value for key,value in row.items() if key!='checksum'})
+            else:
+                draft=changed['payload']['draft']
+                # The account flow is verified first. This different nested
+                # account draft retains the same claimed source checksum.
+                draft['payload']['source_draft']['payload']['allocations'][0]['amount']='999.00'
+                draft['checksum']=checksum(draft['payload'])
+                changed['payload_checksum']=checksum(changed['payload'])
+                for row in changed['decisions']:
+                    row['payload_checksum']=changed['payload_checksum']
+                    row['checksum']=checksum({key:value for key,value in row.items() if key!='checksum'})
             if label in ('role','owner','date'):
                 for row in changed['decisions']:
                     row['checksum']=checksum({key:value for key,value in row.items() if key!='checksum'})
             with self.subTest(label=label),self.assertRaises(ValidationError): output.package(changed)
+            with self.subTest(public_verifier=label),self.assertRaises(ValidationError): output.verify_snapshot(changed)
         envelope=output.package(original)
         envelope['payload']['members'][0]['rows'][0]['amounts']['prior_amount']='999.00'
         envelope['checksum']=checksum(envelope['payload'])

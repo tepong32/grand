@@ -8,6 +8,7 @@ from accounting.budget_actuals import money
 from accounting.summary_actuals import text
 from accounting.cash_classifications import checksum
 from . import form1_components
+from .form1_integrity import pure_payload
 
 FIELDS = {'key', 'component', 'amount', 'disposition', 'account_id', 'basis'}
 
@@ -84,6 +85,7 @@ def propose(inventory, allocations, *, coverage_reference):
         raise ValidationError('Retain complete reporting-account source and allocation structures.') from error
 
 
+@pure_payload
 def verify(envelope):
     try:
         body=envelope['payload']

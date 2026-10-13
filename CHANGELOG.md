@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.156] - 2026-10-13
+### Fixed
+- fix(finance): reuse verified Form 1 evidence within each operation
+
 ## [0.7.155] - 2026-10-13
 ### Fixed
 - fix(finance): avoid repeated verification of joint actuals snapshots

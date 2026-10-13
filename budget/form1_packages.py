@@ -15,6 +15,7 @@ from .models import BudgetVersion,Form1SPAReview,Form1Package as Record,Form1Pac
 from . import form1_assembly as assembly,form1_spa_reviews as spa,form1_account_reviews as accounts
 from . import form1_stocks as stocks,receipt_forecast_reviews as forecasts
 from .services import record_event
+from .form1_integrity import operation
 
 RELATED=('proposal__fiscal_year','fund','spa_review__account_review__forecast',
     'spa_review__account_review__proposal__fiscal_year','spa_review__account_review__fund')
@@ -73,6 +74,7 @@ def _check_bytes(expected,data):
         raise ValidationError('Retain exactly the original whole-package attachment bytes.')
 
 
+@operation
 def verify(record,attachments=None,*,_assemblies=None):
     try:
         payload=record.payload
@@ -131,6 +133,7 @@ def _sources(record,actor,action):
 
 
 @transaction.atomic(using='finance')
+@operation
 def prepare(*,spa_review,envelope,actor,evidence,documents,reference,expected_latest):
     proposal=BudgetVersion.objects.select_for_update().get(pk=spa_review.proposal_id)
     fund=Fund.objects.select_for_update().get(pk=spa_review.fund_id)
@@ -161,6 +164,7 @@ def prepare(*,spa_review,envelope,actor,evidence,documents,reference,expected_la
     return record
 
 
+@operation
 def _read(record,actor,*,export=False):
     record=Record.objects.select_related(*RELATED).prefetch_related('attachments').get(pk=record.pk)
     body=verify(record);action='export' if export else 'view'
