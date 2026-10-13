@@ -193,3 +193,59 @@ require actual new-candidate verify/mysql success and the resulting primary chec
 Installed Version Manager preview was refreshed successfully without any file/Git
 change; `.tmp/version-manager-preview-v156-resume.log`. Actual release identity
 must be verified from Git and retained execution evidence, not inferred from preview.
+
+## Actual development publication (later observation)
+
+Installed Version Manager executed v0.7.156 / `d666f3abd8d7c382582dc0a76dfb1aae0fdfc92a`,
+parent `e6e1cb8e`. Exact 18 intended paths, uniform subject, clean release HEAD,
+local tag and unchanged source proof were verified. Development push matches;
+master remains `c5bd920a`, remote v156 tag unpublished. Guarded dispatch preview
+passed; one actual dispatch returned HTTP 204 at 13:58:40 UTC, October 13 and
+created [run 38409417032](https://github.com/tepong32/grand/actions/runs/38409417032)
+on that exact SHA. Jobs verify `115337497255` / mysql `115337496904` are
+IN_PROGRESS in the project/native test steps. Verify installation, consistency,
+audit, system and drift prerequisites passed; native service/setup prerequisites
+passed. Neither full job is PASS yet. Source remains unchanged; these outcome
+notes postdate the candidate and do not rewrite its committed evidence.
+Default-branch push warning still reports 24 alerts (one Critical/15 High/eight
+Moderate); development publication does not close them. Primary/tag integration,
+resulting primary checks and incident resolution remain pending.
+
+Later verify outcome: CANCELLED, actual annotation `20m0s`, completed October 13
+14:19:15 UTC. Complete log has 2,095,630 bytes, SHA-256
+`263ea7a5af3c6d1acc05590fc050adb726cd08385f42d70eb171c97a1f61f399`;
+all five annotations/step metadata retained under
+`.tmp/actions-release-20261012/completed-jobs/38409417032-attempt1-verify-115337497255*`.
+796 distinct expected test headers; last is the complete reviewed whole-package
+export case. No full summary, failure-detail headers or unittest FAIL/ERROR markers.
+Project tests were interrupted; Telegram was not reached. Security/system/drift
+prerequisites passed. Two separate-source permission annotations require their
+test-context interpretation, not an assumption of failed assertions. MySQL remains
+live. Runtime is HIGH/OPEN and the measured repair remains insufficient for CI;
+primary/dependent implementation and production remain NO-GO.
+
+Subsequent actual profile completion: the current-producer complete reviewed
+export case PASS, 96.329s under cProfile, actual process exit 0 and both stores
+destroyed. Full profile time 254.811s includes fresh setup (156.405s); deepcopy
+has overlapping cumulative cost 56.386s. Previous producer's same instrumented
+case was 191.746s; the measured improvement does not establish complete CI or
+an ordinary retrieval SLA. All 1,133 frozen source hashes still matched before
+the subsequent CI-only repair began. The two denied-export annotations map to
+completed `ok` cases in NativeCashCertificationViewTests and
+NativeCashPreparationViewTests. Exact methods and compact profile analysis are
+retained in `.tmp/ci-runtime-v156-export-profile-analysis.json`; raw log/profile
+remain unchanged. Further workload distribution is tracked separately in
+[candidate v157 evidence](FINANCE_V157_CI_VALIDATION.md).
+
+Actual MySQL terminal outcome: CANCELLED at the unchanged `1h0m0s` limit,
+completed October 13 14:59:30 UTC. Complete 3,309,846-byte raw log SHA-256
+`5eb26a20de6ae295eb1574d11f2b26b4cb00a7da4a47a8e33b3b001f7034690a`;
+all nine annotations and step metadata retained. It has 1,108 distinct expected
+named starts, no terminal summary, no failure-detail headers or unittest failure
+markers. Last started case is the setup/discovery UAT-viewer register case.
+Six permission annotations map to five completed passing negative cases; they
+are not six failed assertions. Both current jobs are now terminal CANCELLED.
+Watcher 10156 completed exit 1 and must not be repolled/restarted. Current full
+local passes do not replace the required actual remote checks; primary/tag and
+dependent implementation remain NO-GO. The incident record contains exact final
+scope and the retained UTF-8 diagnostic-reader repair/failure evidence.

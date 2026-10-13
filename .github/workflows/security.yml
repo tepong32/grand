@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  verify:
+  security:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -47,19 +47,59 @@ jobs:
       - name: Detect missing migrations
         run: python manage.py makemigrations --check --dry-run
 
-      - name: Run project tests
-        run: python manage.py test --verbosity 2
+      - name: Check CI coverage enforcement
+        run: python -m unittest scripts.test_ci_test_runner -v
 
       - name: Run Telegram bot tests
         run: python manage.py test telegram_bot
 
-  mysql:
+  sqlite:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    env:
+      SKEY: ci-only-secret-key
+      DJANGO_SETTINGS_MODULE: src.settings.dev
+      GRAND_CI_SHARD_INDEX: ${{ matrix.shard }}
+      GRAND_CI_SHARD_COUNT: 8
+      GRAND_CI_COVERAGE_PATH: .tmp/ci-coverage/coverage.json
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt -r requirements-dev.txt
+      - name: Run complete project test shard
+        run: python manage.py test --testrunner scripts.ci_test_runner.ShardedDiscoverRunner --verbosity 2 --noinput
+      - name: Retain successful coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: sqlite-coverage-${{ matrix.shard }}
+          path: .tmp/ci-coverage/coverage.json
+          include-hidden-files: true
+          if-no-files-found: error
+
+  native:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
     env:
       SKEY: ci-only-secret-key
       GRAND_TEST_MYSQL_USER: root
       GRAND_TEST_MYSQL_PASSWORD: grand-ci-disposable-password
+      GRAND_CI_SHARD_INDEX: ${{ matrix.shard }}
+      GRAND_CI_SHARD_COUNT: 8
+      GRAND_CI_COVERAGE_PATH: .tmp/ci-coverage/coverage.json
     services:
       mysql:
         image: container-registry.oracle.com/mysql/community-server@sha256:7dcc4add9183664de3a214daf85a50c3ba6cccfd7534f700b6561bf5b41885be
@@ -87,4 +127,54 @@ jobs:
       - name: Run fresh native two-store regression
         env:
           GRAND_TEST_MYSQL_PORT: ${{ job.services.mysql.ports['3306'] }}
-        run: python scripts/run_mysql_tests.py --verbosity 2
+        run: python scripts/run_mysql_tests.py --ci-shard --verbosity 2
+      - name: Retain successful coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-coverage-${{ matrix.shard }}
+          path: .tmp/ci-coverage/coverage.json
+          include-hidden-files: true
+          if-no-files-found: error
+
+  verify:
+    if: ${{ always() }}
+    needs: [security, sqlite]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Require security and every SQLite shard
+        env:
+          SECURITY_RESULT: ${{ needs.security.result }}
+          SQLITE_RESULT: ${{ needs.sqlite.result }}
+        run: test "$SECURITY_RESULT" = success && test "$SQLITE_RESULT" = success
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sqlite-coverage-*
+          path: .tmp/ci-coverage
+      - name: Verify complete successful SQLite coverage
+        run: python scripts/verify_ci_coverage.py .tmp/ci-coverage --count 8 --revision "$GITHUB_SHA"
+
+  mysql:
+    if: ${{ always() }}
+    needs: [native]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Require every native shard
+        env:
+          NATIVE_RESULT: ${{ needs.native.result }}
+        run: test "$NATIVE_RESULT" = success
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: native-coverage-*
+          path: .tmp/ci-coverage
+      - name: Verify complete successful native coverage
+        run: python scripts/verify_ci_coverage.py .tmp/ci-coverage --count 8 --revision "$GITHUB_SHA" --native

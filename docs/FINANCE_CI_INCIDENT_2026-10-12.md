@@ -1,12 +1,41 @@
 # Finance release and Actions incident
 
-Engineering incident remains OPEN. Release and production **NO-GO** until the
+Engineering incident remains OPEN. Primary promotion and production **NO-GO** until the
 relevant application regressions and both resulting remote jobs actually pass.
 Finance functionality/office acceptance remain separate required gates. See
 [handoff](../CONTINUE.md), [foundation gap register](FINANCE_FOUNDATION_GATE.md)
 and [candidate validation](FINANCE_V154_RELEASE_VALIDATION.md).
 
-## Current candidate runtime blocker (October 13)
+## Current candidate runtime blocker (October 14)
+
+Latest repair is CI workload distribution, locally validated but unaccepted remotely:
+[v157 candidate evidence](FINANCE_V157_CI_VALIDATION.md). It preserves complete
+2,468-ID discovery and complete classes on isolated workers, unchanged 20/60
+limits, security and native controls. Six runner checks and discovery partition
+proof pass; corrected full local shard runs completed PASS on both backends.
+All 2,468 native tests passed without skips, including all 195 identities skipped
+on SQLite; actual exit/log/coverage/source/cleanup and preflight checks pass.
+Development candidate publication is GO only; actual release refs and both
+resulting remote aggregate checks must be verified. The first rehearsal's
+default-pattern guard defect was repaired with an actual-command regression;
+failed evidence remains retained. No primary promotion or incident closure.
+
+Actual v156 MySQL terminal outcome: CANCELLED at `1h0m0s`, completed October 13
+14:59:30 UTC on exact `d666f3abd8d7c382582dc0a76dfb1aae0fdfc92a`.
+Complete raw job log: 3,309,846 bytes, SHA-256
+`5eb26a20de6ae295eb1574d11f2b26b4cb00a7da4a47a8e33b3b001f7034690a`.
+All nine annotations and job/step metadata are retained. The 1,108 distinct
+current-discovery headers end at
+`finance.test_setup_discovery_register.SetupAndDiscoveryWorkRegisterTests.test_uat_viewer_does_not_receive_setup_or_discovery_action_groups`.
+There is no suite summary, failure-detail header or unittest FAIL/ERROR marker.
+Service initialization, dependency installation and container cleanup succeeded;
+six permission annotations map to five completed passing negative cases. Actual
+full-context analysis is `.tmp/ci-runtime-v156-terminal-analysis.json`. Its initial
+Windows-default JSON decoder failed to match the UTF-8 curly-apostrophe message;
+explicit UTF-8 decoding fixed only that reader. Raw evidence and the actual
+decoder failure log remain retained; no application change or rerun followed.
+Read-only watcher 10156 is terminal exit 1. Both v156 jobs are unaccepted, so
+runtime remains HIGH/OPEN and primary/dependent Finance work remains NO-GO.
 
 Resume at 20:25 local confirmed the goal ACTIVE, but the earlier full local test
 processes no longer existed. Their logs stopped at 06:59 without terminal summaries;
@@ -27,6 +56,24 @@ exit 0, both stores destroyed. Combined local publication gate PASS, including
 actual log/result hashes and all 1,133 frozen source hashes. Candidate publication
 is GO; actual new-candidate verify/mysql, primary promotion and resulting checks
 remain pending. See the v156 report for exact proof, hashes, commands and limits.
+
+Later actual publication: installed Version Manager executed development v0.7.156
+at `d666f3abd8d7c382582dc0a76dfb1aae0fdfc92a`; exact 18 paths and source proof
+verified, development push matches. [Run 38409417032](https://github.com/tepong32/grand/actions/runs/38409417032)
+is on that SHA; both verify/mysql remain IN_PROGRESS in their full regression
+steps. Security/system/drift and native service/setup prerequisites passed.
+No full remote pass, primary integration/tag publication or incident resolution
+is claimed. Outcome notes are later than the released candidate; raw original
+failed/interrupted evidence remains intact. Dependent Finance implementation held.
+
+Later v156 verify outcome: CANCELLED at unchanged 20m0s, actual annotation,
+completed 14:19:15 UTC October 13. Complete log/metadata/all five annotations
+retained: 2,095,630 bytes, SHA-256
+`263ea7a5af3c6d1acc05590fc050adb726cd08385f42d70eb171c97a1f61f399`.
+796 unique expected headers, ending in whole-package export; no complete summary
+or assertion-failure markers. Security/system/drift passed, Telegram not reached.
+Runtime repair remains insufficient; HIGH/OPEN. MySQL is still live, not a pass
+or failure inferred from verify. Primary promotion and dependent work remain NO-GO.
 
 **High - OPEN, introduced on the expanded candidate, not the original email
 failure.** [Run 38294180301](https://github.com/tepong32/grand/actions/runs/38294180301)

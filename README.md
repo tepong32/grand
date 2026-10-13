@@ -79,6 +79,24 @@ The reporting seed command is idempotent: it creates or preserves the five MSWD 
 
 ## Verification
 
+Development status, October 14: Finance retrieval and retained Form 1 source,
+review, register and draft-output work are on the development branch. Guided
+whole-package intake/review, statutory issuance and LGU acceptance remain open.
+See [the current handoff](CONTINUE.md) and [Finance roadmap](docs/FINANCE_ROADMAP.md)
+for the exact implementation and validation boundaries.
+
+The [Actions incident](docs/FINANCE_CI_INCIDENT_2026-10-12.md) remains open.
+The [CI workload repair](docs/FINANCE_V157_CI_VALIDATION.md) preserves complete
+discovery across isolated SQLite/MySQL workers and mandatory aggregate coverage
+checks. SQLite's 195 native-only skips must execute on MySQL with zero native
+skips. The candidate's complete local rehearsal passed all 2,468 native tests
+without skips, including all 195 SQLite-skipped identities; all eight SQLite
+shards and security/system/migration preflight passed. These local results do
+not establish remote acceptance. Primary promotion and
+production remain NO-GO. If the new remote verify attempt remains unaccepted,
+retain its evidence and continue independently validated Finance work without
+claiming that the failing release gate passed.
+
 Install the development-only audit tool when performing security maintenance:
 
 ```powershell

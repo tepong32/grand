@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.157] - 2026-10-14
+### Fixed
+- fix(ci): distribute complete regressions across isolated workers
+
 ## [0.7.156] - 2026-10-13
 ### Fixed
 - fix(finance): reuse verified Form 1 evidence within each operation

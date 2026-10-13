@@ -20,6 +20,14 @@ Fresh databases matter: Django transaction tests flush data while retaining migr
 
 ## CI
 
+The uncommitted v157 candidate distributes complete discovery over isolated
+class-preserving CI workers and requires complete successful coverage at the
+existing verify/mysql gates. Each CI native worker has its own service and
+both fresh stores; **do not run local shards concurrently against the same
+fixed test schemas**. Ordinary unsharded execution remains unchanged. Candidate
+local/remote validation is still pending; this is not current primary-branch
+acceptance. See [candidate evidence](FINANCE_V157_CI_VALIDATION.md).
+
 Test lifecycle isolation is part of native proof. A manually instantiated source
 factory does not receive the outer test's cleanup automatically: register its
 `doCleanups()` before calling `setUp()` and propagate cleanup failures. Restore

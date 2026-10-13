@@ -3,6 +3,15 @@
 Current execution follows the [2026-09-18 foundation gate](FINANCE_FOUNDATION_GATE.md):
 complete existing retrieval and Budget context before broader Finance features.
 
+October 13 execution direction: finish the current zero-skip native regression
+and validate the bounded [CI distribution repair](FINANCE_V157_CI_VALIDATION.md)
+on GitHub. If verify remains unaccepted, document the exact result and continue
+independently validated Finance development toward guided whole Form 1 intake
+and independent review; avoid further speculative CI optimization. This user
+direction does not turn failing checks into passes, authorize primary promotion
+through required gates, or close critical dependency/production findings.
+Update README, handoff and gap records with each actual checkpoint.
+
 The local 2026-10-12 printable flow checkpoint connects source-authorized PDF and
 whole JSON drafts to retained account review. It preserves original approvals,
 signed shares and unknown coverage without asserting freshness or issuance.

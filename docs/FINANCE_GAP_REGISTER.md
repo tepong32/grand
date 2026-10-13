@@ -6,6 +6,28 @@ classification, user/control impact and dependencies. Historical findings remain
 
 ## FIN-GAP-038 - Security and native regression release gate
 
+- October 13 user direction: after the current full native validation and bounded
+  remote repair attempt, an unaccepted verify result must be documented rather
+  than consume further speculative optimization. Independently validated Finance
+  development may continue; required primary checks and unresolved critical
+  dependency/production findings remain explicit blockers to promotion/acceptance.
+- Latest bounded repair: [complete CI workload distribution](FINANCE_V157_CI_VALIDATION.md),
+  complete local validation PASS; actual remote validation pending. All 2,468 original application
+  IDs remain; six explicit coverage-runner checks pass. No assertion, native
+  constraint, security check or existing timeout is weakened. CRITICAL primary
+  dependency and HIGH runtime findings remain OPEN; dependent implementation
+  and primary promotion remain NO-GO.
+- Complete MySQL rehearsal PASS: all 2,468 tests without skips, including all
+  195 SQLite-skipped identities. Complete SQLite and security/system/migration
+  preflight PASS; exact coverage, source/log hashes and two-store cleanup verified.
+  Candidate publication GO only; this does not close the remote release blocker.
+- Actual v156 MySQL outcome is now terminal CANCELLED at its unchanged 60-minute
+  limit, completed 14:59:30 UTC October 13. Complete log/all nine annotations
+  retained: 1,108 distinct expected named starts, no suite summary or unittest
+  failure markers. Six permission annotations map to five completed passing
+  negative cases. Both v156 jobs are unaccepted; the CI workload repair requires
+  full local shard proof and actual new-candidate verify/mysql passes.
+
 - Severity/status: **CRITICAL - OPEN PRIMARY RELEASE BLOCKER**. GitHub's actual
   default-branch alerts include Critical PyJWT GHSA-ffc3-869f-jxw9 in the old pin.
   Candidate 2.15.1 is outside its affected range and all 24 returned alert ranges;
@@ -80,6 +102,17 @@ classification, user/control impact and dependencies. Historical findings remain
   publication is GO, primary/dependent implementation NO-GO pending actual CI.
   Raw binary log decoding was corrected to its verified CP1252 encoding;
   original bytes/result hashes remain. No remote pass or primary promotion is claimed.
+  Installed Version Manager subsequently executed/pushed development v0.7.156 /
+  `d666f3a` (18 intended paths); exact-SHA
+  [run 38409417032](https://github.com/tepong32/grand/actions/runs/38409417032)
+  has both full verify/mysql suites IN_PROGRESS. Prerequisites passed, neither job
+  is yet PASS. Default-branch warning still has 24 alerts, including one Critical;
+  master/tag publication and the complete vm-commit workflow remain pending.
+  Later v156 verify completed CANCELLED at its unchanged 20m0s limit; complete
+  log/all five annotations retained, 796 expected headers ending in whole-package
+  export and no terminal summary or assertion-failure markers. Security/system/
+  drift passed. MySQL remains live. Runtime remains HIGH/OPEN; measured repair
+  is insufficient for CI, so primary/dependent work remains NO-GO.
 - Next action: validate the measured remaining runtime repair, inspect MySQL outcome,
   obtain a passing repaired candidate, integrate primary after both passes
   and verify the resulting primary jobs to finish the vm-commit workflow. Resume

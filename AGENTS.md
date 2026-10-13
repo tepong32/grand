@@ -240,6 +240,12 @@ Personal-handoff adapters are implemented; generic following, shared views and n
 
 ### Project validation
 
+Development CI partitions complete test discovery by whole classes across
+isolated workers. Preserve mandatory verify/mysql coverage gates, all original
+test identities and native zero skips; never share fixed native test schemas
+between concurrent local workers. The candidate's actual acceptance is recorded
+in [CI validation](docs/FINANCE_V157_CI_VALIDATION.md), not inferred from discovery.
+
 Manually owned test source factories must register their `doCleanups()` before
 calling `setUp()`, including setup-failure paths. Keep inherited scenarios on
 their original fixture rather than precreating successor/review state. Native

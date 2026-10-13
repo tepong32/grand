@@ -2,9 +2,85 @@
 
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.
 
-Last updated: 2026-10-13
+Last updated: 2026-10-14
 
 ## Current checkpoint - Finance foundation release
+
+Current v157 CI repair checkpoint, October 14: all local publication gates PASS.
+SQLite: 2,468 tests, 2,273 passed / 195 unchanged native-only skips. MySQL:
+all 2,468 passed with zero skips, including every one of those 195 identities.
+Launcher 26124 completed exit 0; do not poll/restart it. All eight shards on
+each backend have exact complete coverage, verified raw logs/hashes and two-store
+cleanup. Preflight and all 1,136 source hashes pass. Publication is GO for the
+development candidate only; actual release/ref and GitHub outcomes must be
+verified before primary promotion. Remote/primary/production acceptance remains
+NO-GO. See [complete validation](docs/FINANCE_V157_CI_VALIDATION.md).
+
+Prior candidate, October 13: v0.7.156 / `d666f3ab` is published to the
+development branch; primary/tag promotion remains NO-GO. Its actual
+[run 38409417032](https://github.com/tepong32/grand/actions/runs/38409417032)
+verify job exceeded the existing 20-minute limit. MySQL also completed CANCELLED
+at its unchanged 60-minute limit, October 13 14:59:30 UTC. Complete raw logs and
+all nine annotations are retained. Its 1,108 distinct named starts are not a
+passing count; no terminal summary or unittest failure markers. Six source/role
+permission annotations map to five completed passing negative tests. Watcher
+10156 completed exit 1; do not poll it again or repeat this candidate dispatch.
+Two verify source-export annotations map to completed passing
+negative-permission cases. Fresh current-producer export profiling PASS:
+one case / 96.329s under cProfile, both stores destroyed; source proof remained
+unchanged before the subsequent CI-only edits. Full-profile time includes
+156.405s fresh migration setup and 56.386s overlapping deepcopy cost; these are
+diagnostics, not an ordinary retrieval SLA.
+
+The next bounded repair distributes complete discovery across isolated CI
+workers; it changes no application validator, ledger, lock, permission or
+assertion. See [candidate v157 CI validation](docs/FINANCE_V157_CI_VALIDATION.md).
+Six CI-runner regression checks PASS. Discovery-only partition proof retains all
+2,468 original IDs exactly once, whole classes and original within-shard order.
+The complete corrected SQLite shard rehearsal is PASS: launcher 21064 completed
+exit 0; all 2,468 IDs exactly once, 2,273 passed / 195 unchanged native-only
+skips, eight fresh two-store cleanups and all source/result/log hashes verified.
+Do not poll/restart completed 21064. The corrected native rehearsal subsequently
+completed PASS at launcher 26124; do not poll/restart that completed handle.
+Local native shards are
+sequential because that server uses fixed disposable test names; CI workers
+each have their own MySQL service. Local evidence does not establish a remote pass.
+Complete all local proof before Version Manager execution and exact-SHA
+candidate dispatch. Both actual aggregate verify/mysql gates must pass before
+primary integration and the held guided whole Form 1 intake/review milestone.
+Manual acceptance remains OPEN/deferred tonight under the user's instruction.
+
+Latest user direction, October 13: complete the native checks and one verified
+remote attempt for this bounded CI repair. If verify remains unaccepted, retain
+the actual failure evidence and resume independently validated Finance work up
+to the next vm-commitable checkpoint. Avoid further speculative optimization;
+do not bypass mandatory primary checks or report critical findings as resolved.
+Keep README, handoff, roadmap and gap documentation current with actual changes.
+
+Latest local evidence: all eight SQLite shards passed, including unchanged
+195 skip identities/reasons verified against the previous full producer.
+All eight native indices passed 206/205/369/204/413/392/354/325 tests
+with no skips; each destroyed both test stores. These 2,468 completed native
+tests include all 195 exact identities skipped on SQLite. Native launcher
+26124 is terminal exit 0. Complete independent publication proof PASS is retained
+in `.tmp/ci-shards-v157-local-publication-gate.log`.
+Preflight 13291 completed exit 0: runner/YAML, system/drift, pip/audit and five
+explicit Telegram checks all passed with actual exit/log-hash records. Installed
+Version Manager preview confirms v157 without changing files/Git. Publication
+requires `.tmp/verify_ci_shards_candidate_gate.py` to pass every completed shard,
+exact actual log IDs, all original skip identities/reasons, exit/log hashes,
+both-store cleanup, preflight evidence and all 1,136 frozen source hashes.
+Initial read-only `.tmp/execute_ci_shard_release.py` scope inspection PASS: 12
+intended paths, empty index, expected parent/branch, absent v157 tag, installed
+preview and frozen-source proof. It made no staging/commit/push. Its `--execute`
+and the installed-tool adapter both require the complete local publication gate;
+use them only after all native results are terminal PASS. Installed Version
+Manager manages the two VERSION/CHANGELOG additions; expected release scope is
+14 paths at that inspection. The subsequent user-requested README and roadmap
+updates expand the intended scope to 14 paths plus VERSION/CHANGELOG, 16 total.
+Fresh read-only scope inspection passes this exact expanded set with an empty
+index and unchanged source proof. Preserve failed v154/v155/v156 tags and do
+not publish them in bulk.
 
 Worktree: `C:/Users/Administrator/.codex/worktrees/grand-finance-my-work`, branch
 `codex/finance-budget-attribution`, based on v0.7.153 / `61e690e4`.
@@ -119,6 +195,40 @@ report records validation before publication: inspect actual Git/tag/execution
 evidence for v156 rather than inferring execution from its refreshed preview.
 Exact-SHA remote verify/mysql remain required before primary integration/tag
 publication or dependent implementation. Production/full Finance remains NO-GO.
+Actual publication update: installed Version Manager executed v0.7.156,
+`d666f3abd8d7c382582dc0a76dfb1aae0fdfc92a`, parent `e6e1cb8e`, exactly 18
+intended paths (16 repair/evidence plus VERSION/CHANGELOG), uniform commit
+subject and local tag verified. The development branch push matches that SHA;
+master remains `c5bd920a` and remote v156 tag is not published. Guarded preview
+passed, then the single dispatch returned HTTP 204 at 13:58:40 UTC, October 13.
+[Candidate run 38409417032](https://github.com/tepong32/grand/actions/runs/38409417032)
+tests that exact SHA. Verify `115337497255` and MySQL `115337496904` are both
+IN_PROGRESS in their complete project/native regression steps. Verify dependency,
+audit, system and migration prerequisites passed; MySQL initialization/setup passed.
+Neither complete job is yet PASS. Read-only watcher handle 10156 is live; follow
+that handle and actual API evidence, never repeat release/push/dispatch. Publication
+proof `.tmp/ci-summary-reuse-v156-release.json`, dispatch marker in
+`.tmp/actions-release-20261012/dispatch-d666f3abd8d7c382582dc0a76dfb1aae0fdfc92a.json`.
+These outcome observations postdate the released candidate; source is unchanged,
+but this handoff update is not part of that commit. The vm-commit workflow still
+requires both remote passes, primary integration/push/tag and resulting checks.
+Later terminal verify result: job 115337497255 completed CANCELLED at the
+unchanged 20-minute limit (actual annotation 20m0s), October 13 14:19:15 UTC.
+Complete raw log: 2,095,630 bytes, SHA-256
+`263ea7a5af3c6d1acc05590fc050adb726cd08385f42d70eb171c97a1f61f399`.
+All five annotations are retained. There are 796 distinct expected test headers,
+ending in complete reviewed whole-package export, no terminal passing summary,
+no failure-detail headers or unittest failure markers. Telegram was not reached.
+Security/system/drift passed. Runtime repair remains insufficient for CI and
+HIGH/OPEN; do not promote, repeat dispatch or raise limits merely for green.
+MySQL job remains IN_PROGRESS; watcher 10156 is still live. Inspect its actual
+result independently. Further diagnosis must use the retained complete log and
+measured current-producer scenario; dependent Finance implementation remains held.
+Current-producer genuine export cProfile is now live, handle 14855, isolated
+SQLite via `.tmp/my_work_sqlite.py`, exact complete-reviewed-three-office export
+case. New files `.tmp/ci-runtime-v156-package-export.prof` and
+`ci-runtime-v156-package-export-profile.log` preserve earlier profiles. Follow
+that handle; source remains unchanged and no passing profile result is yet claimed.
 The old GitHub watcher (49890) completed exit 1; do not poll or repeat it.
 Do not repeat release/dispatch. Master integration, remote tag publication and
 resulting primary checks remain pending. These post-publication documentation
