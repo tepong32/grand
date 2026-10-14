@@ -1,5 +1,11 @@
 # Finance gap register
 
+Latest functional checkpoint: [source findings](FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md)
+v0.7.167 / `51cad4be` is integrated/pushed after all 19 candidate jobs passed,
+native 2,544 / zero skips and SQLite 2,345 / 199 native-only skips. Resulting primary
+38547702277 passed all 19 jobs on attempt 2, with complete retained coverage. Factual review does not resolve numerical/statutory/local
+acceptance gates; earlier entries retain their historical scope.
+
 Latest accepted primary v166 / `27b3f63`: guided intake is integrated/pushed.
 Candidate 38464296069 and primary 38470645692 passed security/verify/mysql and all
 workers; native 2,533 / zero skips, SQLite 2,335 / 198 native skips. Original raw

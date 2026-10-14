@@ -119,13 +119,21 @@ native-only skips. Raw logs, exact coverage and both-store cleanup were verified
 Original cash/forecast/PhilHealth evidence and independent whole-package review
 remain distinct from supported numerical treatment, statutory signatures and issuance.
 
-The next bounded [original-source findings checkpoint](docs/FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md)
-provides retained part-level proposals, independent office decisions and history/
-original-document export. Final validation/release gates are pending; it does not
-change financial deductions or available cash. The [remaining-task list](docs/FINANCE_REMAINING_WORK_2026-10-14.md)
-records actual progress and corrects unsupported whole-project time/percentage
-estimates. Exact required outputs, local earmark semantics, ordinary office use
-and operational/LGU acceptance remain unfinished. Production remains **NO-GO**.
+The v0.7.167 [original-source findings checkpoint](docs/FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md)
+is integrated/pushed at `51cad4be`. It provides retained part-level proposals,
+independent Budget/Accounting/Treasury findings, returns/successors, and full
+history/original-document delivery. The [candidate run](https://github.com/tepong32/grand/actions/runs/38480389037)
+passed all 19 jobs: native 2,544 / zero skips, SQLite 2,345 / 199 native-only skips;
+full logs and exact coverage verified. The [resulting primary run](https://github.com/tepong32/grand/actions/runs/38547702277)
+passed all 19 jobs after one identical-revision SQLite retry. It changes no financial deduction, journal or cash availability.
+
+The [remaining-task list](docs/FINANCE_REMAINING_WORK_2026-10-14.md) records actual
+progress, test/CI timings and the observation interruption separately. It withdraws
+unsupported whole-project hour/percentage estimates. Supported numerical treatment,
+statutory issuance, local earmark semantics, exact outputs, ordinary office use and
+operational/LGU acceptance remain unfinished. Normal-browser file-save acceptance
+also remains open after cancellation despite successful application HTTP integrity
+checks. Production remains **NO-GO**.
 
 Install the development-only audit tool when performing security maintenance:
 

@@ -1,5 +1,11 @@
 # Required office outputs: source map and unresolved acceptance
 
+Latest functional checkpoint: [source findings](FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md)
+v0.7.167 / `51cad4be` is integrated/pushed after all 19 candidate jobs passed,
+native 2,544 / zero skips and SQLite 2,345 / 199 native-only skips. Resulting primary
+38547702277 passed all 19 jobs on attempt 2, with complete retained coverage. Factual review does not resolve numerical/statutory/local
+acceptance gates; earlier entries retain their historical scope.
+
 October 14 update: whole Form 1 draft assembly, guided intake, history/export and
 internal review are included in accepted primary v166; candidate and primary
 CI passed. Original-source [treatment findings](FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md)

@@ -1,5 +1,11 @@
 # Finance foundation completion gate — 2026-09-18
 
+Latest functional checkpoint: [source findings](FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md)
+v0.7.167 / `51cad4be` is integrated/pushed after all 19 candidate jobs passed,
+native 2,544 / zero skips and SQLite 2,345 / 199 native-only skips. Resulting primary
+38547702277 passed all 19 jobs on attempt 2, with complete retained coverage. Factual review does not resolve numerical/statutory/local
+acceptance gates; earlier entries retain their historical scope.
+
 Current primary baseline: v0.7.166 / `27b3f63` is vm-committed, integrated and
 pushed. Candidate 38464296069 and primary 38470645692 both passed all 19 jobs:
 2,533 native tests, zero skips; SQLite 2,335 passed / 198 native-only skips.

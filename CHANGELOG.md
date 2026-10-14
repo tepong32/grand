@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.168] - 2026-10-14
+### Documentation
+- docs(finance): record source-findings acceptance and remaining work
+
 ## [0.7.167] - 2026-10-14
 ### Added
 - feat(budget): retain independent Form 1 source findings

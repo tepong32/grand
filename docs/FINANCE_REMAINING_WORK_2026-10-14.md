@@ -30,6 +30,18 @@ Measured recent baselines:
   finished successfully with 19 jobs and 2,533 native tests / zero skips.
   These are observed run durations, not promised future runtimes.
 
+Current v167 measured result: nine-label, 35-case regression passed on both
+backends: SQLite 33 passed / two native skips, 1,436.823s (23m57s); native all 35
+passed / zero skips, 1,642.254s (27m22s). Candidate CI passed all 19 jobs and 2,544
+native tests / zero skips in 39m29s. It ran 06:49:58–07:29:27 Singapore time on
+October 14. An observed closed-stdout interruption delayed follow-up until about
+18:09; its cause is unknown. Do not count that unobserved gap as coding, test or CI
+time, or promise a 2–4-hour wall-clock turnaround that depends on uninterrupted
+execution. The resulting primary run passed on attempt 2 after one bounded, unchanged-source
+SQLite-3/verify retry; the first timeout and failed verify gate remain retained.
+A specific hosted-resource cause was not established; timing headroom remains a
+medium engineering risk and is not repaired merely by a successful retry.
+
 Use active agent hours for implementation estimates and separately report elapsed
 test/CI waits. Model choice alone supplies no measured GRAND delivery multiplier.
 
@@ -37,7 +49,7 @@ test/CI waits. Model choice alone supplies no measured GRAND delivery multiplier
 
 | Original gate | Remaining work / completion evidence | Dependency and current estimate |
 | --- | --- | --- |
-| FG-03/06: Budget historical context and Form 1 | Complete the present source-finding intake, independent decisions, history/export and native races. Then implement only evidenced numerical treatment through a fresh whole-package successor; retain separate gross ending, deduction, adjustment and net controls. Finish statutory certification/Chief Executive approval and immutable issued output with the actual designated roles. | Current bounded findings checkpoint: plan 2–4 elapsed hours including validation and two CI runs, anchored to the baselines above. This is a planning allowance, not a whole-Form-1 promise. Numerical/issuance effort remains unestimated until the applicable recipe and exact role/output inputs are established. |
+| FG-03/06: Budget historical context and Form 1 | Source-finding intake, independent decisions, history/export and native races are implemented in v167. Remaining: implement only evidenced numerical treatment through a fresh whole-package successor; retain separate gross ending, deduction, adjustment and net controls. Finish statutory certification/Chief Executive approval and immutable issued output with the actual designated roles. | The earlier 2–4-hour checkpoint allowance is not an actual delivery-time claim: the observation connection was interrupted after candidate CI completed, and verification/integration resumed in the evening. Measured local/CI durations are recorded below. Numerical/issuance effort remains unestimated until the applicable recipe and exact role/output inputs are established. |
 | FG-04/05: quarterly plan and distinct earmark certificate | Existing quarterly authority/ARO route is implemented; confirm reserved-column/form meaning. Establish actual earmark appropriation-versus-allotment basis, certificate numbering, consumption, cancellation/correction and independent review before extending existing Budget controls. | Local earmark rules are UNKNOWN; the user explicitly said not yet confirmed. Do not substitute generic reserves or invent capacity. Manual decision deferred; implementation estimate follows the established lifecycle. |
 | FG-06: required outputs | Reconcile the [existing office output map](FINANCE_REQUIRED_OUTPUT_MAP.md) with actual Budget, Accounting and Treasury work. Reproduce required fields, columns, classifications, source references, totals, comparatives and signatures from accepted evidence. Fix demonstrated gaps using existing generation/export services. | Scope the remaining output repairs by named required forms, not the 31-form candidate catalog. A bounded next replay/inventory checkpoint can be planned at 2–4 active hours; that does not estimate every subsequently discovered repair or local printer acceptance. |
 | FG-07/08/09: ordinary work and source reuse | Extend retained ordinary-chain proof to the actual office scenarios, historical-source adoption, returns/corrections and interrupted recovery that are still required. Prove lineage and unchanged earlier financial evidence through outputs. | Existing core routes and synthetic replay are evidence, not blanket office acceptance. Name the next scenarios before estimating their repair work; no speculative cheque/agency edge-case breadth ahead of foundation completion. |

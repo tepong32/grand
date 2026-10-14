@@ -1,9 +1,19 @@
 # Form 1 treatment proposals and independent findings
 
-Development from published v0.7.166 / `27b3f63`. The bounded implementation is locally validated and prepared for the installed
-VM release; candidate/primary remote gates remain pending. It is not numerical
+Development from published v0.7.166 / `27b3f63`. The bounded implementation is integrated/pushed after local and candidate
+acceptance; the resulting primary gate also passed, with its unsuccessful first attempt retained. It is not numerical
 treatment approval or LGU acceptance. Continue the [existing treatment plan](FINANCE_FORM1_PHILHEALTH_SOURCE_AUDIT.md)
 and [whole-package review contract](FINANCE_FORM1_PACKAGE_REVIEW_DESIGN.md).
+
+## Release evidence
+
+Functional v0.7.167 / `51cad4be` is installed-VM committed, integrated/pushed with
+exact master/tag refs verified. [Candidate 38480389037](https://github.com/tepong32/grand/actions/runs/38480389037)
+passed all 19 jobs, native 2,544 / zero skips, SQLite 2,345 / 199 native-only skips.
+Full original logs, exact coverage/identities and both-store cleanup verified;
+every prior identity retained. Resulting [primary 38547702277](https://github.com/tepong32/grand/actions/runs/38547702277)
+passed all 19 jobs on attempt 2. Earlier development statements below retain their original validation
+scope; see the current handoff for release acceptance. Production/LGU NO-GO.
 
 ## Current implementation
 
@@ -144,3 +154,19 @@ revocation. This proves application delivery within that scope, not a completed
 browser file save or a diagnosed browser cancellation cause. Do not change the
 user's browser/download software to obtain a pass; manual acceptance is deferred.
 The owned browser and rehearsal server are closed/stopped; original fixtures remain.
+
+
+Primary first attempt: SQLite worker 3 exceeded the unchanged 20-minute job limit
+and was canceled; the complete gate is not accepted. Exact job/annotations/raw
+log are retained in `.tmp/ci-proof-38547702277/`. The identical candidate worker
+completed all 267 cases in 702.687s; primary started the same first 205 cases before
+cancellation. Median duration of 29 common cases was 1.60 times candidate; no
+assertion failure was observed. This proves timing variance, not its specific
+hosted-resource cause. One bounded canceled-job/dependent-gate retry completed successfully on the
+identical SHA, with no source, limit, assertion or check change. Preserve
+the unsuccessful attempt; do not label it PASS. Full primary acceptance now passes with complete exact coverage, while the failed
+first attempt and timing risk remain documented.
+
+Retry completion: Ran 267 tests in 833.475s. Overall primary security/verify/mysql and
+all 19 jobs PASS. No timeout/check/assertion changes. GO for this bounded
+engineering checkpoint; numerical/local/production acceptance remains NO-GO.
