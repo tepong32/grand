@@ -67,7 +67,15 @@ unresolved risk, with its specific hosted cause unproven. Further CI optimizatio
 is deferred in accordance with the user's instruction. No whole-goal completion
 or precise remaining-hours total is inferred.
 
-Next named independent checkpoint: inspect one ordinary payable clerk handoff
+The named [ordinary clerk handoff checkpoint](FINANCE_CLERK_HANDOFFS_2026-10-14.md)
+has now reproduced/repaired a requesting-office dashboard count leak and reduced
+demonstrated empty-queue clutter. Final 31-case local scope passes on both backends,
+with read-only desktop/mobile source handoffs checked. This advances entry/retrieval
+and usability; it does not establish all later physical/review/settlement screen
+actions or local acceptance. Publication/CI are in CONTINUE.md. The allowance below
+was a planning bound, not a full-goal forecast.
+
+Previously named independent checkpoint: inspect one ordinary payable clerk handoff
 through the published department dashboards and existing My Work, comparing
 source context and available next actions for each office. Planning allowance:
 1–2 active hours for the bounded replay and a small demonstrated repair, plus

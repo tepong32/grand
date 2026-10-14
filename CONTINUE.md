@@ -4,7 +4,26 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-10-14
 
-## Current bounded Finance checkpoint — partial settlement outputs
+## Current bounded Finance checkpoint — ordinary clerk handoffs
+
+Current independent work: `codex/finance-clerk-handoffs`, based on v171 /
+`06494330`, same isolated worktree. [Ordinary clerk handoffs](docs/FINANCE_CLERK_HANDOFFS_2026-10-14.md)
+reproduced a pre-existing requesting-office dashboard aggregate exposure (MEDIUM),
+then repaired counts with the existing workbench visibility helper. UAT's broader
+read scope remains intact. My Work now puts non-empty groups first and retains
+all zero-count queue links in a closed disclosure, addressing demonstrated mobile
+friction. No model, role, source, financial transition or CSV export contract changes.
+
+PASS: final 31-case dependent SQLite / 14.630s and native / 19.586s, zero skips,
+exit 0 and both stores destroyed. Earlier red reproduction and before-UI tests
+are retained. Browser read-only requester → waiting case, independent Accounting
+ready item/review controls and Treasury's not-yet-ready state PASS. Same case/OBR,
+zero claim/allocation difference, unchanged case version/stage and journal count.
+Desktop/mobile screenshots inspected; reviewer mobile height 5,878 → 2,909 pixels,
+no page overflow; all eight empty links remain expandable. Owned browser and servers
+closed. Publication/current-code CI remain pending; production NO-GO.
+
+## Published partial-settlement checkpoint and CI evidence
 
 Published v0.7.169 / `a1cc3a394f9c8fcf210cd9dc4b64cb6e8e19480a`, branch
 `codex/finance-partial-output-replay`, same isolated worktree below. Installed VM

@@ -1,0 +1,26 @@
+{% regroup groups by area as area_groups %}
+{% for area in area_groups %}
+<section class="card card-outline card-primary">
+  <div class="card-header"><h2 class="card-title font-weight-bold">{{ area.grouper }}</h2></div>
+  <div class="card-body p-0">
+    <div class="table-responsive finance-work-scroll">
+      <table class="table table-hover mb-0 finance-work-table">
+        <thead><tr><th>Attention group</th><th class="text-right">Count</th><th>Meaning and scope</th><th></th></tr></thead>
+        <tbody>
+        {% for group in area.list %}
+          <tr>
+            <td class="font-weight-bold" data-label="Attention group">{{ group.title }}</td>
+            <td class="text-right" data-label="Count"><span class="badge badge-{% if group.count %}warning{% else %}light{% endif %} p-2">{{ group.count }}</span></td>
+            <td class="small" data-label="Meaning and scope">
+              <div>{{ group.definition }}</div>
+              <div class="text-muted"><strong>Scope:</strong> {{ group.scope }}</div>
+            </td>
+            <td class="text-right" data-label="Continue"><a class="btn btn-sm btn-outline-primary" href="{{ group.url }}">Open exact queue</a></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endfor %}

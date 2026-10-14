@@ -42,6 +42,8 @@ def my_work(request):
         setattr(page, name, "?" + params.urlencode() + "#work-items")
     attention["task_page"] = page
     attention["tasks"] = page.object_list
+    attention["active_groups"] = [group for group in attention["groups"] if group["count"]]
+    attention["empty_groups"] = [group for group in attention["groups"] if not group["count"]]
     attention["can_export_work"] = can_export_work(request.user)
     attention["export_row_limit"] = WORK_EXPORT_LIMIT
     attention["planned_days"] = planned_days

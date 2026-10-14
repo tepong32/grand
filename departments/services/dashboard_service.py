@@ -281,8 +281,10 @@ def _workspace_sections(department: Department, user=None) -> list[dict]:
     if can_view_workbench(user):
         from vouchers.models import VoucherCase
         from vouchers.roles import finance_workspace_profile
+        from vouchers.case_exports import visible_cases_for_user
 
-        open_cases = VoucherCase.objects.exclude(current_stage__in=(VoucherCase.COMPLETED, VoucherCase.CANCELLED))
+        visible_cases = visible_cases_for_user(user)
+        open_cases = visible_cases.exclude(current_stage__in=(VoucherCase.COMPLETED, VoucherCase.CANCELLED))
         finance_profile = finance_workspace_profile(user)
         role_cases = open_cases.filter(current_stage__in=finance_profile["stages"])
         voucher_section = next((
@@ -307,7 +309,7 @@ def _workspace_sections(department: Department, user=None) -> list[dict]:
             "summary_items": (
                 {"label": "For this office", "value": role_cases.count()},
                 {"label": "Open shared", "value": open_cases.count()},
-                {"label": "Completed", "value": VoucherCase.objects.filter(current_stage=VoucherCase.COMPLETED).count()},
+                {"label": "Completed", "value": visible_cases.filter(current_stage=VoucherCase.COMPLETED).count()},
             ),
         })
     if slug == "mswd":

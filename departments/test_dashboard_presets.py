@@ -82,3 +82,60 @@ class DepartmentPresetTests(TestCase):
         response = self.client.get(reverse("department_dashboard"))
         self.assertContains(response, "Office work queue")
         self.assertContains(response, "Reports and performance")
+
+
+class FinanceDashboardVisibilityTests(TestCase):
+    databases = {"default", "finance"}
+
+    @classmethod
+    def setUpTestData(cls):
+        from vouchers.models import VoucherCase
+        cls.office = Department.objects.create(name="General Services Office", slug="gso")
+        cls.other_office = Department.objects.create(name="Engineering Office", slug="engineering")
+        cls.accounting = Department.objects.create(name="Accounting Office", slug="accounting")
+        cls.clerk = get_user_model().objects.create_user(username="dashboard-payable-clerk")
+        cls.clerk.employeeprofile.assigned_department = cls.office
+        cls.clerk.employeeprofile.save()
+        cls.clerk.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="vouchers",
+            codename__in=("view_voucher_workbench", "initiate_payable_case")))
+        for office in (cls.office, cls.other_office):
+            for stage in (VoucherCase.PAYABLE_PREPARATION, VoucherCase.PAYABLE_REVIEW, VoucherCase.COMPLETED):
+                VoucherCase.objects.create(reference_code=f"SCOPE-{office.pk}-{stage}",
+                    requesting_department=office,
+                    current_department=office if stage == VoucherCase.PAYABLE_PREPARATION else cls.accounting,
+                    current_stage=stage, created_by=cls.clerk, payee_name="Synthetic supplier",
+                    particulars="Synthetic legacy case for read-scope checks", authoritative_obligation_amount=0)
+
+    def finance_card(self, sections):
+        return next(row for row in sections if row.get("url_name") == "vouchers:workspace")
+
+    def test_requesting_dashboard_counts_match_visible_workbench(self):
+        from vouchers.models import VoucherCase
+        before = list(VoucherCase.objects.order_by("pk").values_list("pk", "state_version", "current_stage"))
+        card = self.finance_card(_workspace_sections(self.office, self.clerk))
+        self.assertEqual({item["label"]: item["value"] for item in card["summary_items"]},
+                         {"For this office": 1, "Open shared": 2, "Completed": 1})
+        self.client.force_login(self.clerk)
+        dashboard = self.client.get(reverse("department_dashboard"))
+        self.assertEqual(dashboard.status_code, 200)
+        self.assertEqual(self.finance_card(dashboard.context["dashboard_sections"])["summary_items"],
+                         card["summary_items"])
+        workbench = self.client.get(reverse("vouchers:workspace"))
+        self.assertEqual(workbench.status_code, 200)
+        self.assertEqual((workbench.context["queue_count"], workbench.context["open_count"],
+                          workbench.context["completed_count"]), (1, 2, 1))
+        self.assertEqual(list(VoucherCase.objects.order_by("pk").values_list("pk", "state_version", "current_stage")), before)
+
+    def test_uat_viewer_keeps_existing_broader_read_scope(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+        self.clerk.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        card = self.finance_card(_workspace_sections(self.office, self.clerk))
+        self.assertEqual({item["label"]: item["value"] for item in card["summary_items"]},
+                         {"For this office": 2, "Open shared": 4, "Completed": 2})
+        self.client.force_login(self.clerk)
+        workbench = self.client.get(reverse("vouchers:workspace"))
+        self.assertEqual(workbench.status_code, 200)
+        self.assertEqual((workbench.context["queue_count"], workbench.context["open_count"],
+                          workbench.context["completed_count"]), (2, 4, 2))

@@ -1,5 +1,11 @@
 # GRAND Finance complete-cycle roadmap
 
+Current bounded ordinary-clerk work: [scoped dashboard counts and My Work](FINANCE_CLERK_HANDOFFS_2026-10-14.md).
+Repair demonstrated requesting-office aggregate exposure and bring current work
+above expandable empty queues. Preserve all grants, source queries and financial
+controls. Final local SQLite/native and desktop/mobile checks pass; publication
+and current-code CI are separate gates in CONTINUE.md. No new report/module scope.
+
 Published bounded foundation proof: [partial payment/return/reissue outputs](FINANCE_PARTIAL_PAYMENT_OUTPUT_REPLAY.md),
 v169 / `a1cc3a39`, integrated/pushed after all 19 candidate jobs passed, native
 2,545 / zero skips and SQLite 2,346 / 199 native-only skips.

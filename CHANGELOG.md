@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.172] - 2026-10-14
+### Fixed
+- fix(finance): scope dashboard totals and surface current clerk work
+
 ## [0.7.171] - 2026-10-14
 ### Documentation
 - docs(finance): retain primary timeout and retry evidence

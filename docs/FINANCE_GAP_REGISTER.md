@@ -1,5 +1,13 @@
 # Finance gap register
 
+FG-01/07/11 follow-up: [clerk handoffs](FINANCE_CLERK_HANDOFFS_2026-10-14.md).
+MEDIUM pre-existing dashboard aggregate exposure is locally repaired: requesting
+offices' counts now reuse their actual workbench scope, while UAT read scope is
+preserved. LOW demonstrated mobile navigation friction is locally repaired by
+collapsing empty queues without removing links, counts or controls. Final 31-case
+SQLite/native and read-only desktop/mobile checks pass. Publication/remote status
+is in CONTINUE.md; whole-office acceptance and production remain NO-GO.
+
 FG-06/07 bounded follow-up: [partial settlement output replay](FINANCE_PARTIAL_PAYMENT_OUTPUT_REPLAY.md).
 No production defect has been reproduced. The new test checks gross Treasury
 history separately from net Accounting settlement and retains prior exports and

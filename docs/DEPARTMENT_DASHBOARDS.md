@@ -13,6 +13,11 @@ and ICT. Common slug aliases select descriptions only; they do not grant roles
 or change department identities. Unknown offices use the generic starting page.
 No offices, permissions or operator data are seeded automatically.
 
+Finance card aggregates use the workbench's existing case visibility, including
+completed history: requesting-office clerks' counts exclude other offices' cases,
+while existing UAT broader read access is preserved. See the [clerk handoff evidence](FINANCE_CLERK_HANDOFFS_2026-10-14.md)
+for the red reproduction, repair, real-route comparison and acceptance boundary.
+
 Accounting, Budget, collection, reporting, record, custody, Finance setup and
 voucher links reuse their existing access helpers. HR leave administration links
 to the actual management screen only when authorized. Everyday employee links

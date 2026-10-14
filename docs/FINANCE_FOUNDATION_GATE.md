@@ -1,5 +1,10 @@
 # Finance foundation completion gate — 2026-09-18
 
+[Ordinary clerk handoff work](FINANCE_CLERK_HANDOFFS_2026-10-14.md) advances
+requesting-office retrieval/aggregate privacy and readable current work. It is
+locally validated, not full ordinary-office or LGU acceptance. Preserve all
+remaining numerical, certificate, output and operational requirements below.
+
 Published ordinary-work follow-up: [partial payment/return/reissue output replay](FINANCE_PARTIAL_PAYMENT_OUTPUT_REPLAY.md),
 v169 / `a1cc3a39`, integrated/pushed after complete 19-job candidate acceptance.
 This verifies existing source reuse, net settlement and unchanged earlier outputs;

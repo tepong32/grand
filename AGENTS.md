@@ -20,6 +20,9 @@ before serving and prune expired counters daily. See [auth security](docs/AUTH_S
 Department starting-page presets and slug aliases describe office scope only;
 they never confer access. Available links reuse module permissions; unfinished
 and restricted cards are nonclickable. See [dashboard design](docs/DEPARTMENT_DASHBOARDS.md).
+Finance dashboard aggregates reuse the workbench's actual case visibility, including
+completed history. Collapsed empty My Work queues retain their original scoped links
+and counts; presentation never grants action authority. See [clerk handoffs](docs/FINANCE_CLERK_HANDOFFS_2026-10-14.md).
 
 Budget source attribution, native/adopted joint actuals and cash, office schedules,
 receipt forecasts and Form 1 drafts follow the detailed

@@ -6,6 +6,12 @@ The current MSWD pilot combines Assistance request processing, social-welfare pr
 
 ## Current capabilities
 
+The bounded [Finance clerk handoff repair](docs/FINANCE_CLERK_HANDOFFS_2026-10-14.md)
+aligns requesting-office dashboard counts with permitted workbench records and
+keeps empty My Work queues expandable beneath current work. Local dependent and
+desktop/mobile checks pass; CONTINUE.md records actual publication/CI status.
+This does not establish complete office or production acceptance.
+
 - Configurable public identity, service cards, icons, media, colors, and plain-language navigation.
 - Dynamic employee dashboards with department-specific modules, leadership, team, plantilla, leave, contacts, and announcements.
 - Floating, non-modal Internal How-Tos that follow the employee's current department and role, prioritize the current page, retain private progress, and never transfer a predecessor's completion to a successor.

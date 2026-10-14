@@ -60,37 +60,24 @@
     Counts are generated from live governed registers; opening a group applies the same scope and state filter.
   </div>
 
-  {% regroup groups by area as area_groups %}
-  {% for area in area_groups %}
-  <section class="card card-outline card-primary">
-    <div class="card-header"><h2 class="card-title font-weight-bold">{{ area.grouper }}</h2></div>
-    <div class="card-body p-0">
-      <div class="table-responsive finance-work-scroll">
-        <table class="table table-hover mb-0 finance-work-table">
-          <thead><tr><th>Attention group</th><th class="text-right">Count</th><th>Meaning and scope</th><th></th></tr></thead>
-          <tbody>
-          {% for group in area.list %}
-            <tr>
-              <td class="font-weight-bold" data-label="Attention group">{{ group.title }}</td>
-              <td class="text-right" data-label="Count"><span class="badge badge-{% if group.count %}warning{% else %}light{% endif %} p-2">{{ group.count }}</span></td>
-              <td class="small" data-label="Meaning and scope">
-                <div>{{ group.definition }}</div>
-                <div class="text-muted"><strong>Scope:</strong> {{ group.scope }}</div>
-              </td>
-              <td class="text-right" data-label="Continue"><a class="btn btn-sm btn-outline-primary" href="{{ group.url }}">Open exact queue</a></td>
-            </tr>
-          {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-  {% empty %}
+  {% if active_groups %}
+    {% include "finance/_work_attention_groups.html" with groups=active_groups only %}
+  {% elif groups %}
+  <p class="text-muted">The queues shown here have no current work.</p>
+  {% else %}
   <div class="card"><div class="card-body">
     <h2 class="h5">No supported action group is assigned</h2>
     <p class="text-muted mb-0">Your Finance entry remains available, but this account does not hold an action permission covered by this attention view.</p>
   </div></div>
-  {% endfor %}
+  {% endif %}
+  {% if empty_groups %}
+  <details class="finance-work-disclosure mb-3">
+    <summary>Show {{ empty_groups|length }} empty queue{{ empty_groups|length|pluralize }}</summary>
+    <div class="mt-3">
+      {% include "finance/_work_attention_groups.html" with groups=empty_groups only %}
+    </div>
+  </details>
+  {% endif %}
 
   {% endif %}
   <section class="card card-outline card-secondary" id="work-items">

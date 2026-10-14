@@ -48,6 +48,11 @@ see [the delivery contract](FINANCE_FORM1_PACKAGE_REVIEW_DESIGN.md) and CONTINUE
 
 ## Working map
 
+The [clerk handoff repair](FINANCE_CLERK_HANDOFFS_2026-10-14.md) changes entry-page
+counts and empty-queue presentation only. It retains original case/OBR links,
+task identities, source counts and export contracts; it creates no new official
+output or accepted local layout.
+
 The published v169 [partial settlement replay](FINANCE_PARTIAL_PAYMENT_OUTPUT_REPLAY.md) extends
 the ordinary linked-source proof to a returned/replaced partial payment. Treasury
 instrument totals retain gross historical issue/release events; Accounting's exact
