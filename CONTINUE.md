@@ -6,8 +6,13 @@ Last updated: 2026-10-14
 
 ## Current bounded Finance checkpoint — partial settlement outputs
 
-Branch `codex/finance-partial-output-replay`, same isolated worktree below,
-based on accepted v0.7.168 / `5d61369`. No newer master was found on October 14.
+Published v0.7.169 / `a1cc3a394f9c8fcf210cd9dc4b64cb6e8e19480a`, branch
+`codex/finance-partial-output-replay`, same isolated worktree below. Installed VM
+commit/tag, primary fast-forward and atomic master/tag push completed; exact remote
+refs verified. Published Auth/security changes are preserved. The v168 baseline's
+[primary run](https://github.com/tepong32/grand/actions/runs/38555013367) passed all
+19 jobs, native 2,544 / zero skips, SQLite 2,345 / 199 native skips; complete original
+logs, identities and both-store cleanup verified.
 The [partial payment replay](docs/FINANCE_PARTIAL_PAYMENT_OUTPUT_REPLAY.md) adds
 one realistic regression case to existing consolidated settlement tests: two
 payments, exact reversal of one bank return, replacement, three-stage report/CSV
@@ -21,11 +26,24 @@ log is retained; verified loopback fixture startup succeeded. Dependent PASS:
 23 exact cases on SQLite / 30.263s and native / 42.722s, no skips, exit 0,
 both stores destroyed and unchanged operator hashes verified. New assertions
 verify the bank balance and retained release/status/replacement identities.
-Owned MySQL stopped after validation. Installed-VM publication/remote gates pending.
-Existing v168 documentation-primary run 38555013367 is still in progress; no
-failure has been observed, and security passed. This is not full CI acceptance.
+Owned MySQL stopped after validation. PASS:
+[candidate 38557656916](https://github.com/tepong32/grand/actions/runs/38557656916),
+all 19 jobs including security/verify/mysql. Native all 2,545 passed / zero skips;
+SQLite 2,346 passed / 199 unchanged native-only skips. Complete original logs,
+exact once-only coverage and both-store/container cleanup verified in
+`.tmp/ci-proof-38557656916/acceptance.json`; all 2,544 previous identities retained
+and exactly one new unskipped case added. No check, timeout or assertion weakened.
 
-GO for bounded validation; production remains NO-GO. No ordinary settlement defect
+Release-time observation: [resulting primary 38563345675](https://github.com/tepong32/grand/actions/runs/38563345675)
+started on the exact v169 SHA after promotion. Its terminal status and retained
+`.tmp/ci-proof-38563345675/acceptance.json` are authoritative; do not substitute
+candidate evidence for primary acceptance. Subsequent notes-only release preserves
+the exact v169 Python/template/static/workflow/requirements tree. Inspect its automatic
+master run through [the workflow](https://github.com/tepong32/grand/actions/workflows/security.yml)
+and match its head SHA before accepting it. This release-time observation is historical,
+not a claim that a later completed run is still pending.
+
+GO for the validated bounded checkpoint; production remains NO-GO. No ordinary settlement defect
 has been reproduced, and this checkpoint must not be described as new functional
 breadth. Next independent work: inspect an ordinary payable's clerk handoffs from
 the published department dashboards/My Work, repairing only demonstrated reachability

@@ -59,7 +59,16 @@ Logs and actual exit receipts are retained in `.tmp/partial-output-dependent-*`;
 frozen test source and unchanged operator database hashes. Test-run wall times
 including fresh migration/setup were approximately 2m11s SQLite and 3m27s native;
 the suite durations above exclude those startup costs. `git diff --check` PASS.
-Full candidate/primary CI and installed-VM integration are still pending.
+Installed VM v0.7.169 / `a1cc3a39` is integrated/pushed to master with its tag;
+exact remote refs verified. [Candidate 38557656916](https://github.com/tepong32/grand/actions/runs/38557656916)
+passed all 19 jobs, including verify/mysql: native 2,545 / zero skips and SQLite
+2,346 / 199 unchanged native-only skips. Original logs, exact identities and
+both-store/container cleanup verified in `.tmp/ci-proof-38557656916/acceptance.json`.
+All previous 2,544 test identities are retained; one new unskipped case is added.
+The [resulting primary run](https://github.com/tepong32/grand/actions/runs/38563345675)
+started after promotion; its terminal result and matching retained receipt own
+primary acceptance. The handoff links the live verification source for subsequent
+notes-only releases; no future status is inferred from the candidate result.
 Broader browser/physical acceptance is NOT RUN — OUT OF SCOPE for this test-only
 checkpoint; production code and rendering behavior are unchanged.
 

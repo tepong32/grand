@@ -48,7 +48,7 @@ see [the delivery contract](FINANCE_FORM1_PACKAGE_REVIEW_DESIGN.md) and CONTINUE
 
 ## Working map
 
-The [partial settlement replay](FINANCE_PARTIAL_PAYMENT_OUTPUT_REPLAY.md) extends
+The published v169 [partial settlement replay](FINANCE_PARTIAL_PAYMENT_OUTPUT_REPLAY.md) extends
 the ordinary linked-source proof to a returned/replaced partial payment. Treasury
 instrument totals retain gross historical issue/release events; Accounting's exact
 payment reversal determines net settlement. These totals serve different purposes

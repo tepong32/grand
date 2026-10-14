@@ -4,7 +4,9 @@ FG-06/07 bounded follow-up: [partial settlement output replay](FINANCE_PARTIAL_P
 No production defect has been reproduced. The new test checks gross Treasury
 history separately from net Accounting settlement and retains prior exports and
 invoice shares. Focused and 23-case dependent SQLite/native checks pass without
-skips; full remote gates remain pending in CONTINUE.md. Official outputs and ordinary LGU acceptance remain
+skips. v169 is integrated/pushed after all 19 candidate jobs passed, native 2,545 /
+zero skips, SQLite 2,346 / 199 native skips; exact logs/coverage verified. Resulting
+primary verification is linked in CONTINUE.md. Official outputs and ordinary LGU acceptance remain
 HIGH open completion gaps; no severity or approval control is weakened.
 
 Latest functional checkpoint: [source findings](FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md)

@@ -1,6 +1,8 @@
 # GRAND Finance complete-cycle roadmap
 
-Next bounded foundation proof: [partial payment/return/reissue outputs](FINANCE_PARTIAL_PAYMENT_OUTPUT_REPLAY.md).
+Published bounded foundation proof: [partial payment/return/reissue outputs](FINANCE_PARTIAL_PAYMENT_OUTPUT_REPLAY.md),
+v169 / `a1cc3a39`, integrated/pushed after all 19 candidate jobs passed, native
+2,545 / zero skips and SQLite 2,346 / 199 native-only skips.
 This extends existing ordinary settlement evidence without a new feature family.
 Its actual validation/release state is in CONTINUE.md. After that checkpoint,
 inspect ordinary payable clerk handoffs through the published department dashboards

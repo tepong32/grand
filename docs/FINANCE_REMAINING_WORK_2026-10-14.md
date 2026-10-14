@@ -54,7 +54,10 @@ no mandatory local or production gate. SQLite suite 30.263s / approximately 2m11
 including fresh setup; native 42.722s / approximately 3m27s including fresh setup.
 One new regression identity retains gross release history separately from net
 settlement and verifies all twelve earlier/current output artifacts.
-Publication and remote proof remain in CONTINUE.md.
+v169 / `a1cc3a39` is installed-VM committed, integrated and pushed with its tag.
+Complete candidate CI passed all 19 jobs: native 2,545 / zero skips; SQLite 2,346 /
+199 native-only skips. Raw logs and exact coverage verified; resulting primary
+verification is linked in CONTINUE.md. No whole-goal completion is inferred.
 
 Next named independent checkpoint: inspect one ordinary payable clerk handoff
 through the published department dashboards and existing My Work, comparing
@@ -84,7 +87,8 @@ continue independent authorized implementation without manufacturing answers.
 ## GO / NO-GO and next action
 
 GO for the published source-findings checkpoint and bounded partial-settlement
-validation. Publish the latter only after its actual remote gates pass.
+validation and its accepted candidate publication. Resulting primary acceptance
+requires its actual terminal verify/mysql results and retained exact coverage.
 NO-GO for unsupported numerical treatment, inferred earmark authority,
 statutory issuance without actual designation/evidence, and production acceptance.
 The [current checkpoint](FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md) and

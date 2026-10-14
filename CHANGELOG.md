@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.170] - 2026-10-14
+### Documentation
+- docs(finance): record partial settlement acceptance and handoff
+
 ## [0.7.169] - 2026-10-14
 ### Test
 - test(finance): verify partial payment return and replacement outputs

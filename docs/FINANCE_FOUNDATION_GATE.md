@@ -1,6 +1,7 @@
 # Finance foundation completion gate — 2026-09-18
 
-Bounded ordinary-work follow-up: [partial payment/return/reissue output replay](FINANCE_PARTIAL_PAYMENT_OUTPUT_REPLAY.md).
+Published ordinary-work follow-up: [partial payment/return/reissue output replay](FINANCE_PARTIAL_PAYMENT_OUTPUT_REPLAY.md),
+v169 / `a1cc3a39`, integrated/pushed after complete 19-job candidate acceptance.
 This verifies existing source reuse, net settlement and unchanged earlier outputs;
 it does not close FG-06/07, official-layout or LGU acceptance. Actual validation and
 release status are recorded in CONTINUE.md. No new purchased-scope assumption.
