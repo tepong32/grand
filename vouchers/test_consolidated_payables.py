@@ -1,10 +1,16 @@
 from datetime import date
 from decimal import Decimal
+import csv
+import hashlib
+import io
+import json
+from pathlib import Path
 import shutil
 import tempfile
 from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
+from django.contrib.auth.models import Permission
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
@@ -293,3 +299,134 @@ class ConsolidatedPayableTests(TestCase):
         case.refresh_from_db()
         self.assertEqual(case.current_stage, VoucherCase.COMPLETED)
         self.assertEqual((_capacity(self.source), _capacity(self.second)), (Decimal("900"), Decimal("1100")))
+
+    def test_partial_return_reissue_outputs_preserve_gross_history_and_net_settlement(self):
+        from openpyxl import load_workbook
+        from reporting.models import ReportDefinition, ReportRun
+        from reporting.presets import seed_finance_presets
+        from reporting.services import create_manual_run
+
+        for actor in (self.preparer, self.treasury_user):
+            actor.user_permissions.add(*Permission.objects.filter(
+                content_type__app_label="reporting",
+                codename__in=("view_reporting_workspace", "generate_reports", "download_reports")))
+            for cache in ("_perm_cache", "_user_perm_cache", "_group_perm_cache"):
+                actor.__dict__.pop(cache, None)
+        seed_finance_presets()
+        original_lines = list(JournalLine.objects.filter(entry__in=(self.original, self.second.entry))
+                              .order_by("pk").values_list("pk", "account_id", "debit", "credit"))
+        retained = []
+        case = self.case_for_validation()
+        self.validate_group(case)
+        evidence = current_evidence(case)
+        keys = [row["reservation"] for row in evidence["claims"]]
+
+        def outputs(*, movement, outstanding, gross, instruments, journals):
+            balances = {row["line"].pk: row["outstanding"] for row in
+                        claim_rows(self.accounting.pk, timezone.localdate())}
+            self.assertEqual((balances[self.source.pk], balances[self.second.pk]), outstanding)
+            for department, dataset, actor in (
+                    (self.accounting, "finance_posted_trial_balance", self.preparer),
+                    (self.accounting, "finance_posted_general_ledger", self.preparer),
+                    (self.treasury, "finance_payment_instrument_register", self.treasury_user)):
+                definition = ReportDefinition.objects.get(department=department, dataset_key=dataset)
+                run = create_manual_run(definition, definition.current_template, "xlsx",
+                                        date(2026, 1, 1), max(date(2026, 12, 31), timezone.localdate()), {}, actor)
+                self.assertEqual(run.control_status, ReportRun.CONTROL_RECONCILED, run.control_message)
+                self.assertFalse(run.is_official_output)
+                if dataset == "finance_payment_instrument_register":
+                    self.assertEqual({source.source_public_id for source in run.source_records.all()},
+                                     {str(item.public_id) for item in instruments})
+                    self.assertEqual(Decimal(run.control_totals["released_amount"]), gross)
+                    self.assertEqual(Decimal(run.control_totals["issued_amount"]), gross)
+                    totals = {"Amount": gross}
+                else:
+                    self.assertEqual({source.source_public_id for source in run.source_records.all()},
+                                     {str(item.public_id) for item in journals})
+                    self.assertEqual(Decimal(run.control_totals["debit"]), movement)
+                    self.assertEqual(Decimal(run.control_totals["credit"]), movement)
+                    totals = {"Debit": movement, "Credit": movement}
+                    if dataset == "finance_posted_trial_balance":
+                        rows = {row["account_code"]: row for row in run.dataset_snapshot["rows"]}
+                        self.assertEqual(Decimal(rows[self.expense_account.code]["net_debit"]), Decimal("3000"))
+                        self.assertEqual(Decimal(rows[self.payable_account.code]["net_credit"]), sum(outstanding))
+                        self.assertEqual(Decimal(rows["1-01-02"]["net_credit"]), Decimal("3000") - sum(outstanding))
+                self.client.force_login(actor)
+                response = self.client.get(reverse("reporting:run_download", args=[run.public_id]))
+                self.assertEqual(response.status_code, 200)
+                payload = b"".join(response.streaming_content) if response.streaming else response.content
+                self.assertEqual(payload, Path(run.output_file.path).read_bytes())
+                self.assertEqual(hashlib.sha256(payload).hexdigest(), run.checksum)
+                retained.append((Path(run.output_file.path), payload))
+                workbook = load_workbook(io.BytesIO(payload), data_only=True)
+                sheet = workbook["Official Report"]
+                headers = [cell.value for cell in sheet[6]]
+                for header, total in totals.items():
+                    column = headers.index(header) + 1
+                    visible = sum((Decimal(str(sheet.cell(row, column).value or 0)) for row in
+                                   range(7, 7 + len(run.dataset_snapshot["rows"]))), Decimal("0"))
+                    self.assertEqual(visible, total)
+                workbook.close()
+            self.client.force_login(self.treasury_user)
+            response = self.client.get(reverse("vouchers:payment_register_export", args=[case.public_id]))
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(hashlib.sha256(response.content).hexdigest(), response["X-GRAND-Export-SHA256"])
+            archive = Path(self.temp) / response["X-GRAND-Export-Relative-Path"]
+            manifest = json.loads(archive.with_name(archive.name + ".manifest.json").read_text())
+            self.assertEqual(manifest["sha256"], response["X-GRAND-Export-SHA256"])
+            self.assertEqual(archive.read_bytes(), response.content)
+            retained.append((archive, response.content))
+            rows = list(csv.DictReader(io.StringIO(response.content.decode("utf-8-sig"))))
+            self.assertEqual({row["instrument_public_id"] for row in rows},
+                             {str(item.public_id) for item in instruments})
+            self.assertEqual(sum((Decimal(row["amount"]) for row in rows), Decimal("0")), gross)
+            by_instrument = {row["instrument_public_id"]: row for row in rows}
+            for item in instruments:
+                item.refresh_from_db()
+                row = by_instrument[str(item.public_id)]
+                self.assertEqual(row["status"], item.get_status_display())
+                self.assertEqual(row["receipt_reference"], item.receipt_reference)
+                self.assertEqual(row["released_at"], item.released_at.isoformat())
+                self.assertEqual(row["payment_posting_status"], "JEV posted")
+                self.assertEqual(row["replaces_instrument_public_id"],
+                                 str(item.replaces.public_id) if item.replaces_id else "")
+
+        instruments = []
+        for index in (1, 2):
+            case.refresh_from_db()
+            instruments.append(issue_check(case=case, actor=self.treasury_user,
+                bank_account_code="gf-lbp", fund_code="general-fund", check_number=f"OUTPUT-PAIR-{index}",
+                amount="500", expected_version=case.state_version, idempotency_key=f"output-pair-{index}",
+                claim_payment_amounts={keys[0]: "300", keys[1]: "200"}))
+        paid = self.release_issued(case, "output-pair")
+        journals = [self.original, self.second.entry, *(entry for _instrument, entry in paid)]
+        outputs(movement=Decimal("4000"), outstanding=(Decimal("900"), Decimal("1100")),
+                gross=Decimal("1000"), instruments=instruments, journals=journals)
+
+        original, payment = paid[0]
+        review = self.return_review(original, ReturnedInstrumentReview.REISSUE)
+        reversal = self.post_request(review.posting_request)
+        self.assertEqual(reversal.reversal_of_id, payment.pk)
+        journals.append(reversal)
+        outputs(movement=Decimal("4500"), outstanding=(Decimal("1200"), Decimal("1300")),
+                gross=Decimal("1000"), instruments=instruments, journals=journals)
+
+        original.refresh_from_db(); case.refresh_from_db()
+        replacement = issue_check(case=case, actor=self.treasury_user, bank_account_code="gf-lbp",
+            fund_code="general-fund", check_number="OUTPUT-PAIR-REPLACEMENT", amount="500", replaces=original,
+            expected_version=case.state_version, idempotency_key="output-pair-replacement")
+        self.assertEqual(replacement.prior_payable_allocation, original.prior_payable_allocation)
+        replacement_payment = self.release_issued(case, "output-pair-replacement")[0][1]
+        journals.append(replacement_payment)
+        instruments.append(replacement)
+        outputs(movement=Decimal("5000"), outstanding=(Decimal("900"), Decimal("1100")),
+                gross=Decimal("1500"), instruments=instruments, journals=journals)
+        self.assertFalse(JournalLine.objects.filter(entry__in=[entry for _item, entry in paid] +
+                                                   [reversal, replacement_payment], account=self.expense_account).exists())
+        self.assertEqual(list(JournalLine.objects.filter(entry__in=(self.original, self.second.entry))
+                              .order_by("pk").values_list("pk", "account_id", "debit", "credit")), original_lines)
+        self.assertEqual(current_evidence(case), evidence)
+        for path, payload in retained:
+            self.assertEqual(path.read_bytes(), payload)
+        case.refresh_from_db()
+        self.assertEqual(case.current_stage, VoucherCase.COMPLETED)

@@ -4,7 +4,35 @@ Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANC
 
 Last updated: 2026-10-14
 
-## Current bounded Finance checkpoint — source findings
+## Current bounded Finance checkpoint — partial settlement outputs
+
+Branch `codex/finance-partial-output-replay`, same isolated worktree below,
+based on accepted v0.7.168 / `5d61369`. No newer master was found on October 14.
+The [partial payment replay](docs/FINANCE_PARTIAL_PAYMENT_OUTPUT_REPLAY.md) adds
+one realistic regression case to existing consolidated settlement tests: two
+payments, exact reversal of one bank return, replacement, three-stage report/CSV
+downloads, immutable earlier exports and original invoice/reservation evidence.
+No production code, schema, policy, workflow, permission or dependency changes.
+
+Focused PASS: one SQLite case / 4.544s; one native case / 5.500s, no skips,
+actual exit 0 and both stores destroyed. Initial native connection refusal is
+ENVIRONMENTAL: the owned isolated fixture was stopped before setup. Its failed
+log is retained; verified loopback fixture startup succeeded. Dependent PASS:
+23 exact cases on SQLite / 30.263s and native / 42.722s, no skips, exit 0,
+both stores destroyed and unchanged operator hashes verified. New assertions
+verify the bank balance and retained release/status/replacement identities.
+Owned MySQL stopped after validation. Installed-VM publication/remote gates pending.
+Existing v168 documentation-primary run 38555013367 is still in progress; no
+failure has been observed, and security passed. This is not full CI acceptance.
+
+GO for bounded validation; production remains NO-GO. No ordinary settlement defect
+has been reproduced, and this checkpoint must not be described as new functional
+breadth. Next independent work: inspect an ordinary payable's clerk handoffs from
+the published department dashboards/My Work, repairing only demonstrated reachability
+or source-context gaps. Local earmark rules and Form 1 numeric/statutory authority
+remain unknown/deferred. Use the finite remaining-task list below.
+
+## Published Finance checkpoint — source findings
 
 Functional release v0.7.167 / `51cad4bed51587db31052ac89d52826af4f861d0`
 is installed-VM committed, integrated into master and pushed with its tag; exact

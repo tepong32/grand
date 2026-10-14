@@ -1,12 +1,19 @@
 # GRAND Finance complete-cycle roadmap
 
+Next bounded foundation proof: [partial payment/return/reissue outputs](FINANCE_PARTIAL_PAYMENT_OUTPUT_REPLAY.md).
+This extends existing ordinary settlement evidence without a new feature family.
+Its actual validation/release state is in CONTINUE.md. After that checkpoint,
+inspect ordinary payable clerk handoffs through the published department dashboards
+and existing My Work; repair demonstrated gaps only. Unsupported Form 1 numerical
+treatments and local earmark semantics remain open/deferred.
+
 Latest functional checkpoint: [source findings](FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md)
 v0.7.167 / `51cad4be` is integrated/pushed after all 19 candidate jobs passed,
 native 2,544 / zero skips and SQLite 2,345 / 199 native-only skips. Resulting primary
 38547702277 passed all 19 jobs on attempt 2, with complete retained coverage. Factual review does not resolve numerical/statutory/local
 acceptance gates; earlier entries retain their historical scope.
 
-Latest accepted primary: v0.7.166 / `27b3f63`, including guided whole-package
+Historical accepted primary: v0.7.166 / `27b3f63`, including guided whole-package
 intake and published Auth/security changes. Candidate 38464296069 and primary
 38470645692 passed all 19 jobs, native 2,533 / zero skips; SQLite 2,335 / 198 native
 skips. Older entries below retain their original checkpoint scope.

@@ -1,12 +1,19 @@
 # Finance gap register
 
+FG-06/07 bounded follow-up: [partial settlement output replay](FINANCE_PARTIAL_PAYMENT_OUTPUT_REPLAY.md).
+No production defect has been reproduced. The new test checks gross Treasury
+history separately from net Accounting settlement and retains prior exports and
+invoice shares. Focused and 23-case dependent SQLite/native checks pass without
+skips; full remote gates remain pending in CONTINUE.md. Official outputs and ordinary LGU acceptance remain
+HIGH open completion gaps; no severity or approval control is weakened.
+
 Latest functional checkpoint: [source findings](FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md)
 v0.7.167 / `51cad4be` is integrated/pushed after all 19 candidate jobs passed,
 native 2,544 / zero skips and SQLite 2,345 / 199 native-only skips. Resulting primary
 38547702277 passed all 19 jobs on attempt 2, with complete retained coverage. Factual review does not resolve numerical/statutory/local
 acceptance gates; earlier entries retain their historical scope.
 
-Latest accepted primary v166 / `27b3f63`: guided intake is integrated/pushed.
+Historical accepted primary v166 / `27b3f63`: guided intake is integrated/pushed.
 Candidate 38464296069 and primary 38470645692 passed security/verify/mysql and all
 workers; native 2,533 / zero skips, SQLite 2,335 / 198 native skips. Original raw
 logs and exact identities/coverage are retained. Earlier release entries below
@@ -14,8 +21,8 @@ remain historical evidence, not current blockers.
 
 FG-03/06 remain partial. The [bounded source-findings checkpoint](FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md)
 adds immutable original-part proposals, independent three-office factual decisions
-and source-authorized clerk/history/export routes; final local/remote gates are
-pending. Numerical treatment, statutory issuance and LGU form acceptance remain
+and source-authorized clerk/history/export routes; v167 local/remote gates passed.
+Numerical treatment, statutory issuance and LGU form acceptance remain
 open. FG-05 earmark semantics remain UNKNOWN/MISSING; do not infer authority.
 See [finite remaining work and estimate correction](FINANCE_REMAINING_WORK_2026-10-14.md).
 No unresolved critical defect is waived; production remains NO-GO.

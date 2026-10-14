@@ -47,6 +47,23 @@ test/CI waits. Model choice alone supplies no measured GRAND delivery multiplier
 
 ## Finite remaining-task list
 
+The named [partial payment/return/reissue replay](FINANCE_PARTIAL_PAYMENT_OUTPUT_REPLAY.md)
+now passes its focused and 23-case dependent SQLite/native checks. It validates
+existing settlement/reporting behavior; it adds no financial feature and closes
+no mandatory local or production gate. SQLite suite 30.263s / approximately 2m11s
+including fresh setup; native 42.722s / approximately 3m27s including fresh setup.
+One new regression identity retains gross release history separately from net
+settlement and verifies all twelve earlier/current output artifacts.
+Publication and remote proof remain in CONTINUE.md.
+
+Next named independent checkpoint: inspect one ordinary payable clerk handoff
+through the published department dashboards and existing My Work, comparing
+source context and available next actions for each office. Planning allowance:
+1–2 active hours for the bounded replay and a small demonstrated repair, plus
+actual validation/CI waits. A discovered substantial defect requires a revised
+scope/estimate; no whole-goal deadline is inferred. Manual prerequisites below
+remain unresolved rather than being replaced with additional feature breadth.
+
 | Original gate | Remaining work / completion evidence | Dependency and current estimate |
 | --- | --- | --- |
 | FG-03/06: Budget historical context and Form 1 | Source-finding intake, independent decisions, history/export and native races are implemented in v167. Remaining: implement only evidenced numerical treatment through a fresh whole-package successor; retain separate gross ending, deduction, adjustment and net controls. Finish statutory certification/Chief Executive approval and immutable issued output with the actual designated roles. | The earlier 2–4-hour checkpoint allowance is not an actual delivery-time claim: the observation connection was interrupted after candidate CI completed, and verification/integration resumed in the evening. Measured local/CI durations are recorded below. Numerical/issuance effort remains unestimated until the applicable recipe and exact role/output inputs are established. |
@@ -66,8 +83,9 @@ continue independent authorized implementation without manufacturing answers.
 
 ## GO / NO-GO and next action
 
-GO for the bounded source-findings checkpoint once its actual local and remote
-gates pass. NO-GO for unsupported numerical treatment, inferred earmark authority,
+GO for the published source-findings checkpoint and bounded partial-settlement
+validation. Publish the latter only after its actual remote gates pass.
+NO-GO for unsupported numerical treatment, inferred earmark authority,
 statutory issuance without actual designation/evidence, and production acceptance.
 The [current checkpoint](FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md) and
 [handoff](../CONTINUE.md) own actual validation and release status.

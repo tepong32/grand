@@ -119,6 +119,11 @@ native-only skips. Raw logs, exact coverage and both-store cleanup were verified
 Original cash/forecast/PhilHealth evidence and independent whole-package review
 remain distinct from supported numerical treatment, statutory signatures and issuance.
 
+The [partial payment/return/reissue output replay](docs/FINANCE_PARTIAL_PAYMENT_OUTPUT_REPLAY.md)
+checks existing Accounting and Treasury outputs against original invoice shares,
+exact payment reversal and retained earlier downloads. Validation/release status
+is recorded in CONTINUE.md; this does not establish official form or LGU acceptance.
+
 The v0.7.167 [original-source findings checkpoint](docs/FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md)
 is integrated/pushed at `51cad4be`. It provides retained part-level proposals,
 independent Budget/Accounting/Treasury findings, returns/successors, and full

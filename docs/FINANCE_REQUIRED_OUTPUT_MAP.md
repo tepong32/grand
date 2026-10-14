@@ -9,7 +9,7 @@ acceptance gates; earlier entries retain their historical scope.
 October 14 update: whole Form 1 draft assembly, guided intake, history/export and
 internal review are included in accepted primary v166; candidate and primary
 CI passed. Original-source [treatment findings](FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md)
-are the next bounded checkpoint. An approved factual finding does not provide a
+were integrated in v167. An approved factual finding does not provide a
 numerical recipe, statutory certification or accepted official form. The output
 families and local acceptance requirements below remain the working scope.
 
@@ -47,6 +47,12 @@ Accepted printable, clerk register/intake and local output acceptance are still 
 see [the delivery contract](FINANCE_FORM1_PACKAGE_REVIEW_DESIGN.md) and CONTINUE.md.
 
 ## Working map
+
+The [partial settlement replay](FINANCE_PARTIAL_PAYMENT_OUTPUT_REPLAY.md) extends
+the ordinary linked-source proof to a returned/replaced partial payment. Treasury
+instrument totals retain gross historical issue/release events; Accounting's exact
+payment reversal determines net settlement. These totals serve different purposes
+and must not be presented as interchangeable expenditure or remaining-cash figures.
 
 | Office / work | Existing GRAND source and output | Boundary still requiring confirmation |
 | --- | --- | --- |
