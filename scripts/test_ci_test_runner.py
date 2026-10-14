@@ -85,3 +85,45 @@ class ShardCoverageTests(unittest.TestCase):
         with patch.dict(os.environ, GRAND_CI_SHARD_INDEX='0', GRAND_CI_SHARD_COUNT='2'):
             runner = ShardedDiscoverRunner(**defaults)
             self.assertEqual(runner.pattern, 'test*.py')
+
+    def intake_partition_tests(self):
+        classes = ['app.A', 'app.B', 'app.C',
+            'budget.test_form1_package_intake.Form1PackageIntakeTests',
+            *['other.Class' + str(index).zfill(2) for index in range(12)]]
+        # Interleave class members and reverse class discovery order: assignment
+        # must be deterministic without sorting the selected test sequence.
+        return [Case(name + method) for method in ('.test_b', '.test_a')
+                for name in reversed(classes)]
+
+    def test_only_intake_class_moves_from_index_three_to_six(self):
+        tests = self.intake_partition_tests()
+        identities = [test.id() for test in tests]
+        classes = sorted({name.rsplit('.', 1)[0] for name in identities})
+        original = {name: position % 8 for position, name in enumerate(classes)}
+        intake = 'budget.test_form1_package_intake.Form1PackageIntakeTests'
+        self.assertEqual(original[intake], 3)
+        records = []
+        for index in range(8):
+            selected = [test.id() for test in partition(tests, index, 8)]
+            expected = [name for name in identities
+                        if (6 if name.rsplit('.', 1)[0] == intake
+                            else original[name.rsplit('.', 1)[0]]) == index]
+            self.assertEqual(selected, expected)
+            reversed_selected = [test.id() for test in partition(list(reversed(tests)), index, 8)]
+            self.assertEqual(reversed_selected, list(reversed(selected)))
+            records.append(dict(schema=1, index=index, count=8, revision='candidate',
+                discovered=identities, selected=selected, executed=len(selected),
+                successful=True, skipped=[]))
+        self.assertEqual(verify_coverage(records, count=8, revision='candidate', native=True), len(tests))
+
+    def test_intake_reassignment_rejects_changed_shard_count(self):
+        for count in (1, 2, 3, 6, 7, 9, 16):
+            for index in range(count):
+                with self.subTest(count=count, index=index), self.assertRaisesRegex(ValueError, 'reassignment'):
+                    partition(self.intake_partition_tests(), index, count)
+
+    def test_intake_reassignment_rejects_changed_original_owner(self):
+        tests = [Case('app.Added.test_new'), *self.intake_partition_tests()]
+        for index in range(8):
+            with self.subTest(index=index), self.assertRaisesRegex(ValueError, 'original owner 3'):
+                partition(tests, index, 8)

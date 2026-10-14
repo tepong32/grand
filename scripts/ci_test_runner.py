@@ -16,6 +16,13 @@ def partition(tests, index, count):
     if count > len(classes):
         raise ValueError('Shard count exceeds discovered test classes.')
     owners = {name: position % count for position, name in enumerate(classes)}
+    # Measured v172 load: keep this whole class off the other heavy Budget
+    # classes. Indices are zero-based and shared by SQLite and native MySQL.
+    intake_class = 'budget.test_form1_package_intake.Form1PackageIntakeTests'
+    if intake_class in owners:
+        if count != 8 or owners[intake_class] != 3:
+            raise ValueError('Review the Form1 intake reassignment: require eight shards and original owner 3.')
+        owners[intake_class] = 6
     return [test for test in tests if owners[test.id().rsplit('.', 1)[0]] == index]
 
 
