@@ -123,7 +123,10 @@ The [partial payment/return/reissue output replay](docs/FINANCE_PARTIAL_PAYMENT_
 is published in v0.7.169: existing Accounting/Treasury outputs match original invoice
 shares, exact payment reversal and retained earlier downloads. All 19 candidate
 jobs passed, with 2,545 native tests / zero skips. CONTINUE.md links the resulting
-primary verification; this does not establish official form or LGU acceptance.
+primary verification: the unchanged application/test tree in v170 passed all
+nineteen master jobs on attempt 2, including verify/mysql. Failed timeout attempts
+remain retained and runtime headroom remains an open risk. This does not establish
+official form or LGU acceptance.
 
 The v0.7.167 [original-source findings checkpoint](docs/FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md)
 is integrated/pushed at `51cad4be`. It provides retained part-level proposals,

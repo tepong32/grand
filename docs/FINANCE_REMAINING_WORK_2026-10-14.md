@@ -57,7 +57,15 @@ settlement and verifies all twelve earlier/current output artifacts.
 v169 / `a1cc3a39` is installed-VM committed, integrated and pushed with its tag.
 Complete candidate CI passed all 19 jobs: native 2,545 / zero skips; SQLite 2,346 /
 199 native-only skips. Raw logs and exact coverage verified; resulting primary
-verification is linked in CONTINUE.md. No whole-goal completion is inferred.
+v170 primary verification passed all nineteen jobs on attempt 2, with the exact
+same application/test tree. v169's failed primary and v170's failed first attempt
+remain preserved: SQLite-3 exceeded the existing twenty-minute job limit; both
+mysql gates passed. v170's first suite itself reached OK / 267 cases / 31 skips in
+1,060.809s, but coverage upload was skipped. A single worker/gate retry passed in
+989.724s without source/limit/assertion changes. Runtime headroom remains a MEDIUM
+unresolved risk, with its specific hosted cause unproven. Further CI optimization
+is deferred in accordance with the user's instruction. No whole-goal completion
+or precise remaining-hours total is inferred.
 
 Next named independent checkpoint: inspect one ordinary payable clerk handoff
 through the published department dashboards and existing My Work, comparing

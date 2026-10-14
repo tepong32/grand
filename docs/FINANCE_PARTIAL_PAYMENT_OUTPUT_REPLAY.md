@@ -65,10 +65,27 @@ passed all 19 jobs, including verify/mysql: native 2,545 / zero skips and SQLite
 2,346 / 199 unchanged native-only skips. Original logs, exact identities and
 both-store/container cleanup verified in `.tmp/ci-proof-38557656916/acceptance.json`.
 All previous 2,544 test identities are retained; one new unskipped case is added.
-The [resulting primary run](https://github.com/tepong32/grand/actions/runs/38563345675)
-started after promotion; its terminal result and matching retained receipt own
-primary acceptance. The handoff links the live verification source for subsequent
-notes-only releases; no future status is inferred from the candidate result.
+The v169 [primary run](https://github.com/tepong32/grand/actions/runs/38563345675)
+is not accepted: SQLite-3 timed out and verify failed; mysql passed. It remains
+unretried, with all original raw logs retained. The exact same application/test tree
+in notes primary v170 / `63197029` passed all nineteen jobs on attempt 2 in
+[run 38564031861](https://github.com/tepong32/grand/actions/runs/38564031861), native
+2,545 / zero skips and SQLite 2,346 / 199 native skips. Full exact coverage and
+both-store/container cleanup verified in `.tmp/ci-proof-38564031861/acceptance.json`.
+
+Its first SQLite-3 job also exceeded the unchanged twenty-minute limit: all 267
+cases reached OK / 31 native skips in 1,060.809s, but coverage upload was skipped
+and verify failed. One bounded same-SHA worker/gate retry passed in 989.724s.
+Seventeen actual unchanged successful jobs are carried from the original attempt;
+their source revisions/timestamps match the final GitHub metadata. Both failed
+attempts remain preserved, not converted into passes. The new test is not in this
+shard, whose 267 selected identities match the passing candidate.
+
+Severity: MEDIUM unresolved runtime/headroom risk; repeat timing variance is
+established, its specific hosted cause is not. No source, assertion, skip, required
+check or timeout changed to obtain green. Current-tree engineering acceptance is GO;
+production and local/physical acceptance remain NO-GO. Later notes-only CI is a
+separate run, not pre-declared green.
 Broader browser/physical acceptance is NOT RUN — OUT OF SCOPE for this test-only
 checkpoint; production code and rendering behavior are unchanged.
 

@@ -34,14 +34,33 @@ exact once-only coverage and both-store/container cleanup verified in
 `.tmp/ci-proof-38557656916/acceptance.json`; all 2,544 previous identities retained
 and exactly one new unskipped case added. No check, timeout or assertion weakened.
 
-Release-time observation: [resulting primary 38563345675](https://github.com/tepong32/grand/actions/runs/38563345675)
-started on the exact v169 SHA after promotion. Its terminal status and retained
-`.tmp/ci-proof-38563345675/acceptance.json` are authoritative; do not substitute
-candidate evidence for primary acceptance. Subsequent notes-only release preserves
-the exact v169 Python/template/static/workflow/requirements tree. Inspect its automatic
-master run through [the workflow](https://github.com/tepong32/grand/actions/workflows/security.yml)
-and match its head SHA before accepting it. This release-time observation is historical,
-not a claim that a later completed run is still pending.
+Resulting v169 [primary 38563345675](https://github.com/tepong32/grand/actions/runs/38563345675)
+is NOT ACCEPTED: SQLite-3 exceeded its unchanged 20-minute limit, without a terminal
+summary; verify correctly failed, while mysql passed. The complete original nineteen
+job logs/metadata are retained in `.tmp/ci-proof-38563345675/attempt1-*`. It was not
+retried or relabeled as passing.
+
+Current accepted application/test tree: notes primary v0.7.170 /
+`63197029adf248388a75a0b584a47422749d9a4e`,
+[run 38564031861](https://github.com/tepong32/grand/actions/runs/38564031861), all 19
+jobs PASS on attempt 2, including verify/mysql. Native 2,545 / zero skips; SQLite
+2,346 / 199 native skips. Full raw logs, exact coverage and cleanup verified in
+`.tmp/ci-proof-38564031861/acceptance.json`. Its first SQLite-3 step also timed out:
+all 267 tests reached OK (31 native skips), 1,060.809s, with both stores destroyed,
+but successful coverage upload was skipped. The failed job/gate and entire original
+run are preserved. One bounded, unchanged-SHA SQLite-3/verify retry passed all 267
+cases in 989.724s. Final acceptance combines seventeen actual unchanged successful
+first-attempt jobs with the two real retry logs; source revisions and original job
+timestamps match. No native test, source, assertion or timeout changed.
+
+MEDIUM unresolved runtime/headroom risk: the repeat of the documented v167 timing
+failure is not repaired by a successful retry. The new partial-payment test is not
+in SQLite-3; its 267 selected identities and Budget code match the passing candidate.
+The specific hosted-performance cause remains unproven. No further retry or CI
+performance refactor was undertaken. Subsequent documentation-only release retains
+the accepted v170 application/test tree; inspect its separate automatic master run
+through [the workflow](https://github.com/tepong32/grand/actions/workflows/security.yml)
+and exact head SHA rather than claiming an unperformed pass.
 
 GO for the validated bounded checkpoint; production remains NO-GO. No ordinary settlement defect
 has been reproduced, and this checkpoint must not be described as new functional

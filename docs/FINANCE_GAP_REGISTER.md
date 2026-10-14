@@ -6,7 +6,13 @@ history separately from net Accounting settlement and retains prior exports and
 invoice shares. Focused and 23-case dependent SQLite/native checks pass without
 skips. v169 is integrated/pushed after all 19 candidate jobs passed, native 2,545 /
 zero skips, SQLite 2,346 / 199 native skips; exact logs/coverage verified. Resulting
-primary verification is linked in CONTINUE.md. Official outputs and ordinary LGU acceptance remain
+primary v170 / `63197029` passed all nineteen jobs on attempt 2, with full original
+logs and exact coverage verified. v169's failed primary and v170's failed first
+attempt remain retained: SQLite-3 hit its unchanged twenty-minute limit and verify
+correctly rejected incomplete coverage; both mysql gates passed. The new test is
+not in the failing shard. A single same-SHA worker/gate retry passed; specific
+hosted timing cause remains unknown. MEDIUM runtime/headroom risk stays OPEN;
+this does not establish a performance repair. Official outputs and ordinary LGU acceptance remain
 HIGH open completion gaps; no severity or approval control is weakened.
 
 Latest functional checkpoint: [source findings](FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md)

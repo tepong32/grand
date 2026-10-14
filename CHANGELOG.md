@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.171] - 2026-10-14
+### Documentation
+- docs(finance): retain primary timeout and retry evidence
+
 ## [0.7.170] - 2026-10-14
 ### Documentation
 - docs(finance): record partial settlement acceptance and handoff
