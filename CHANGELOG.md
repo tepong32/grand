@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.173] - 2026-10-17
+### Added
+- feat(finance): retain reviewed Form 1 signing copies and clarify prior-payable validation
+
 ## [0.7.172] - 2026-10-14
 ### Fixed
 - fix(finance): scope dashboard totals and surface current clerk work

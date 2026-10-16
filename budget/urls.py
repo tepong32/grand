@@ -13,10 +13,25 @@ from . import form1_spa_views
 from . import form1_package_views
 from . import form1_package_intake
 from . import form1_treatment_views
+from . import form1_signing_views
+from . import form1_unsigned_views
+from . import form1_signed_views
 
 app_name = "budget"
 
 urlpatterns = [
+    path('form1-signing-copies/<uuid:public_id>/returns/', form1_signed_views.history, name='form1_signed_history'),
+    path('form1-signed-returns/<uuid:public_id>/', form1_signed_views.detail, name='form1_signed_detail'),
+    path('form1-signed-returns/<uuid:public_id>/review/', form1_signed_views.review, name='form1_signed_review'),
+    path('form1-signed-returns/<uuid:public_id>/issue/', form1_signed_views.issue, name='form1_signed_issue'),
+    path('form1-signed-returns/<uuid:public_id>/document/', form1_signed_views.document, name='form1_signed_document'),
+    path('form1-final-issues/<uuid:public_id>/document/', form1_signed_views.issued_document, name='form1_final_document'),
+    path('form1-designations/<uuid:public_id>/release-copy/', form1_unsigned_views.release, name='form1_unsigned_release'),
+    path('form1-signing-copies/<uuid:public_id>/document/', form1_unsigned_views.document, name='form1_unsigned_document'),
+    path('form1-packages/<uuid:public_id>/designations/', form1_signing_views.history, name='form1_signing_history'),
+    path('form1-designations/<uuid:public_id>/', form1_signing_views.detail, name='form1_signing_detail'),
+    path('form1-designations/<uuid:public_id>/review/', form1_signing_views.review, name='form1_signing_review'),
+    path('form1-designations/<uuid:public_id>/documents/<str:role>/', form1_signing_views.document, name='form1_signing_document'),
     path('form1-packages/', form1_package_views.register, name='form1_packages'),
     path('form1-packages/<uuid:public_id>/findings/', form1_treatment_views.history, name='form1_treatment_history'),
     path('form1-packages/<uuid:public_id>/findings/prepare/', form1_treatment_views.prepare, name='form1_treatment_prepare'),

@@ -2,7 +2,1603 @@
 
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.
 
-Last updated: 2026-10-14
+Last updated: 2026-10-17 (Asia/Singapore)
+
+## Authorized publication attempt — 2026-10-17
+
+The user explicitly authorized VM commit of the prepared checkpoint, integration
+and push after required checks, followed by a new-conversation handoff. This
+supersedes the earlier publication hold **for this checkpoint**; original local
+Finance semantics/form/deployment/acceptance dependencies remain unresolved.
+
+Current local release preflight passes all seven checks: installed production
+pins (Django 5.2.18/Python 3.11), pip consistency, requirement vulnerability audit,
+Django system checks, migration drift, CI-runner coverage-enforcement unit tests
+and Telegram tests. Receipt `.tmp/v173-local-preflight-20261017.json` retains
+actual exit codes/logs. The 103 intended files and 1,193 current source hashes
+match prepared evidence; unrelated GSO/operator/private data remain excluded.
+
+This revision records the **pre-promotion** gate. The actual installed Version
+Manager creates the candidate; the unchanged hosted security/verify/mysql gates
+must pass on its exact revision before master integration. Resulting master CI
+must also be checked. The post-release handoff will record actual commits/tags,
+run IDs/results and remaining work; no current hosted pass or integration is
+claimed in these pre-promotion notes. Production remains NO-GO.
+
+## Current stopping point — external prerequisites, 2026-10-17
+
+The full original 22-section Finance goal is **not complete**. The remaining local
+certificate/form/office-scenario and deployment/operational facts have remained
+unresolved through the OBR checkpoint, release preparation and this audit. Known
+independent ordinary-workflow repairs/probes are finished; no further substantive
+change is justified by the current finite inventory without those facts. Do not
+invent a numerical recipe, certificate basis, required form, real signature,
+historical source or deployment acceptance to continue automatically.
+
+Resume when the applicable dependency is supplied: confirmed earmark/quarterly
+semantics; actual required forms/fields and named remaining office/history cases;
+the current authorized deployment environment and operational/restore evidence;
+or release continuation consistent with the publication boundary. Manual items
+remain deferred. The prepared **103-path** VM candidate and exact test/source
+chronology below are preserved. Current-candidate/primary hosted CI and actual VM
+commit/integration/push are still unperformed; published v172's green CI is not a
+current-tree pass. No live owned test/preview remains to wait on.
+
+Stopping audit: `.tmp/finance-external-prerequisite-stopping-audit-20261017.json`.
+It reconciles the unchanged original scope and records the recurring dependencies,
+completed independent work and evidence limits. Autonomous continuation is blocked
+at this checkpoint; production and full Finance completion remain **NO-GO**.
+Preserve the work and resume here rather than replaying completed checks or
+starting speculative modules. Refresh the latest preview if any retained hash or
+remote state changes; no release is performed by this handoff/status update.
+
+## Current release preparation — 103 intended paths, preview only, 2026-10-17
+
+This preparation supersedes the older 95-path/stale-preview statements below.
+The exact intended payload is now **103 paths**: previous 95 plus `budget/forms.py`,
+`budget/tests.py`, the existing OBR feature document and five explicitly named
+`obr-entry-*-20261017.png` screenshots. Every other dirty/untracked path was
+reconciled; unrelated `docs/GSO_INTEGRATION_REVIEW.md` stays excluded with its
+current bytes preserved. Operator databases/private fixtures remain excluded.
+
+The eight-line OBR source/test follow-up has a bounded review receipt:
+`.tmp/finance-release-followup-review-after-obr-20261017.json`, which pins the
+earlier review and exact current validation/source freeze. The three production
+lines change labels only, using already selected related objects and ordinary
+Django escaping. The five test lines add assertions to an existing HTTP test;
+no original assertion or method was removed. This is local code review, not
+independent PR/human approval, a pentest or current hosted CI.
+
+The installed VM inspection confirms branch/base v0.7.172; the read-only adapter
+still limits automatic version edits to VERSION/CHANGELOG. Intent:
+`.tmp/finance-next-vm-release-intent-20261017.json`; latest preview receipt/log:
+`.tmp/finance-next-vm-preview-evidence-20261017.json` and
+`.tmp/finance-next-vm-preview-final-20261017.log`. **Receipt timestamps and hashes
+determine whether the preview matches this final handoff; refresh/re-preview if
+any intended file, excluded snapshot or remote state changes.** Preserve earlier
+snapshots rather than relabelling them current. The adapter has no execute mode.
+
+No staging, actual VM commit/tag, integration/push or deployment is performed by
+this preparation. Keep the publication boundary. Pending: actual VM workflow,
+current-candidate/resulting-primary security/verify/mysql and remote ref checks.
+Seven presentation/test files postdate the broad full baseline; scoped follow-up
+results keep their exact chronology. Manual certificate/form/deployment and
+operational/LGU gates remain open. Production/full Finance completion: **NO-GO**.
+
+## Latest checkpoint — OBR entry label and independent certification, 2026-10-17
+
+[Actual repair, command, browser scope and limitations](docs/FINANCE_OBR_PAYABLE_HANDOFF.md#obr-entry-and-independent-certification-follow-up--2026-10-17).
+Browser inspection found a **LOW pre-existing** authority selector showing an
+internal model-object label. `budget/forms.py` now displays ordinance and fiscal
+year, preserving the existing queryset/edit restrictions and all financial rules.
+`budget/tests.py` adds readable-choice assertions to an existing HTTP/source/export
+case; no new test method, permission, schema, service or financial behavior.
+
+Actual SQLite scope **33375 PASS 3/3**, zero skips, 4.204s, exit 0, both aliases
+destroyed: obligation HTTP/source/export, UAT mutation denial and unauthorized
+service boundaries. Log `.tmp/obr-authority-label-sqlite-20261017.log`.
+Native/full reruns are out of scope for this presentation-only follow-up, not
+claimed passes. Current 1,193-file freeze:
+`.tmp/obr-authority-label-current-source-freeze-20261017.json`. Two additional
+presentation/test files follow the previous review; **seven files now differ
+from the earlier broad full baseline**. Preserve that actual chronology.
+
+New browser proof enters the OBR/request schedule, rejects 9,000 against signed
+10,000 with no movement, corrects it, submits as requesting office and certifies
+as separate Budget actor. Exactly one 10,000 movement leaves 50,000 unobligated
+from released 60,000. Fixed-form reads preserve that same certified source.
+Authority/ARO are synthetic service setup; real login, annual-budget entry and
+physical authority/signatures remain unproved. The exact OBR payable link reaches
+the existing missing-approved-Finance-Setup guard in this fixture and creates no
+case/allocation/JEV; do not claim successful intake or a new product regression.
+
+Proof `.tmp/obr-entry-browser-evidence-20261017.json` pins states, five screenshots,
+hashes and cleanup. Fixed desktop/mobile forms inspected; document width 390px.
+Long option text clips inside the closed native mobile select; full accessible
+label exists. Browser and both previews are closed/terminal, port 8799 closed;
+seed 39948 and test 33375 ended. Operator database hashes are unchanged.
+
+README, roadmap, gap and existing feature record reflect this checkpoint. The
+older **95-path VM preview is stale and omits two changed tracked files and five
+new screenshots**; review/refresh the intended payload and preview before any
+execution. No staging, commit/tag, integration/push, deployment or LGU acceptance
+occurred. Current-candidate/resulting-primary CI and actual VM workflow remain
+pending under the publication boundary. Do not repeat this branch or the earlier
+filtered-JEV/deployment probes. Continue evidenced original-scope work; local
+certificate/form facts and deployment/operational acceptance remain unresolved.
+Production and full Finance completion remain **NO-GO**.
+
+## Latest follow-up — executed existing JEV working output, 2026-10-17
+
+[Detailed result and limitations](docs/FINANCE_REQUIRED_OUTPUT_MAP.md#executed-existing-filtered-jev-working-report--2026-10-17).
+The existing approved native general-ledger starter plus `jev_reference__exact`
+produces selected-JEV PDF/XLSX without a new dataset or print framework. Disposable
+fixtures contain selected 750 and other 1,250 entries: both outputs show only the
+selected two lines/source reference and 750/750 totals, while retained period
+controls remain 2,000/2,000 with both original sources. Integrity checks pass;
+changing the definition and requesting generation preserves earlier output bytes
+and pinned filter. Original journal/line state is unchanged.
+
+Actual command: Python 3.11 `-B -X utf8 .tmp/run_jev_filtered_output_probe_20261017.py`.
+Final session **48078 PASS 1/1 SQLite**, zero skips, 1.176s test execution, exit 0,
+both aliases destroyed. Final one-page PDF rendered/visually inspected without
+observed clipping/overlap. Proof/artefacts:
+`.tmp/jev-filtered-output-evidence-20261017/probe-evidence.json`;
+log `.tmp/jev-filtered-output-probe-20261017.log`. The initial probe's contiguous
+PDF-text assumption failed on wrapping (39672); its raw evidence is retained in
+`.tmp/jev-filtered-output-initial-20261017`. Only the ignored probe was corrected
+to check all identifier characters after whitespace normalization; no repository
+test or application assertion was removed/weakened. Renderer warnings/limits are
+retained in the proof. No application defect was confirmed by this investigation.
+
+All 1,193 reviewed application/template/requirements hashes and both operator
+database hashes match. Native/full reruns were out of scope for this unchanged-code
+exporter investigation; it is not new full/native/hosted acceptance. Official
+individual JEV parity still needs an applicable retained form and actual LGU
+acceptance; this native working register does not supply them. No process remains
+to poll. Preserve the deployment/manual dependencies below and production NO-GO.
+
+This documentation update postdates the latest read-only 95-path VM preview:
+refresh intended hashes and preview before any actual release. No commit/tag,
+integration/push or deployment occurred. The actual VM workflow and candidate/
+resulting-primary CI remain pending; keep the publication boundary.
+
+## Latest follow-up — public deployment target investigation, 2026-10-17
+
+The saved handoff below remains the implementation/release baseline. A subsequent
+bounded read-only FG-10 check found the GitHub repository homepage metadata points
+to `https://test.abutchikikz.online`. GitHub deployment history returned `[]`,
+environments returned total_count 0, and Pages is disabled; these do not prove that
+no external deployment exists or that the homepage is the intended production URL.
+
+Actual GET attempts to `/` and `/healthz/` could not resolve the host (Windows
+getaddrinfo 11001). Google Public DNS over verified HTTPS returned HTTP 200,
+DNS status 3 (NXDOMAIN), no answer. Independent Cloudflare DNS-over-HTTPS failed
+local certificate-chain verification; it supplied no corroborating DNS result and
+TLS validation was not bypassed. The web browsing tool also could not access the
+two URLs. Proof: `.tmp/finance-public-reachability-20261017.json`, observed
+2026-10-16 22:02 UTC / October 17 06:02 Asia/Singapore.
+
+**FG-10: BLOCKED for live verification at the advertised target; intended production
+target/configuration remain UNKNOWN.** This is an operational acceptance blocker,
+not a demonstrated application regression or a known Finance code vulnerability.
+Need the actual current authorized URL/environment, or operator-owned DNS/service
+restoration, before live rendering/login/two-store/Finance evidence can be gathered.
+Manual intervention remains deferred; no DNS, infrastructure, settings, credentials
+or application state changed. No production/restore acceptance is established.
+Documentation-only checks apply; repeating local Finance suites cannot resolve DNS.
+Continue only independent, evidenced Finance work; do not manufacture a deployment
+or replay this failed lookup without new target/external-state evidence.
+
+## New-conversation handoff saved — 2026-10-17
+
+This is the latest resumption point and supersedes conflicting pending-review,
+test-running or CI-failure wording in earlier snapshots below. This request saves
+the handoff only; no implementation, staging, release or integration was performed.
+
+### Exact workspace and preservation
+
+- Work in `C:/Users/Administrator/.codex/worktrees/finance-form1-treatments/grand`,
+  branch `codex/finance-form1-print-evidence`, HEAD
+  `32ab04669da05b868f6c8b8ff37e0f71b3805555` (accepted v0.7.172).
+- Newer register/print/designation/unsigned/signed Form 1 work, integrity repair,
+  prior-payable wording and documentation remain **uncommitted/unpublished**.
+- Integration checkout `C:/Users/Administrator/.codex/worktrees/grand-v107-integration`
+  was rechecked clean on master at that same SHA while saving this handoff.
+- Canonical `C:/Users/Administrator/Desktop/GH/grand` is an older operator checkout;
+  its CONTINUE.md points here. Preserve its modified database, unrelated test draft,
+  screenshots, stashes and other worktrees. Never stage operator stores or private
+  fixtures. Exclude this worktree's unrelated `docs/GSO_INTEGRATION_REVIEW.md`;
+  preserve its current bytes even if another writer changes it.
+
+### Current CI blocker and pending vm-commit integration
+
+GitHub was queried again for this save: latest master
+[run 38618885804](https://github.com/tepong32/grand/actions/runs/38618885804)
+is completed/success, **all 19 jobs including verify and mysql passed**, at the
+exact SHA above. Remote master and tag v0.7.172 resolve to that SHA. Historical
+timeouts/failures below are superseded; **no current failed hosted job was found**.
+That passing run covers published v172, not the newer dirty working tree.
+
+The present blocker to promotion is **NOT RUN: current-candidate/resulting-primary
+hosted CI**, plus the **NOT PERFORMED: actual VM commit, integration and push**.
+Bounded local code review is complete within the scope below; it is not independent
+PR/human acceptance. No host-enforced master protection/rule was found in the
+earlier API inspection; required security/verify/mysql checks must still be honored.
+
+The installed tool is
+`C:/Users/Administrator/Desktop/GH/workflow_version_manager/version_manager.py`.
+Read its README and use the established repository adapter; never substitute a
+plain Git commit. The last read-only preview proposed v0.7.173 and a **95-path**
+intended payload, with automatic edits limited to VERSION/CHANGELOG. Its intent,
+preview-only adapter and evidence are listed in the detailed release section below.
+**This handoff edit changes the CONTINUE.md fingerprint: any preview predating it
+must have its intended-file hashes refreshed and be rerun before execution.** Preserve
+the previous proof as historical. The preview adapter has no execution mode.
+An execution adapter must stage/recheck only intended reviewed files and account
+for the tool committing the whole index. No `git add -A`, unrelated-history merge,
+automatic historical-version rewriting or inclusion of unrelated drafts.
+
+Keep the existing no-further-publication boundary during this save/handoff. On an
+authorized release continuation, complete the actual VM workflow and required
+candidate checks, integrate into master, push and verify exact remote refs and
+resulting verify/mysql/security jobs. Report any real blocking gate explicitly.
+
+### Completed evidence and its limits
+
+- Full repaired-source baseline: SQLite **2,370 passed / 202 native-only skips**,
+  2,572 discovered, 6,227.809s; native MySQL **2,572 passed / zero skips**,
+  8,533.055s. Both exit 0, exact test identities and two-alias cleanup verified.
+- Five later presentation/test files postdate those broad runs. Prior-payable
+  wording: **8/8 SQLite and 8/8 native**, zero skips, plus retained before/fixed
+  desktop/mobile browser proof. Final Form 1 history sentence: **1/1 SQLite**,
+  zero skips, 49.591s. Do not relabel the broad baseline as full current-source CI.
+- Bounded local review is complete: 19 production Python files, three migrations
+  and six templates, with exact reuse/scope limits and evidence below. The confirmed
+  unpublished predecessor/archive integrity defect is repaired and included in the
+  broad baseline. No skipped native test is counted as passed in SQLite.
+- All owned tests/previews/browser/MySQL were stopped at the checkpoint; no work
+  remains to poll or restart merely for status. No operator migrations, deployment,
+  physical signatures, restore or LGU acceptance are claimed.
+
+### Resume the original Finance goal
+
+Read AGENTS.md, the active checkpoint below, README, Finance roadmap/gap register,
+`docs/FINANCE_FOUNDATION_REQUIREMENT_AUDIT.md` (current 22-section reconciliation),
+`docs/FINANCE_REMAINING_WORK_2026-10-14.md` and the relevant feature/testing docs.
+Original goal source:
+`C:/Users/Administrator/.codex/attachments/ceb9d900-5c62-4b57-8e72-1bcb2a047247/pasted-text.txt`.
+Keep Budget → Accounting → Treasury scope, separate databases, maker/checker,
+immutable source/correction history, dated capacity and UAT mutation denial.
+Security/data integrity first; avoid new module breadth or speculative rules.
+
+Remaining work: distinct earmark-certificate lifecycle after actual local
+appropriation-versus-allotment/correction semantics are confirmed; remaining
+historical/ordinary-office coverage; applicable required-output inventory and
+individual JEV/form parity; clerk acceptance; then operational scrutiny,
+backup/restore and configured deployment verification, critical-gap closure and
+LGU acceptance. Conditional SHF/PhilHealth numerical applicability remains UNKNOWN;
+do not invent a deduction recipe or make unsupported calculations a new mandatory
+feature. Quarterly reserved-column meaning and physical authority/signature/form
+acceptance still need local evidence. Defer manual interventions as requested.
+
+The previous turn only began reading deployment documentation; it established no
+live deployment result. The deployment guide describes preparation and explicitly
+does not establish a created Render service. Discover an actual documented target
+before any public read-only check; do not infer production reachability from local
+tests. Do not deploy or change operator settings to manufacture acceptance.
+
+Do not replay completed retrieval, quarterly/ARO, ordinary-payment, signed-copy
+or prior-payable browser checkpoints. Reconcile actual code/evidence before the
+next finite change. No defensible new completion percentage/hour estimate exists.
+**GO for bounded local development; NO-GO for promotion until release checks pass;
+Finance completion and production remain NO-GO until original acceptance gates pass.**
+
+## Active continuation — bounded local review complete, unpublished, 2026-10-17
+
+Resume in `C:/Users/Administrator/.codex/worktrees/finance-form1-treatments/grand`,
+branch `codex/finance-form1-print-evidence`, HEAD/base accepted v172 /
+`32ab04669da05b868f6c8b8ff37e0f71b3805555`. All newer register/print/designation/
+unsigned/signed service and clerk work remains **uncommitted/unpublished**.
+This section supersedes earlier implementation/next-action snapshots below;
+do not recreate the now-implemented signed-copy lifecycle.
+
+### Latest stopping point and new-chat instructions
+
+**Latest release-review follow-up — complete locally.**
+[Scope, finding and actual test](docs/FINANCE_FORM1_SIGNED_COPIES_IN_PROGRESS.md#local-release-review-follow-up--2026-10-17).
+Bounded local code review covers 19 production Python files, three migrations and
+six templates; 17 production hashes reuse the exact prior reviewed source and the
+role file's sole new action sentence was inspected. Ten test-file hashes are
+execution evidence, not a claim of line-by-line review of every assertion.
+
+LOW introduced local stale guidance: designation history still called implemented
+signing-copy routes unfinished. One unconditional sentence now gives the actual
+retained-preparation next step. Existing real HTTP/source-isolation test **73025**
+PASS **1/1**, zero skips, 49.591s, exit 0, both aliases destroyed. No financial,
+permission, query, schema or layout-rule change; no native/full/browser rerun for
+this sentence. No additional code defect confirmed in the bounded review.
+
+Current proof `.tmp/finance-release-code-review-20261017.json`; current source
+`.tmp/finance-release-review-current-source-freeze-20261017.json` verifies all
+1,193 hashes and unchanged operator stores. **Five presentation/test files now
+differ from the earlier broad full baseline:** the four prior-payable wording
+files below plus `templates/budget/form1_signing_history.html`. The prior 8/8 per
+backend scopes and this separate 1-case GET keep their actual source chronology;
+do not invent a combined full-current-source execution. No new test method.
+All owned tests/previews/browser/MySQL are terminal/stopped; no process to wait on.
+
+Local review is complete only in the stated scope. It is not independent human/PR
+approval, a pentest, current hosted CI or LGU acceptance. The VM preview must now
+match these final reviewed files; actual candidate publication/CI and primary
+promotion remain pending under the unchanged publication boundary. Local candidate
+preparation may continue; production/whole Finance completion remain NO-GO.
+
+**Latest completed checkpoint — existing-payable clerk wording, 2026-10-17.**
+[Actual repair, browser scope and proportional tests](docs/FINANCE_PRIOR_PAYABLE_DV_2026-09-10.md#existing-payable-clerk-follow-up--2026-10-17).
+LOW pre-existing copy defect: a no-deduction prior-payable validation correctly
+created no JEV, but its banner/button promised one and called its validation date
+JEV date. Accepted v172 contains that wording. Now the shared action says Validate
+voucher; the existing prior-claim form distinguishes validation/adjustment dates.
+Requiredness, queries, grants, financial services and transitions are unchanged.
+Six existing visibility assertions use the new label; none were removed/weakened.
+
+Current four-file follow-up: `vouchers/roles.py`, `vouchers/forms.py`,
+`vouchers/tests.py`, `templates/vouchers/case_detail.html`. **The broad full results
+below precede these four presentation files.** Current source freeze:
+`.tmp/prior-payable-clerk-current-source-freeze-20261017.json`; combined proof:
+`.tmp/prior-payable-clerk-validation-evidence-20261017.json` (all 1,193 source
+hashes, exact selected test IDs/log hashes, unchanged operator stores and cleanup).
+
+Actual focused results: SQLite **96194 PASS 8/8**, zero skips, 10.114s;
+MySQL **29717 PASS 8/8**, zero skips, 9.483s; both exit 0 and both aliases destroyed.
+Logs `.tmp/prior-payable-clerk-fixed-{sqlite,native}-20261017.log`; exact labels
+`.tmp/prior-payable-clerk-labels-20261017.json`. Earlier complete regression is the
+pre-copy baseline, not relabelled full-current-source execution. Another full local
+rerun was out of scope for these wording-only changes; code and release review
+and hosted candidate/resulting primary CI remain pending. No new release or push.
+
+Genuine before/fixed browser cases: original posted claim 1,500, partial DV 1,000,
+no deductions. Missing selection retained date/note and left v4/zero holds unchanged;
+valid selection advanced to Treasury/v5 with one 1,000 hold and 500 remaining,
+no new JEV/request and unchanged original expense/payable lines. A separate Treasury
+actor read the same retained claim and next cash-position/check action; no payment
+was issued. Mobile/desktop cards inspected; 390px page has no horizontal overflow.
+Proof `.tmp/prior-payable-clerk-browser-evidence-20261017.json` pins actual DOM,
+state JSON and images. Setup reused existing `PriorPayableDVTests`: Budget/intake,
+DV/signature readiness are synthetic fixture setup, not a human-entered whole
+OBR cycle or physical acceptance. Synthetic force-login is not real auth/provisioning.
+
+All owned work is terminal: seeds **38911/4570**, tests **96194/29717**; browser
+`grand-prior-clerk` closed; previews **44801/93443** deliberately stopped (exit 1,
+not test failures); owned MySQL stopped; ports **33308/8798/8771** checked closed.
+Preserve before/fixed fixtures and raw evidence; do not restart completed runs.
+Do not repeat this branch as a new milestone. Original local semantics/forms,
+remaining office scenarios, review/hosted CI/integration and operational/LGU gates
+remain open. GO for continued local foundation work; NO-GO for release/production.
+
+**Earlier full baseline — 2026-10-17, 05:22 Asia/Singapore: both repaired-source
+regressions PASS, exit 0.** No application/test source changed during those runs.
+The later four-file clerk presentation follow-up is separately validated above.
+
+| Backend / terminal session | Actual result | Suite seconds |
+| --- | --- | --- |
+| SQLite 48251 | 2,572 discovered; 2,370 passed / 202 native-only skips | 6,227.809 |
+| MySQL 8.4.11 62511 | All 2,572 passed / zero skips | 8,533.055 |
+
+Each backend executed exactly the 2,572 distinct discovery identities once and
+cleaned both test aliases. All 1,193 frozen application/template/requirements
+hashes and both operator database hashes match. The native run includes the
+previously SQLite-skipped checks and current signed/unsigned races. No skip,
+assertion, required check or timeout was weakened to pass.
+
+Raw logs: `.tmp/finance-full-identity-repair-{sqlite,native}-20261017.log`.
+Verified evidence: `.tmp/finance-full-identity-repair-{sqlite,native}-evidence-20261017.json`.
+Common source freeze: `.tmp/finance-full-identity-repair-source-freeze-20261017.json`.
+The native proof also pins the SQLite proof/log and common source hashes.
+**Both handles are terminal: do not poll or restart them.** No native runner
+remains. The verified owned fixture was shut down; loopback 33308 and preview
+8771 were checked closed. No operator migration, grant, dependency or environment
+change, production deployment or eGAPS access occurred.
+
+Resume the same original Budget → Accounting → Treasury Completion Gate:
+`C:/Users/Administrator/.codex/attachments/ceb9d900-5c62-4b57-8e72-1bcb2a047247/pasted-text.txt`.
+Security/data integrity remain first. Preserve manual deferrals and avoid new
+module breadth, repeated signing polish or replaying already-passed suites
+without a relevant change/failure.
+
+First actions for the new chat:
+
+1. Read this active section, AGENTS.md and the linked roadmap/gap/finite inventory;
+   inspect Git/remote state. Preserve operator stores, unrelated drafts and other
+   worktrees. This active worktree owns the newer uncommitted work; the canonical
+   checkout's September implementation snapshot is historical.
+2. Preserve the actual complete results above and interrupted earlier evidence.
+   Local full/scoped/security/layout and bounded code-review evidence do not
+   establish hosted CI, independent human approval, physical signatures or office acceptance.
+3. Pending vm-commit integration is **not performed**. Full local execution is now
+   satisfied; code and release review, intended-file installed-VM preview and
+   execution, candidate CI, primary integration/push and exact resulting remote/CI
+   verification remain. Preserve the no-further-publication boundary; an automatic
+   goal continuation does not authorize a release.
+4. Continue the existing finite foundation inventory. Unsupported Form 1 numerical
+   authority and earmark appropriation-versus-allotment semantics remain explicit
+   dependencies. The bounded source search found no applicable offset recipe;
+   do not reclassify factual approvals as numerical authority. If no new primary
+   evidence resolves that dependency, follow the current requirement reconciliation's
+   remaining evidence dependencies. The existing-payable clerk investigation is
+   now complete above; do not repeat it. JEV template/form comparison
+   remains dependent on an applicable retained form. Defer genuine
+   manual decisions without inventing form fields or authority. Do not recreate
+   implemented signing services or infer a new percentage/hour estimate.
+5. Keep checkpoint, roadmap and gap records aligned with actual code and results.
+   **GO for continued local foundation development; NO-GO for release/production
+   until their remaining review, CI, functional and acceptance gates pass.**
+
+**Current checkpoint — predecessor binding repaired and full two-backend validation PASS.**
+
+**Investigation basis:** the [current 22-section reconciliation](docs/FINANCE_FOUNDATION_REQUIREMENT_AUDIT.md#current-reconciliation--2026-10-17)
+found retained quarterly/ARO and ordinary new-expense browser proof, so those were
+not repeated. The existing-payable branch above is now inspected/repaired. Preserve
+original scope and manual deferrals; conditional numerical applicability is unknown,
+not another mandatory feature. Do not invent the next gap or redo completed proof.
+
+Source review found a **MEDIUM** integrity defect introduced in the unpublished
+signed-copy work: `_previous()` checked hashes/family but could advertise a changed
+row public ID/version or rehashed payload while the original issued ZIP retained
+contradictory metadata. Normal saves forbid these mutations; the demonstrated
+condition is DB corruption/out-of-band change, not a public-UI exploit or a defect
+in published v172. The fix binds advertised identity/family and exact bounded
+original `issuance.json` bytes, without recursion, financial changes or new grants.
+
+Actual validation:
+
+- Pure baseline: six test methods / three assertion failures, 0.005s, exit 1.
+- Initial fixed pure scope: 6/6, 0.005s; later equal-length tamper refinement is
+  included in the final focused scopes below.
+- SQLite **27583**, terminal: **8/8**, zero skips, 274.681s, exit 0.
+- Native **78354**, terminal: **8/8**, zero skips, 280.546s, exit 0.
+- Both aliases destroyed by both focused runs; genuine corrupt-row successor
+  rejection leaves receipt/review/issue/journal counts unchanged and reproduces
+  the restored original archive. Earlier retained actual ZIP compatibility probe
+  passes and rejects changed version, public ID and rehashed payload.
+
+Proof `.tmp/form1-predecessor-identity-evidence-20261017.json`; final focused logs
+`.tmp/form1-predecessor-identity-fixed-{sqlite,native}-20261017.log`; source freeze
+`.tmp/form1-predecessor-identity-source-freeze-20261017.json`. Bounded local review
+`.tmp/form1-local-source-review-20261017.json` records checked scope/hashes and the
+one confirmed finding. Both operator database hashes are unchanged. Prior 22-case
+combined passes and current security-command evidence remain below; they predate
+this three-file repair and are not full-current-source execution.
+
+**Completed full regression commands — no labels, filters, failfast or keepdb:**
+
+- Python 3.11 `-B -X utf8 .tmp/intake_primary_sqlite.py --verbosity 2`.
+- Python 3.11 `-B -X utf8 .tmp/intake_primary_native.py --verbosity 2`.
+
+Use `C:/Users/Administrator/Desktop/GH/grand/.venv/Scripts/python.exe` and the
+isolated wrappers, not operator settings. Each run confirmed 2,572 discovered.
+Discovery/partition additionally assigned those identities exactly once across
+eight workers; discovery alone was not execution evidence. The completed logs and
+verified results above now establish local execution on both backends.
+`.tmp/finance-full-identity-repair-processes-20261017.json` and the live-state JSON
+are retained historical process/terminal evidence, not targets to restart.
+MySQL was isolated to loopback 33308 and two fixed test schemas; it is now stopped.
+All newer code remains uncommitted/unpublished. Independent release review,
+current-tree hosted CI, vm-commit, integration and push remain pending.
+
+Historical baseline sessions **20024/38719** were deliberately stopped **-1** for
+this confirmed finding, not observation timeout. Their original source freeze and
+`.tmp/finance-full-{sqlite,native}-20261017.log` remain **INTERRUPTED / NOT PASS**;
+no Django cleanup summaries were produced. Verified stop reasons/process identities
+are in `.tmp/finance-full-interrupted-for-identity-repair-20261017.json`. The fresh
+focused native runner subsequently recreated only its documented test schemas and
+cleaned both up. Do not restart old handles or relabel partial counts as coverage.
+See [repair, commands and checkpoint](docs/FINANCE_FORM1_SIGNED_COPIES_IN_PROGRESS.md#predecessor-row-and-archive-binding-repair--2026-10-17).
+**GO for the focused local repair and continued validation; NO-GO for release,
+full Finance completion or production.** No new overall percentage/hour estimate.
+
+Saved at the user's request on 2026-10-17. That save-only turn refreshed the
+handoff; it did not implement another feature or authorize a vm-commit/integration/push.
+Continue the same original Finance Completion Gate, not a new project. Read this
+active section before historical snapshots, then the active worktree's AGENTS.md,
+[Finance roadmap](docs/FINANCE_ROADMAP.md),
+[gap register](docs/FINANCE_GAP_REGISTER.md) and
+[finite remaining inventory](docs/FINANCE_REMAINING_WORK_2026-10-14.md).
+
+After the locally validated signed-copy clerk checkpoint, investigation began on
+the unsupported Form 1 PhilHealth/SHF numerical treatment. **No calculation,
+model, migration or test was changed by that investigation.** The inspected
+retained LBM 94/JMC material and indexed newer official guidance do not establish
+a general receipt-minus-SHF-expense or overlap-offset rule. Existing independent
+factual findings are implemented; they do not authorize a numeric adjustment.
+Do not recreate those services or retroactively turn their approvals into
+numerical authority. Keep gross ending balance, deduction, any authorized
+adjustment and net ending separately traceable, with unsupported amounts unknown.
+See [treatment implementation](docs/FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md),
+[source audit](docs/FINANCE_FORM1_PHILHEALTH_SOURCE_AUDIT.md) and
+[source contract](docs/FINANCE_FORM1_SOURCE_CONTRACT.md).
+
+Resume with a bounded check for an applicable original official instrument and
+retained source reconciliation. DOH DC 2025-0120 and the SHF manual remain discovery leads only. The subsequent
+[official COA 2025-002 scope inspection](docs/FINANCE_FORM1_PHILHEALTH_SOURCE_AUDIT.md#official-coa-lead-resolved-by-scope-inspection--2026-10-17)
+retained the filed scan and visually checked pages 1–7: its stated coverage is
+PhilHealth head/regional-office accounting, not an established municipal Form 1
+offset recipe. Pages 8–35/annexes were not inspected. Do not transpose those
+insurer-side entries or infer a municipal formula. If no safe recipe is established, record the precise dependency and
+move to the next named independent original-scope gap in the finite inventory;
+defer genuine manual interventions without inventing answers. Avoid another
+round of signing UI polish, already-completed test replays or speculative breadth.
+
+Bounded independent inventory follow-up while full suites run: [individual JEV
+output investigation](docs/FINANCE_REQUIRED_OUTPUT_MAP.md#named-independent-output-investigation--jev-2026-10-17)
+records inspected Accounting routes/screen and period report support separately
+from unproven individual form parity. Locate existing governed templates and
+applicable original form evidence before implementing anything. Official COA
+reference retrieval returned 403; no indexed snippet or unrelated agency layout
+was treated as the municipal contract. This documentation-only inspection does
+not change the running suites' frozen application/test sources or numerical rules.
+
+### Current CI/release blocker and pending integration
+
+**Read-only VM preparation — 2026-10-17:** the installed Version Manager README,
+inspection and established adapter were checked. A preview proposes **v0.7.173**
+with the uniform commit title `Release v0.7.173: feat(finance): retain reviewed
+Form 1 signing copies and clarify prior-payable validation`. Automatic version
+edits are limited to root VERSION/CHANGELOG; historical documentation tokens are
+preserved. The dated intended payload is **95 files**, excluding unrelated
+`docs/GSO_INTEGRATION_REVIEW.md`, operator stores, ignored fixtures and private data.
+Intent `.tmp/finance-next-vm-release-intent-20261017.json`; preview-only adapter
+`.tmp/preview_finance_next_vm_20261017.py`; current preview evidence/log paths are
+`.tmp/finance-next-vm-preview-evidence-20261017.json` and
+`.tmp/finance-next-vm-preview-final-20261017.log`. Refresh/re-preview any changed
+intent/docs/remote state before execution. The adapter has **no execute mode**.
+Preview verified unchanged HEAD, tags, index entries, worktree status, VERSION,
+CHANGELOG and excluded GSO bytes. **No staging, commit, tag, integration or push.**
+
+During the later review refresh the excluded GSO draft changed between observations.
+Its current bytes were preserved; no actor/cause was inferred, no old copy was
+restored and it stays excluded. `.tmp/finance-next-vm-exclusion-refresh-20261017.json`
+records old/current fingerprints and observed modification time. The stale preview
+guard stopped before mutation; its failed log is retained. A new preview must use
+the refreshed intended hashes and current exclusion snapshot, without absorbing
+that unrelated draft. "Unchanged" above means within each verified preview,
+not a claim that another writer cannot change excluded work between previews.
+
+The installed tool stages only its planned version files, then commits the whole
+index. A later authorized execution adapter must explicitly stage/recheck only
+the reviewed intended payload, preserve unrelated staged work and prevent it from
+entering the release. Do not substitute a plain Git commit or assume the preview
+has staged the 95 code/document/artifact files. This save/automatic continuation
+preserves the no-further-publication boundary.
+
+Actual GitHub policy inspection: master branch-protection API returned **Branch
+not protected (404)** and applicable branch rules returned `[]`. No host-enforced
+human PR-review requirement was found by those calls. Do not invent an extra
+user-approval gate from earlier handoff wording. Bounded local code review is now complete above; the
+user-required security/verify/mysql checks still apply; this is not a policy change
+or permission to bypass CI. Financial maker-checker reviews remain separate.
+
+GitHub and remote refs were queried again while saving this handoff: latest
+master [run 38618885804](https://github.com/tepong32/grand/actions/runs/38618885804)
+is completed/success at exact `32ab04669da05b868f6c8b8ff37e0f71b3805555`;
+all **19 jobs**, explicitly `verify` and `mysql`, succeeded. Remote master and
+v0.7.172 still resolve to that SHA. **There is no current failed hosted job found.**
+Earlier timeout/fixture failures below are historical, with repairs and their
+actual scoped results retained; do not report them as today's open CI failure.
+
+The open promotion gate is **unperformed current-candidate/resulting primary CI
+and the actual VM commit/integration/push workflow for the newer local tree**.
+The full baseline, later scoped follow-ups and bounded local review are recorded
+above; they do not establish hosted CI, publication or whole Finance acceptance. No new VM commit/tag, integration or push has happened.
+The existing integration worktree was rechecked clean on master at accepted v172.
+Keep the no-further-publication boundary; this save-only request does not lift it.
+When release is separately authorized, follow the installed Version Manager
+README/adapter, preview the exact intended files, execute the actual VM workflow,
+complete required checks/review, integrate/push and verify exact remote refs/CI.
+Do not replay the already-completed v172 release or include operator databases,
+unrelated drafts, or transient evidence wholesale.
+
+Validation of the earlier handoff-save turn: read-only Git/GitHub and documentation
+checks only. Its observation of closed ports 33308/8771 was historical. Both ports were
+checked closed again after the completed native run and owned fixture shutdown. The current save
+rechecked latest master CI, exact remote master/tag refs, clean integration
+checkout and both live test handles; documentation checks are recorded with this
+save. Earlier scoped evidence remains attributed to its tested source below.
+Production and full Finance completion remain **NO-GO**.
+
+### Earlier clerk checkpoint — scoped evidence before predecessor repair
+
+Implemented locally: source-scoped receipt/history, truthful unknown signing
+dates and independent return, separate or atomic verification/issuance, explicit
+scan-correction predecessors and original audited PDF/ZIP downloads. Six routes
+and two templates reuse the existing services; designation detail links onward.
+History authorizes the common original copy, re-fetches actual receipt rows and
+verifies each. Four opt-in presets separate Budget recording, Budget verification/
+issuance and Accounting/Treasury read/export; existing roles/UAT defaults are
+unchanged. No operator grants, new monetary rules or ledger/cash authority.
+See [the feature and exact scope](docs/FINANCE_FORM1_SIGNED_COPIES_IN_PROGRESS.md).
+
+Actual validation, all exit 0, zero skips and both aliases destroyed:
+
+| Scope | PASS | Seconds / log under `.tmp/` |
+| --- | --- | --- |
+| Initial clerk HTTP/minimal Budget roles/Accounting viewer | 3/3 | 486.847; `form1-signed-ui-first-sqlite-20261017.log` |
+| Extended Accounting/Treasury/foreign-office/UAT/revocation/corruption + two original signing/unsigned cases, role-config consumer, pure validators; SQLite | 8/8 | 357.533; `form1-signed-ui-final-sqlite-20261017.log` |
+| All three clerk cases + same dependents/validators; native | 10/10 | 753.567; `form1-signed-ui-native-20261017.log` |
+| Final source-context ordinary clerk flow; SQLite | 1/1 | 165.791; `form1-signed-ui-context-sqlite-20261017.log` |
+| Same final source-context flow; native | 1/1 | 188.480; `form1-signed-ui-context-native-20261017.log` |
+
+Scopes overlap; do not sum as distinct coverage. The first SQLite scope predates
+the viewer-test extension only. Mobile QA then exposed a **LOW introduced local
+source-context omission**: missing retained LGU/fund/year header. Two templates
+now reuse pinned original fields, with no site-name/current-clock/master-label
+fallback. Only those templates and the ordinary clerk test changed afterward;
+the fresh one-case runs verify the new context through entry/review/issued/
+correction states. Earlier scopes are not relabelled full-current-tree passes.
+Source freezes: `.tmp/form1-signed-ui-{first,extended,final}-source-freeze-20261017.json`.
+
+Combined proof `.tmp/form1-signed-ui-local-evidence-20261017.json` PASS, generated
+by `.tmp/verify_form1_signed_ui_20261017.py`: exact test identities/chronology,
+source hashes, five original bundle members, PDF/ZIP parity, four-state layout
+at 390/1440px and unchanged operator databases. Eight final images inspected:
+`output/playwright/form1-signed-{entry,review,issued,correction}-{mobile,desktop}-final-20261017.png`.
+Raw actual authorized SQLite views/assets: `.tmp/form1-signed-ui-qa-final-20261017`;
+DOM proof `.tmp/form1-signed-ui-layout-final-20261017.json`, browser log
+`.tmp/form1-signed-ui-browser-final-20261017.log`. Before image retained as
+`output/playwright/form1-signed-entry-mobile-before-20261017.png`. These are
+synthetic layout/HTTP/evidence checks, not actual signatures or printer/LGU acceptance.
+
+All runners **33560, 11563, 2946, 91175, 56019, 75409, 83262** are terminal.
+Owned previews **5345/62281**, MySQL and browser `grand-form1-signed` are stopped/
+closed; ports **33308/8771 closed**. Do not restart completed runs. System,
+migration-drift and diff checks PASS. No operator migration/grant, eGAPS access,
+new dependency or deployment. Preserve unrelated `docs/GSO_INTEGRATION_REVIEW.md`,
+canonical operator `db.sqlite3`, `accounting/test_policy_concurrency.py`, older
+screenshots, stashes and other worktrees.
+
+The following pre-repair validation/publication statements are historical; the
+full repaired-source results at the top supersede their NOT RUN execution state.
+
+Rechecked remote master/tag v172 at exact `32ab046`; latest primary run
+**38618885804** remains completed/success. Accepted v172's CI does not cover this
+local work. No current hosted failure was found. Full current-tree/security/
+release review and remote CI remain NOT RUN; published coverage below is historical.
+
+**Pending vm-commit:** no new commit/tag, integration or push. Preserve the
+no-further-publication boundary. A later authorized release must inspect the
+installed VM README/adapter, preview intended files, execute the actual VM
+workflow, satisfy required review/CI, integrate to master, push and verify exact
+remote results. Do not replay v172 promotion, substitute plain Git, stage `.tmp`
+evidence or include unrelated work/databases. Existing primary integration worktree
+is `C:/Users/Administrator/.codex/worktrees/grand-v107-integration`; recheck first.
+
+**Next functional milestone after the automated gate above:** use retained Form 1
+treatment findings and applicable official evidence for the unsupported numerical
+route. The newly inspected COA lead does not establish that municipal rule. Implement only
+an evidenced, independently reviewed recipe through a fresh whole-package
+successor, retaining gross/deduction/adjustment/net controls. If evidence does not
+establish a safe rule, keep it unsupported and continue the next named ordinary
+required-output/scenario gap from [the finite inventory](docs/FINANCE_REMAINING_WORK_2026-10-14.md).
+Do not substitute more signing UI polish/replays for that missing functionality.
+Earmark appropriation-versus-allotment semantics and actual local signatures/
+appointments/forms/restore/operational acceptance remain unknown/manual; defer
+those interventions as requested without inventing answers or blocking other work.
+Preserve the original 22-section gate. **GO for this local milestone and next
+bounded development; NO-GO for unvalidated publication, full Finance completion
+or production.** No defensible overall percentage/hours estimate is established.
+
+## Previous checkpoint — signed-copy services validated locally, 2026-10-17
+
+Historical service-only snapshot: its NOT IMPLEMENTED/next-action statements are
+superseded by the active clerk checkpoint above; its original test evidence remains.
+
+The requested handoff was saved; subsequent goal continuation resumes the same
+Finance objective. New service work below remains local. No operator migration,
+vm-commit, integration, push or deployment has occurred. Do not restart the
+project or expand its scope.
+
+### Start here: exact workspace and stopping point
+
+- Active worktree: `C:/Users/Administrator/.codex/worktrees/finance-form1-treatments/grand`.
+  Branch `codex/finance-form1-print-evidence`; HEAD
+  `32ab04669da05b868f6c8b8ff37e0f71b3805555` (accepted v0.7.172).
+- Register/output parity, draft print/LGU fields, designation preparation/review
+  and unsigned-copy release are implemented locally and remain **uncommitted**.
+  The previous checkpoint below retains actual scoped tests, failures, repairs,
+  source freezes and PDF/browser evidence; those are historical evidence for
+  that tested source, not a pass for every subsequent edit.
+- **Work just started after those passes:** `budget/models.py` now includes
+  `Form1SignedReceipt`, `Form1SignedReview` and `Form1FinalIssue`;
+  `budget/migrations/0026_form1_signed_evidence.py` exists (generated with Django
+  5.2.18). Services now exist in `budget/form1_signed_copies.py` and
+  `budget/form1_final_issues.py`; scope and remaining delivery work are in
+  [the signed-copy feature record](docs/FINANCE_FORM1_SIGNED_COPIES_IN_PROGRESS.md).
+  System and migration-drift checks PASS. Clerk forms/views, signed-workflow
+  operational role presets and HTTP/layout checks remain NOT IMPLEMENTED.
+  Earlier unsigned source freezes predate this extension.
+- Initial SQLite **47332** is terminal: PASS 4/4, zero skips, 491.078s, exit 0.
+  Initial native **59416** is terminal: PASS 5/5, zero skips, 690.842s, exit 0,
+  including six races. Both aliases were destroyed by both runs. Initial logs:
+  `.tmp/form1-signed-core-{sqlite,native}-20261017.log`; source freeze:
+  `.tmp/form1-signed-core-source-freeze-20261017.json`.
+- A subsequent archive-byte predecessor guard and corruption-test extension were
+  added after those launches; do not credit the initial scopes for that guard.
+  The pre-fix pure probe and three passing database-free validators are retained
+  in the feature record. SQLite follow-up **83768** is terminal: PASS 4/4,
+  zero skips, 98.738s, exit 0, both aliases destroyed, log
+  `.tmp/form1-signed-predecessor-sqlite-20261017.log`.
+- A further capture correction permits explicitly unknown signing dates without
+  inventing them; approval/issuance still require all actual dates. The dates
+  integration case now verifies incomplete-return capture, rejection of approval
+  even with all-positive checkboxes, and a retained independent return decision.
+  Final follow-ups are terminal: **SQLite 62175 PASS 6/6 / 268.588s; native
+  15387 PASS 6/6 / 272.186s**, both exit 0, zero skips and both aliases destroyed.
+  Each selects the two extended integration cases and four pure validators.
+  Logs: `.tmp/form1-signed-final-{sqlite,native}-20261017.log`; final source
+  freeze: `.tmp/form1-signed-final-source-freeze-20261017.json`.
+  The earlier scopes predate these extensions and are not full-current-module
+  passes. The final targeted cases cover the changed validation behavior; locks,
+  schema and issuance renderer were unchanged after the initial scopes.
+- All runners **47332, 59416, 83768, 62175, 15387** are terminal; no matching test
+  Python process remained. Do not restart them. The owned MySQL fixture server is
+  stopped and **33308 is closed**. No browser/server was started in this phase.
+  Combined evidence `.tmp/form1-signed-core-local-evidence-20261017.json` and
+  reproducer `.tmp/verify_form1_signed_core_20261017.py` verify exact scoped test
+  identities/results, source hashes and unchanged operator databases. System,
+  migration-drift and diff checks PASS. No operator migration/grant or new software.
+- Primary integration worktree:
+  `C:/Users/Administrator/.codex/worktrees/grand-v107-integration`; inspected clean
+  on `master` at the same HEAD. Recheck before any later integration.
+- `C:/Users/Administrator/Desktop/GH/grand` is the older operator checkout at
+  `ce0c724`, branch `codex/finance-cheque-redemptions`. Its CONTINUE entry points
+  here. Preserve modified `db.sqlite3`, untracked
+  `accounting/test_policy_concurrency.py`, older screenshots, stashes and other
+  worktrees. Also preserve unrelated untracked `docs/GSO_INTEGRATION_REVIEW.md`
+  in the active worktree; it is not part of this Finance checkpoint.
+
+### Current CI blocker and pending vm-commit integration
+
+Requeried GitHub and remote refs while saving: remote `master` and `v0.7.172`
+both resolve to exact `32ab04669da05b868f6c8b8ff37e0f71b3805555`.
+[Primary run 38618885804](https://github.com/tepong32/grand/actions/runs/38618885804)
+is completed/success, all **19 jobs**, explicitly including `verify` and `mysql`.
+Candidate [38611039036](https://github.com/tepong32/grand/actions/runs/38611039036)
+also passed. There is **no current failed hosted job found**. Historical timing/
+coverage failures and the superseded `57add6c` candidate remain documented below;
+do not relabel them as a current failure or retry/promote that obsolete candidate.
+
+The **current release blocker** is unfinished clerk delivery and missing full
+release validation/review for the unpublished local work. The signed-copy core
+has scoped local evidence, not a full-current-module/project acceptance pass. No candidate CI covers these
+changes. The prior unsigned-copy broad runs failed on a fixture, followed by
+clean repaired-module passes; preserve that distinction in the table below.
+Accepted v172's 2,547 native passes / zero skips and 2,348 SQLite passes / 199
+native-only skips cover committed v172 only. Local discovery of 2,557 identities
+is not full execution and predates the signed-copy cases. Full post-change CI and
+security/release review remain outstanding; native migration/routing and scoped
+core validation now pass as recorded above. Clerk/minimal-role/HTTP/layout and
+dependent completion checks remain NOT RUN / unfinished delivery, not acceptance.
+
+**No new VM commit/tag, merge or push has happened.** Keep the existing
+no-further-publication boundary; this save-only request does not authorize a
+release. For a later authorized vm-commit, inspect the installed README and
+repository adapter, preview the exact intended files, use
+`C:/Users/Administrator/Desktop/GH/workflow_version_manager/version_manager.py`,
+complete required review/checks, integrate to `master`, push and verify exact
+remote commit/tag and resulting CI. Do not substitute a plain Git commit,
+replay v172 integration, include incomplete scaffolding without its gates, or
+stage operator databases, unrelated work or transient `.tmp` evidence wholesale.
+
+### Current design and next delivery checkpoint
+
+The signed receipt/verification/final-issue services below are implemented locally
+with scoped validation; do not recreate them. Next connect clerk receipt/history and
+review/issue screens, scoped original PDF/ZIP download controllers with archive/
+audit responses, and opt-in roles. Run genuine minimal-role, HTTP/CSRF and layout
+checks plus relevant dependent regressions. Existing service design:
+
+1. Retain the returned PDF and a versioned receipt over the exact unsigned copy,
+   actual or explicitly unknown dates for all five signing functions, and declared physical receipt/
+   custody facts. An upload, typed name or web permission alone establishes no
+   signature, Chief Executive approval or final issuance. Reuse pinned authority
+   documents; validate known dates against them and require every date before
+   approval. Technical PDF checks do not
+   replace independent human inspection of the returned pages.
+2. Require independent Budget verification of all financial/source pages, four
+   certifications, separate Chief Executive approval and custody evidence.
+   Preserve maker separation and UAT denial without inventing extra accounts for
+   paper signers. Inspect existing voucher signature-return controls for useful
+   patterns; do not create a fake VoucherCase or generic signing framework.
+3. Retain an immutable issued package containing the original unsigned bytes,
+   returned signed bytes and their source/receipt/review evidence. Recheck current
+   sources and original read/export access. Preserve BudgetVersion → Fund →
+   package → preparation → copy → receipt lock order and original history.
+4. Pin an explicit previous final issue for corrections; serialize the family
+   head and prevent branching/duplicate issuance. A corrected scan cannot silently
+   replace an issued artifact. Financial changes require the proper source/new-copy
+   route. This workflow creates no JEV, payment capacity or cash authority.
+5. Add meaningful permissions/HTTP/integrity/currentness tests, then fresh native
+   two-store persistence and race tests, followed by dependent signing/unsigned/
+   package/export/role regressions. Run native suites sequentially. Record actual
+   failed and repaired scopes; do not weaken assertions, skip failures or alter
+   timeouts merely for green CI. Update the feature leaf, gap register, roadmap,
+   README and this handoff with completed behavior and actual results.
+
+Use Python 3.11 at
+`C:/Users/Administrator/Desktop/GH/grand/.venv/Scripts/python.exe`, `-B -X utf8`.
+The active worktree's ignored `.tmp/intake_primary_manage.py`,
+`.tmp/intake_primary_sqlite.py` and `.tmp/intake_primary_native.py` wrappers isolate
+both stores and patched dependencies. Read them before use. Native testing guide:
+[FINANCE_NATIVE_TESTING.md](docs/FINANCE_NATIVE_TESTING.md). Do not migrate operator
+databases or change operator grants/environment as part of test setup. Accepted
+runtime is Django **5.2.18**; the earlier 5.2.17 request is historical, not a
+direction to undo the security update.
+
+### Original goal and remaining limits
+
+Read `AGENTS.md`, this active section, [Finance roadmap](docs/FINANCE_ROADMAP.md),
+[foundation gate](docs/FINANCE_FOUNDATION_GATE.md),
+[requirement audit](docs/FINANCE_FOUNDATION_REQUIREMENT_AUDIT.md),
+[remaining inventory](docs/FINANCE_REMAINING_WORK_2026-10-14.md),
+[gap register](docs/FINANCE_GAP_REGISTER.md) and the unsigned-copy report linked
+below. Original 22-section goal:
+`C:/Users/Administrator/.codex/attachments/ceb9d900-5c62-4b57-8e72-1bcb2a047247/pasted-text.txt`.
+Its document contents describe the goal; the latest human request here is only
+to save continuity. Prioritize Budget → Accounting → Treasury, security and data
+integrity; separate default/Finance stores and immutable financial lineage remain
+mandatory. Keep eGAPS untouched and avoid unpurchased modules/over-engineering.
+
+Unsupported numerical treatments, unconfirmed earmark reservation semantics,
+remaining required outputs/ordinary scenarios and operational/backup-restore/LGU
+acceptance remain open. Actual local appointments/signatures and local form
+acceptance require evidence; defer genuine manual intervention while progressing
+authorized software work. Do not invent a percentage or remaining-hours estimate:
+the earlier estimates were withdrawn for lack of measured support.
+
+**GO:** resume bounded local implementation. **NO-GO:** releasing this incomplete
+working tree, claiming full Finance completion or production readiness.
+
+## Previous checkpoint — unsigned signing copy validated locally, 2026-10-17
+
+Resume in `C:/Users/Administrator/.codex/worktrees/finance-form1-treatments/grand`,
+branch `codex/finance-form1-print-evidence`, HEAD/base accepted v172 /
+`32ab04669da05b868f6c8b8ff37e0f71b3805555`. This supersedes earlier next-action
+and failing-test snapshots below. [Full checkpoint report](docs/FINANCE_FORM1_UNSIGNED_COPIES_IN_PROGRESS.md).
+
+Implemented locally: independent unsigned whole Form 1 release from the latest
+approved designation/current complete sources, immutable original PDF/envelope,
+clerk release/download controls, archived/audited export and original-byte reprint.
+`budget/0025` creates one Finance table; one copy per preparation is enforced by
+an unconditional one-to-one constraint. BudgetVersion → Fund → package →
+preparation locks serialize release/successors. Original read/export authority,
+maker separation and UAT/foreign-office denial remain. Actual signatures, Chief
+Executive approval, physical handover and final issuance are NOT established.
+Only the new copy's unsigned-copy flag becomes true; prior snapshots remain intact.
+
+The minimal Budget designation presets lacked the existing historical-cash read
+bridge `budget.view_budget_audit`. Both Budget designation roles and the copy
+releaser now include this read-only permission; no proposal editing or source
+filtering bypass. Genuine minimal-role tests exposed and verify this local repair.
+
+Actual validation (all test-store cleanup confirmed):
+
+| Scope | Result | Seconds / log under `.tmp/` |
+| --- | --- | --- |
+| Broader SQLite, new/legacy export/designation/roles/CI runner | FAIL: 20 passed, one fixture error, zero skips; exit 1 | 504.305; `form1-unsigned-final-sqlite.log` |
+| Broader native, plus release races | FAIL: 21 passed, same fixture error, zero skips; exit 1 | 617.825; `form1-unsigned-final-native.log` |
+| Corrected complete signing-copy module, SQLite | PASS 3/3, zero skips; exit 0 | 175.490; `form1-unsigned-fixture-final-sqlite.log` |
+| Corrected module plus three release races, native | PASS 4/4, zero skips; exit 0 | 238.186; `form1-unsigned-fixture-final-native.log` |
+
+The failed test had reduced its maker to a designation-only role, then attempted
+unrelated forecast creation. It now asserts that denial, grants the separate
+source action only in the fixture and performs the real stale-source test. Only
+that isolated test body changed after broader runs; all application source and
+untouched dependent cases are unchanged. Those cases passed and every selected
+identity now has passing evidence, but the earlier broader suites are NOT relabelled
+green. They were not mechanically rerun after this test-only fix. Full release CI
+remains required. Earlier probe/extraction failures are retained in the leaf report.
+
+Combined proof `.tmp/form1-unsigned-local-acceptance-20261016.json` verifies exact
+failed/repaired scopes, frozen sources, output/image hashes, table parity, layout
+and unchanged operator hashes. Reproducer `.tmp/verify_form1_unsigned_final.py`;
+source freezes `.tmp/form1-unsigned-{final,fixture-fix}-source-freeze-20261016.json`.
+Django checks, migration drift and diff checks PASS.
+
+Final native copy ID `9e403f1c-d53f-4cfa-b412-475c98db3f21`: all 255 cells / 51
+labelled five-column rows independently match retained sources, including account
+codes, subtotal multiplicity and SPA controls. All five PDF pages inspected;
+Fund/entity/column scope repeats, complete names/amounts and blank signing dates
+are intact. Exact retained/downloaded sample:
+`output/pdf/form1-synthetic-unsigned-signing-copy-20261016.pdf` (not a rerender).
+Raw native PDF/envelope/table proof: `.tmp/form1-unsigned-preview-20261016/native`;
+page PNGs `.tmp/form1-unsigned-pdf-final-20261016`. Four actual-view release/released
+captures at 390/1440px are under `output/playwright/form1-unsigned-*-20261016.png`;
+DOM log `.tmp/form1-unsigned-browser-final.log`. No overflow; correct release-button
+to original-download transition. These prove synthetic layout/HTTP behavior, not
+actual appointments, physical signatures, printer or LGU acceptance.
+
+All runs are terminal: **45230, 63089, 1087, 52336, 12181, 47141**. Capture
+**23535** completed. Do not restart them. Owned MySQL, static preview **21338** and
+Playwright `grand-form1-unsigned` are stopped; ports **33308/8770 closed**. Operator
+DB hashes remain unchanged; no operator migration/grant, eGAPS access or new software.
+
+Remote master and v172 tag were rechecked at exact `32ab046`; latest primary run
+**38618885804** is still completed/success (the accepted 19-job proof below).
+There is no current hosted failure found. New local discovery: **2,557 identities**,
+four additions with all prior identities preserved, eight shards exactly once by
+whole class (`.tmp/form1-unsigned-discovery-20261016.json`). This is not a 2,557-test
+pass or hosted runtime proof. New work has no remote CI/release review yet.
+
+**Pending VM integration:** all register/print/designation/unsigned-copy/docs work
+remains uncommitted/unpublished. Preserve the existing no-further-publication
+boundary. No new VM commit/tag, merge or push. A later authorized release must
+inspect the installed VM README/adapter, preview the intended file set, execute
+real VM commit and required review/CI, integrate to master, push and verify exact
+remote results. Do not replay v172 promotion, include operator DBs/unrelated policy
+tests, or stage transient `.tmp` evidence and unrelated worktrees wholesale.
+
+**Next functional milestone:** actual signed-copy receipt over this exact unsigned
+copy, independent verification of complete source/financial pages, all four actual
+certifications and separate Chief Executive approval, then immutable final issued
+evidence and governed successors. Reuse existing governed receipt/approval patterns;
+inspect them before adding models. Preserve original unsigned bytes; actual signing
+dates/authority evidence and physical receipt cannot be inferred from an upload,
+typed name, web role or checkbox alone. Keep current-source/owning-lock and separate
+read/export boundaries; no generic signing/collaboration framework or new accounts
+for paper signatories. Actual local appointments/signatures remain external evidence,
+not a reason to defer configurable software. Do not substitute more print polish
+or repeated ordinary replays for this missing lifecycle.
+
+Keep the complete original 22-section goal and remaining numerical treatment,
+earmark semantics, required-output/ordinary-scenario and operational/restore/LGU
+gates in the linked inventory. **GO for this local checkpoint and next bounded
+development; NO-GO for release without its required gates, full Finance completion
+or production.** No defensible overall percentage/hours estimate is established.
+
+## Previous validated checkpoint — Form 1 designation prerequisite, 2026-10-16
+
+**Validated local prerequisite checkpoint.** This section supersedes the saved
+handoff's earlier failing-test/next-action snapshot. Worktree:
+`C:/Users/Administrator/.codex/worktrees/finance-form1-treatments/grand`, branch
+`codex/finance-form1-print-evidence`, HEAD/base accepted v172 /
+`32ab04669da05b868f6c8b8ff37e0f71b3805555`. See [scope, commands and retained failures](docs/FINANCE_FORM1_DESIGNATIONS_IN_PROGRESS.md).
+
+Implemented locally: immutable named designation preparation, original authority
+documents for all four certification functions plus separate Chief Executive,
+independent Budget review/return, source-linked clerk entry/history and separately
+authorized original-document exports with archive/audit evidence. Three new
+Finance tables are in `budget/0024`; four opt-in role presets were added. No
+operator migrations, assignments or grants. No journal or cash authority created.
+Every signature/Chief Executive approval/signing-copy/final-issuance flag remains
+false. The complete statutory lifecycle is **not** implemented.
+
+Actual final validation, all exit 0, zero skips and both aliases destroyed:
+
+| Scope | PASS | Seconds / log under `.tmp/` |
+| --- | --- | --- |
+| SQLite signing + dependent package/review/export/print/roles/CI runner | 29/29 | 833.003; `form1-designations-dependent-sqlite.log` |
+| Final-source SQLite clerk + original package HTTP | 6/6 | 320.061; `form1-designations-final-http-sqlite.log` |
+| Native signing, four races, original package HTTP, roles and CI runner | 22/22 | 589.144; `form1-designations-final-native.log` |
+| Added pending-reviewer GET and ordinary clerk flow, SQLite | 1/1 | 66.492; `form1-designations-review-screen-sqlite.log` |
+| Same final clerk/GET probe, native | 1/1 | 57.343; `form1-designations-review-screen-native.log` |
+
+Scopes overlap; do not sum them as distinct full-project coverage. The last
+GET assertion extends the existing clerk case. Frozen application source and
+the extension are verified by `.tmp/form1-signing-final-source-freeze-20261016.json`
+and `.tmp/form1-signing-review-screen-source-freeze-20261016.json`.
+Combined proof: `.tmp/form1-designations-local-acceptance-20261016.json`, generated
+by `.tmp/verify_form1_designations_final.py`. Django checks, migration drift and
+diff checks PASS. Native helper/stream-cleanup fixture defects and the LOW mobile
+file-input overflow are repaired; earlier failed logs/before images remain in
+the feature record. No assertions, required checks or timeouts were weakened.
+
+Final actual-view entry/pending-review/reviewed captures at 390px and 1440px are
+under `output/playwright/form1-designation-*-final-20261016.png`; all six inspected.
+DOM observations confirm matching document/viewport widths, no overflowing
+controls, official five-role order and all four independent findings. Raw HTML
+and browser log remain under `.tmp/form1-signing-preview-20261016` and
+`.tmp/form1-designations-browser-final.log`. These prove synthetic layout and
+tested HTTP behavior, not actual physical signatures or LGU acceptance.
+
+All runners are terminal: **13526, 42226, 20652, 17673, 63430**; capture **14592**
+also completed. Do not restart them. Owned MySQL, static-preview server **10146**
+and Playwright `grand-form1-designations` are stopped; ports **33308/8769 closed**.
+Operator database hashes were rechecked unchanged in the combined proof.
+
+Published v172 remains green on remote master/tag at `32ab046` (all 19 jobs,
+primary run **38618885804**); no current remote failure was found. New local
+discovery is **2,553 identities**, six additions, assigned exactly once across
+the existing eight whole-class shards. This is discovery, not full execution:
+`.tmp/form1-designations-discovery-20261016.json`. Full post-change/remote CI and
+release review have **not run**. Accepted v172 CI does not cover this local work.
+
+**Pending vm-commit/integration:** all register/print/designation/doc changes are
+still uncommitted/unpublished; no new VM commit/tag, integration or push occurred.
+Preserve the existing no-further-publication boundary. A later authorized release
+must inspect the installed VM README/adapter, preview intended files, execute
+the actual VM workflow and required review/CI, integrate to master, push and
+verify the exact remote result. Do not rerun v172 promotion or include operator
+DBs, unrelated policy tests, old worktree changes or transient `.tmp` evidence.
+
+**Next functional milestone:** actual unsigned whole Form 1 signing-copy release
+over the complete reviewed package and approved designation version. Retain exact
+financial/account/SPA columns, original-source authorization, currentness checks,
+independent release and immutable bytes/checksums. Do not put a signing-ready cover
+over a main form that still says incomplete/not ready for signing. Then implement
+actual signed-copy receipt, independent verification and final immutable issuance/
+successors; actual appointments/signatures remain external evidence, not invented
+web accounts or flags. Do not substitute more replay/print polish for these gaps.
+
+Keep the original 22-section goal and [remaining inventory](docs/FINANCE_REMAINING_WORK_2026-10-14.md):
+unsupported numerical treatment, unconfirmed earmark basis, remaining required
+outputs/ordinary scenarios and operational/restore/deployment/LGU acceptance stay
+open. No defensible total-hours/percentage claim is established. **GO for this
+local prerequisite and next bounded development; NO-GO for release without its
+required gates, full Finance completion or production.**
+
+## Earlier saved handoff — 2026-10-16
+
+This historical saved snapshot is superseded by the Active continuation above.
+At that point the request was to save continuity for a new chat;
+no implementation repair, vm-commit, integration, push or deployment was performed
+while saving this handoff. Preserve the original Finance Completion Gate and its
+remaining requirements; do not restart the project or expand peripheral scope.
+Security, financial integrity and separate default/Finance databases remain mandatory.
+
+### Exact checkout and pending vm-commit
+
+- Work in `C:/Users/Administrator/.codex/worktrees/finance-form1-treatments/grand`,
+  branch `codex/finance-form1-print-evidence`, HEAD
+  `32ab04669da05b868f6c8b8ff37e0f71b3805555` (accepted v0.7.172).
+- The newer register evidence, PDF presentation/LGU repair, documentation and
+  signing-preparation work are **local, uncommitted and unpublished**. There is
+  no new release commit/tag or candidate CI run for this working tree. This
+  mixed checkpoint is **not vm-commitable yet** because the new tests fail and
+  persistence/concurrency validation is outstanding.
+- v0.7.172 integration/tagging is already complete. Do not replay its release,
+  retarget its tag, retry obsolete candidate `57add6c`, or merge the older operator
+  branch. The pending integration concerns only the newer local changes.
+- Existing continuation records a no-further-publication boundary. This save-only
+  request does not lift it. On a later authorized release, inspect the installed
+  Version Manager README, adapter and preview before executing the real VM
+  workflow: intended commit, required review/CI, primary integration, push and
+  exact remote verification. Do not substitute plain Git for vm-commit or bypass
+  checks. Tool: `C:/Users/Administrator/Desktop/GH/workflow_version_manager/version_manager.py`.
+- The existing primary integration worktree is
+  `C:/Users/Administrator/.codex/worktrees/grand-v107-integration`; recheck its
+  status and remote refs before use. No integration was attempted in this handoff.
+
+### CI status: historical blocker resolved; current local gate failing
+
+Requeried GitHub and remote refs while saving this handoff. Remote `master` and
+`v0.7.172` both point to exact `32ab04669da05b868f6c8b8ff37e0f71b3805555`.
+[Primary run 38618885804](https://github.com/tepong32/grand/actions/runs/38618885804)
+is completed/success: all **19 jobs**, including `verify`, `mysql`, security,
+eight SQLite shards and eight native shards, are successful. Candidate
+[38611039036](https://github.com/tepong32/grand/actions/runs/38611039036) is also
+successful. The accepted run covers 2,547 native tests with zero skips; SQLite
+has 2,348 passes and 199 native-only skips. Detailed proofs and the historical
+failed runs remain recorded below. No current failed remote job was found.
+
+Historical timing/coverage failures were addressed by the bounded whole-class
+partition move described below, without weakening tests or changing timeouts.
+Their specific hosted-resource cause remains unproven; runtime variability is
+a residual risk, not evidence that today's published `verify` is still blocked.
+The accepted CI covers committed v172 only, not any new local files.
+
+**Current release blocker — FAIL, CAUSED BY CURRENT WORK:**
+
+`C:/Users/Administrator/Desktop/GH/grand/.venv/Scripts/python.exe -B -X utf8 .tmp/intake_primary_sqlite.py budget.test_form1_signing --verbosity 2`
+
+Log `.tmp/form1-signing-focused-sqlite.log`: **5 tests, 5 setup errors, 5.718s,
+FAILED**; both disposable aliases report destruction. No matching runner remained
+at handoff. All five fail before their test bodies, so none of the new signing
+behavior is proven. The traceback establishes a fixture helper collision:
+`Form1SigningFixture.decide()` overrides an inherited helper; base
+`ActualsSelectionTests.setUp()` calls `self.decide(self.native_propose())`, which
+now enters signing review with an unrelated object and raises
+`Form1SigningPreparation.DoesNotExist`. Rename the signing-specific helper and
+its callers without changing the inherited fixture contract, then rerun. Further
+failures may surface afterward; do not assume that rename proves the service.
+Severity: release-blocking validation defect in new local work; no production
+security/data-loss defect has been established by this failed setup.
+
+### Unfinished source at the stopping point
+
+New local `budget/form1_signing.py`, additions in `budget/models.py`, migration
+`budget/migrations/0024_form1_signing_preparations.py` and
+`budget/test_form1_signing.py` begin the final Form 1 prerequisite lifecycle.
+The three new Finance-side models retain preparation versions, original role
+documents and independent reviews. The service intends to pin a complete,
+internally reviewed whole package, exact LGU and five designation functions;
+enforce source/permission/UAT controls and BudgetVersion → Fund → package locks;
+retain immutable originals and separate source export authority. Django checks
+passed during implementation, but the new behavior is **unvalidated**.
+
+All statutory-signature, Chief Executive approval, unsigned-copy issuance,
+final issuance and cash-availability flags remain false. There is no signing
+screen, standard-role provisioning, released signing PDF, physical signed-copy
+receipt/verification or final issuance implementation. Do not report these
+prerequisite records as completed certification or Finance completion.
+
+The earlier validated print changes remain in `budget/form1_package_print.py`,
+`budget/form1_flow_output.py`, `budget/form1_spa_output.py` and the existing print
+test. Their exact SQLite/native results, source freezes, visual evidence and
+limits are in the prior checkpoint below and its three October 16 leaf reports.
+Those results predate the new signing models/service and do not validate them.
+Preserve all four untracked synthetic PDFs under `output/pdf`, prior proofs,
+and existing README/roadmap/gap/output-map/source-contract edits.
+
+### Next actions for the new chat
+
+1. Read AGENTS.md, this handoff, the original attached goal, Finance roadmap,
+   remaining-work list, gap register and official-field audit. Recheck Git/status,
+   latest remote CI and actual files. Original goal attachment:
+   `C:/Users/Administrator/.codex/attachments/ceb9d900-5c62-4b57-8e72-1bcb2a047247/pasted-text.txt`.
+2. Repair the signing-test fixture collision, run the focused SQLite suite and
+   diagnose actual subsequent failures. Review the new service/model contracts
+   before extending them; preserve immutable history and maker/checker separation.
+3. Add meaningful native races for competing preparation versions, independent
+   review and source/version changes using the existing package concurrency
+   pattern. Validate migration, routing, role/export boundaries and source
+   staleness on fresh **both-store MySQL**. Native signing tests/races have **not
+   run**; broader dependents and final migration-drift checks are outstanding.
+4. Continue the known Form 1 functional milestone: complete unsigned signing-copy
+   generation/release, actual signed-copy receipt, independent verification,
+   immutable issued bytes/successors and clerk actions. Retain all four national
+   certification functions plus separate Chief Executive approval. Actual local
+   appointments/signatures are manual prerequisites; they do not justify deferring
+   configurable software. Never fabricate signature or financial authority.
+5. Update durable boundaries, README, handoff, gap/roadmap and a focused feature
+   record with actual scope and test outcomes. Reach a coherent tested checkpoint
+   before any later authorized VM preview/release. Retain the remaining statutory
+   numerical treatment, earmark-rule, required-output, ordinary-work, operational,
+   restore/deployment and LGU-acceptance gates; avoid more replay/print polish as
+   a substitute for missing functionality. No defensible total hours/percentage
+   estimate is established; earlier forecasts were withdrawn.
+
+Runtime: Python 3.11 at the path above, accepted patched Django **5.2.18**;
+do not downgrade the accepted security baseline to the older 5.2.17 request.
+Existing ignored `.tmp/intake_primary_{sqlite,native,manage}.py` wrappers isolate
+test stores and patched imports. Read `docs/FINANCE_NATIVE_TESTING.md` before
+native work. The owned MySQL fixture's loopback port **33308 is closed** at
+handoff. Start/stop only through the existing canonical `.tmp/portable_mysql.py`;
+never run two native suites against its fixed schemas simultaneously. Do not
+print private credentials or apply migrations/grants to operator stores.
+
+Preserve `C:/Users/Administrator/Desktop/GH/grand`: older operator branch
+`codex/finance-cheque-redemptions` at `ce0c724`, modified `db.sqlite3`, untracked
+`accounting/test_policy_concurrency.py` and screenshots. Its CONTINUE.md is only
+an entry point to this active worktree. Operator SHA-256 values rechecked unchanged:
+`db.sqlite3` = `c8255385f64732838f7d07a84c5587b5ce5ba2f708a566f96afff80d94e7374c`;
+`grand_finance.sqlite3` = `5b1b6653b74a9158d7062f848bd71363f1b217e3232552ac66f9efe3bf62e8e0`.
+Preserve unrelated worktrees/stashes, evidence and eGAPS.
+
+**GO:** read-only handoff and later authorized bounded development/repair.
+**NO-GO:** publishing the failing local checkpoint, statutory issuance without
+required evidence, full Finance completion or production readiness. Work stops
+here for the requested handoff; no implementation was changed while saving it.
+
+## Previous completed local checkpoint — whole Form 1 draft evidence presentation
+
+**Current follow-up completed locally:** the [official-field comparison](docs/FINANCE_FORM1_FIELDS_2026-10-16.md)
+reconfirmed Annex D's four certification functions plus Chief Executive approval.
+Those roles are KNOWN; final whole-form certification/issued-copy software is still
+MISSING, separately from unknown actual local appointments/signatures. Operator
+names must not indefinitely defer configurable software work. A draft omission
+was reproduced: explicit source LGU text was not printed. The renderer now reuses
+exact agreeing retained office names; missing/blank/mixed/foreign-entity-only
+evidence stays Unknown. No new name-based authority or statutory signature.
+
+Same-envelope pure/visual checks PASS. Current genuine print/HTTP case PASS on
+SQLite / **59.580s** and native MySQL / **59.325s**, zero skips, actual exit 0 and
+both stores destroyed. Handles 92896/98239 are terminal; do not restart them.
+Logs `.tmp/form1-lgu-final-{sqlite,native}.log`; current combined source/artifact/
+identity/operator-hash proof `.tmp/form1-lgu-local-acceptance-20261016.json`.
+Source freeze `.tmp/form1-lgu-source-freeze-20261016.json`; final PDFs and changed
+page comparison `.tmp/form1-print-lgu-final-20261016/`. Owned MySQL stopped after
+native exit 0. Earlier eleven-case passes below precede this additional header
+change; the standalone renderers/export code are unchanged since those passes.
+Current samples include `-lgu-draft-` in their filenames; previous samples and
+proofs remain retained. Django/diff checks PASS; no operator database change.
+
+**Next functional milestone:** a separate final Form 1 preparation/certification/
+issued-copy lifecycle, with exact complete reviewed sources, explicit LGU and
+designation evidence, all four certification functions and separate Chief
+Executive approval, actual signed-copy receipt, independent verification and
+immutable issued bytes/successors. The field audit scopes this work. Actual
+operator appointments/signatures remain manual; known national roles are not an
+excuse to defer configurable software implementation. Do not substitute another
+print polish/replay, copy Form 2 signers, infer signature authority from a name or
+broaden raw-source access. The full final lifecycle remains unimplemented; the
+unvalidated preparation/review prerequisite above is newer than this checkpoint.
+
+Active branch is now **`codex/finance-form1-print-evidence`**, same isolated
+worktree, based on accepted v172 / `32ab046`. Earlier uncommitted handoff/output
+documentation is preserved. [Print checkpoint](docs/FINANCE_FORM1_PRINT_EVIDENCE_2026-10-16.md)
+repairs the documented LOW raw-dictionary appendix and separate-numbering defects.
+Retained fields have readable labels; generated whole/flow/SPA pages use one
+complete sequence. Standalone flow/SPA numbering defaults are preserved. No
+financial calculation, source envelope, permission, approval or issuance changed.
+
+PASS: same-envelope deterministic, zero-query reproduction; all original printed
+monetary occurrences, hashes and UUIDs retained. Reviewed/unknown PDFs remain
+eleven pages each. All sixteen distinct rendered pages inspected; six duplicate
+appendix pages verified byte-identical, covering all twenty-two pages. No new
+clipping, overlap or missing glyphs observed. Django check and diff check PASS.
+Synthetic samples are linked in the leaf report. Source freeze:
+`.tmp/form1-print-source-freeze-20261016.json`.
+
+PASS: eleven-case dependent print/export/SPA/flow suites on SQLite / **277.890s**
+and native MySQL / **293.580s**, zero skips, actual exit 0 and both stores destroyed.
+Session handles 69643/45909 are terminal; do not restart them. Logs:
+`.tmp/form1-print-dependent-{sqlite,native}.log`.
+`.tmp/verify_form1_print_final.py` verified identical exact identities, cleanup,
+frozen source, all artifact/image hashes and unchanged operator database hashes.
+Proof: `.tmp/form1-print-local-acceptance-20261016.json`. Owned loopback MySQL
+stopped after native exit 0; final check confirmed port 33308 closed.
+
+All new changes are **local/uncommitted/unpublished**. The earlier no-new-release/
+push/deployment boundary remains; v172's accepted CI applies only to its earlier
+source. **GO for this bounded local checkpoint**, not publication or full Finance.
+Next: compare remaining required Form 1 fields/certification blocks with retained
+official source evidence before further output changes; distinguish evidenced
+omissions from unconfirmed local roles, numerical recipes and acceptance. Do not
+infer earmark authority or extend this repair into broad restyling. Original
+numerical/statutory/earmark and physical/LGU gates remain open; full Finance
+incomplete, **production NO-GO**.
+
+## Previous local checkpoint — source/register output comparison
+
+The planned ordinary-chain comparison below is now completed as bounded **local
+evidence**, using accepted v172 / `32ab046`; no financial, test, permission, schema
+or CI source changed. See [the evidence table and exact limits](docs/FINANCE_REGISTER_OUTPUT_PARITY_2026-10-16.md).
+Four additional clerk-facing CSVs agree with the same certified OBR, three posted
+journals, seven ledger lines, 3,900 balanced movements and bank balance 1,100.
+Ledger screen rows match exported rows; Budget/Requesting/Treasury users are denied
+Accounting ledger export. Direct lifetime ledger scope is distinguished from
+selected-period reports. Nine original report runs and all new CSV bytes/hashes
+are retained per backend. No application defect was reproduced.
+
+PASS: isolated SQLite one probe / 9.456s and native one probe / 14.867s, zero skips,
+actual exit 0, both stores destroyed. Initial SQLite verifier error / 9.809s is
+retained: it assumed an archive-path header instead of Budget's audit pointer.
+Corrected verification follows the actual contract; no application repair.
+Strict final proof: `.tmp/ordinary-register-acceptance-20261016.json`; reprobe and
+verification scripts/raw artifacts remain under `.tmp`, as named in the report.
+Operator database hashes unchanged; owned native fixture stopped after completion.
+
+The v172 release/CI state below was reverified against remote refs and primary
+38618885804: master, candidate and tag at `32ab046`; all nineteen jobs PASS.
+No obsolete retry/promotion action is pending. This new documentation is local,
+uncommitted and unpublished; the earlier handoff edits are preserved. No new VM
+release, deployment or production migration was performed. The read-only checkpoint
+does not waive the latest handoff's publication boundary below.
+
+Next: use the required-output map and finite remaining-work list to identify a
+specific outstanding required output field/source/layout or ordinary workflow gap
+and its evidence. Do not repeat this completed ordinary or partial-payment replay
+as another milestone, or infer official form/physical/LGU acceptance from CSV parity.
+Manual numerical/statutory/earmark questions remain open; full goal incomplete,
+**production NO-GO**.
+
+## Current status — v0.7.172 integrated, validated and tagged
+
+Verified 2026-10-15 (Asia/Singapore). This section supersedes the historical
+recovery/publication status and next-action instructions below. Do not rerun old
+retry, commit, integration or promotion helpers. This handoff update remains local
+and uncommitted; no further commit, push or deployment is authorized.
+
+### Exact source and acceptance evidence
+
+- Pre-integration master: `06494330025f6ddc60766ad332571ee4214ae9a7`.
+- Original installed-Version-Manager candidate: `57add6ccbba2182181e524a2eae5be64d0ee1ddc`,
+  whose parent is the pre-integration master above. Its failed CI remains retained.
+- Accepted candidate and resulting primary: `32ab04669da05b868f6c8b8ff37e0f71b3805555`,
+  whose sole parent is `57add6c`. Local/remote `master` and candidate branch
+  `codex/finance-clerk-handoffs` were verified at this accepted SHA.
+- Integration used `merge --ff-only` in the existing clean `grand-v107-integration`
+  worktree, then a normal master-only push. No merge commit or history rewrite.
+  The complete reviewed 27-file diff (311 insertions / 32 deletions) contains the
+  dashboard privacy/clerk presentation repair, associated tests/docs/screenshots
+  and bounded partition correction; no unrelated Finance changes were included.
+- The partition correction moves only whole class
+  `budget.test_form1_package_intake.Form1PackageIntakeTests` from zero-based
+  matrix index 3 to 6 on both backends. Complete discovery, unique ownership,
+  whole-class integrity and suite order remain enforced for eight shards.
+  No assertions, native-only skip rules, dependencies, timeouts or gates changed.
+
+PASS: [candidate CI 38611039036](https://github.com/tepong32/grand/actions/runs/38611039036)
+and separate [resulting-primary CI 38618885804](https://github.com/tepong32/grand/actions/runs/38618885804),
+both on exact `32ab046`, attempt 1, all 19 mandatory jobs successful: security,
+eight SQLite shards, eight native MySQL shards, `verify` and `mysql` coverage.
+Each backend covers all 2,547 discovered identities exactly once. Native: 2,547
+passed / zero skips. SQLite: 2,348 passed / 199 unchanged native-only skips.
+All 31 privacy/dependent regressions passed without skips on both backends;
+all manifests match the locally validated reassignment and accepted candidate.
+Security includes nine partition regressions and five Telegram tests; audit passed.
+
+Resulting-primary end-to-end durations include setup, uploads and cleanup:
+
+| Matrix index | SQLite PASS (20-minute limit) | Native MySQL PASS (60-minute limit) |
+| --- | --- | --- |
+| 0 | 7m42s | 16m07s |
+| 1 | 8m44s | 15m13s |
+| 2 | 12m39s | 12m54s |
+| 3 | 12m04s | 19m03s |
+| 4 | 14m59s | 18m27s |
+| 5 | 9m48s | 17m50s |
+| 6 | 11m32s | 15m37s |
+| 7 | 14m12s | 19m26s |
+
+Security PASS 40s; verify PASS 8s; mysql coverage PASS 13s. Minimum headroom:
+SQLite 5m01s, native 40m34s. Affected SQLite indices 3/6 have 7m56s/8m28s
+headroom. Runtime variability remains a risk; these passes do not establish a
+specific hosted-resource cause for the historical timeouts.
+
+Tag publication PASS under separate authorization. Original local lightweight
+`v0.7.172` object and target were both `57add6ccbba2182181e524a2eae5be64d0ee1ddc`;
+there was no annotated-tag metadata. Exact original ref/object evidence was saved
+before modification. Successful remote queries confirmed the tag absent; remote
+master, version metadata and all 19 primary jobs were reverified. The local tag
+was retargeted with an expected-old-object guard, then published by normal tag-only
+push. Final local/remote tag object and target are both
+`32ab04669da05b868f6c8b8ff37e0f71b3805555`; master remained unchanged. No force-push,
+GitHub Release, deployment, production migration or infrastructure change occurred.
+
+Retained evidence (ignored local artifacts; preserve without overwriting):
+
+- `.tmp/v172-shard-reassignment-20261015/`: patch, local two-backend validation,
+  complete before/after manifests and candidate publication proof. Patch SHA-256:
+  `9bc85741d1a644d29d87fd620a1d267e54ea0251f092b65f96a9774aac76857d`.
+- `.tmp/ci-proof-38611039036/` and `.tmp/ci-proof-38618885804/`: complete logs,
+  metadata, sixteen coverage artifacts per run and strict `acceptance.json` proofs.
+- `.tmp/v172-primary-integration-20261015/`: `before.json`, `integration.patch`,
+  `primary-validation.json`, `refs-final.json`, `tag-original-state.json`,
+  `tag-push-result.json` and `tag-publication-final.json`. The primary validation
+  report's old tag state is its historical pre-publication snapshot; the tag
+  publication report records the final state.
+
+Preservation checks passed for operator files/databases, the old v112 checkout,
+untracked artifacts, four stashes, unrelated worktrees, prior validation evidence
+and the candidate handoff through integration/tagging. Existing notes remain below.
+The active worktree is `C:/Users/Administrator/.codex/worktrees/finance-form1-treatments/grand`.
+Do not disturb the older canonical operator checkout. eGAPS remains untouched.
+
+### Previous bounded Finance task — completed locally on 2026-10-16
+
+The following plan is retained for scope context. Its local source/register
+comparison is now completed in the latest continuation above; do not restart it.
+
+Follow FG-06/07/08/09 in the [remaining-task inventory](docs/FINANCE_REMAINING_WORK_2026-10-14.md)
+and [required-output map](docs/FINANCE_REQUIRED_OUTPUT_MAP.md): replay one ordinary
+payable source chain from its OBR through posted JEV/ledger to its Treasury
+payment register/export, using isolated synthetic two-store fixtures and existing
+services. Reuse the retained partial-settlement proof; do not repeat that completed
+scenario or describe additional tests as new financial functionality.
+
+Limit the checkpoint to source identities, period/date coverage, gross/deduction/net
+reconciliation, export-versus-register agreement and authorized office visibility.
+Deliver an evidence table of exact outputs, totals, source links and demonstrated
+gaps. Any repair must be justified by that evidence, remain within existing services
+and pass affected SQLite/native regressions plus required release gates before
+publication. A substantial defect requires a newly scoped checkpoint. This
+handoff-only request starts no implementation; reverify refs/worktree state first.
+
+Do not begin Form 1 numerical/issuance implementation without an evidenced recipe
+and designated roles, invent earmark appropriation-versus-allotment semantics,
+expand UX/framework scope or access eGAPS. Local layouts, signatories and printer
+acceptance remain unresolved rather than inferred from synthetic exports.
+
+**Production Finance remains NO-GO.** Passing CI and a published tag do not satisfy
+independent statutory, workflow, output-fidelity, physical custody, operational,
+restore/deployment or LGU-acceptance gates. Production status is unchanged.
+
+## Historical handoffs — retained evidence, superseded instructions
+
+Everything below retains earlier checkpoint context. References to blocked recovery,
+unpublished tags, old primary SHAs, retries and immediate actions are historical,
+not current execution instructions. Use the current status and next bounded task
+above; preserve unrelated decisions and deferred requirements.
+
+## Current bounded task result — v172 acceptance recovery, 2026-10-15
+
+The latest instruction limits this task to v172 acceptance recovery. **Recovery
+is blocked; stop here.** No Form 1, earmark, broader UX, eGAPS or other Finance
+implementation is authorized by this task. The earlier broader-goal handoff below
+is preserved as historical context and does not extend this bounded instruction.
+
+Candidate remains `57add6ccbba2182181e524a2eae5be64d0ee1ddc`, parent/primary
+`06494330025f6ddc60766ad332571ee4214ae9a7`. The installed-VM v172 commit and local
+tag already exist. Candidate branch is pushed; master remains v171 and the v172
+tag is not remote. **No integration, tag publication or resulting-primary run.**
+
+Original candidate run 38580715859 attempt 1 and all nineteen original logs are
+retained under `.tmp/ci-proof-38580715859/attempt1-*`. `verify` failed because
+`SQLITE_RESULT=cancelled`; the worker exceeded its unchanged twenty-minute limit
+after 223 of 279 test starts, without a terminal suite summary or established
+assertion failure. New dashboard test-class insertion changed this worker's class
+partition: 279 selected versus v171's 267, with 115 identities shared. Approximate
+paired start-to-next-start intervals were 1.19 times baseline; the specific
+runner/resource cause remains unknown. No application/isolation defect is proved.
+
+PASS: fresh isolated 31-case dependent SQLite regression, 12.310s, zero skips,
+exit 0, identical retained identities including both privacy regressions, both
+stores destroyed. It uses the same labels/command recorded in the clerk leaf
+report with `-B -X utf8`; fresh raw/exit/identity proof is under
+`.tmp/v172-acceptance-recovery-20261015/focused-sqlite*`.
+
+Exactly one `gh run rerun 38580715859 --repo tepong32/grand --failed` was performed
+on unchanged source. Attempt 2 is terminal **CANCELLED / NOT ACCEPTED**: seventeen
+jobs success, `sqlite (3)` 115958889325 cancelled and `verify` 115968981716 failure.
+The retry reached **OK: 279 tests / 21 native skips / 1074.138s**, destroyed both
+stores and successfully uploaded coverage. However, its test command took 1198s
+and the whole job 1225s, exceeding the unchanged 1200s job limit. All successful
+step logs and the timeout annotation are retained; they do not override the
+cancelled job or failed required gate. No further retry or CI optimization ran.
+
+PASS as test evidence only: all sixteen source-bound coverage artifacts and
+original/retry raw identities reproduce 2,547 native passes / zero skips and
+2,348 SQLite passes / 199 native skips. **Complete test evidence is not CI
+acceptance.** See `complete-test-evidence-not-acceptance.json`, `retry-terminal.json`
+and `diagnosis.json` in `.tmp/v172-acceptance-recovery-20261015/`; attempt 2 logs,
+metadata and annotations remain under `.tmp/ci-proof-38580715859/attempt2-*`.
+
+Only this candidate handoff was updated; application, test, migration, financial
+and workflow sources remain frozen. Independently user-requested handoff additions
+in this worktree and the old operator checkout were identified, copied and
+preserved. Operator DBs, the other 1,406 protected files, old HEAD and four stashes
+are unchanged. No operator migration, dependency change or eGAPS access.
+
+Smallest next action: separately scope the worker's end-to-end runtime/headroom
+diagnosis, including setup/migrations and class load distribution. Any correction
+must preserve every test, whole classes, both backends and required gates/limits,
+then receive complete candidate and resulting-primary acceptance. Do not promote
+this candidate from its passing test summaries or perform another blind retry.
+
+## Resume here — new-conversation handoff
+
+Continue the existing **22-section Finance Foundation Completion Gate**. Read the
+complete original goal at
+`C:/Users/Administrator/.codex/attachments/ceb9d900-5c62-4b57-8e72-1bcb2a047247/pasted-text.txt`.
+Finish the purchased **Budget → Accounting → Treasury** foundation: coherent
+ordinary work, source reuse, complete retrieval, financial context, controlled
+approvals, immutable history, required outputs and understandable clerk actions.
+Security and data integrity come first. Avoid over-engineering, peripheral modules,
+speculative rare-case expansion and framework/UI replacement. eGAPS stays untouched
+and can remain closed. **Full goal incomplete; production NO-GO.**
+
+The user requested this handoff for a new conversation. No retry, new release,
+integration or implementation was performed while saving it. This section
+supersedes older current-status summaries below, which remain historical evidence.
+Recheck working-tree changes, refs and CI before acting.
+
+### Workspaces and unfinished vm-commit integration
+
+- Active worktree: `C:/Users/Administrator/.codex/worktrees/finance-form1-treatments/grand`.
+  Branch **`codex/finance-clerk-handoffs`**; committed checkpoint **v0.7.172 /
+  `57add6ccbba2182181e524a2eae5be64d0ee1ddc`**. Candidate branch is pushed.
+  **Actual Version Manager commit/tag already executed; master integration and
+  tag publication are unfinished.** v172 tag exists locally only. Do not duplicate
+  its release commit. This new handoff edit is additional uncommitted documentation.
+- Remote master, freshly verified: **v0.7.171 /
+  `06494330025f6ddc60766ad332571ee4214ae9a7`**. Accepted primary
+  [run 38573327817](https://github.com/tepong32/grand/actions/runs/38573327817)
+  passed all nineteen jobs: native 2,545 / zero skips; SQLite 2,346 / 199 native-only
+  skips. Proof: `.tmp/ci-proof-38573327817/acceptance.json`.
+- Existing integration worktree: `C:/Users/Administrator/.codex/worktrees/grand-v107-integration`.
+  Its master was clean at v171; verify again before use.
+- Canonical operator checkout: `C:/Users/Administrator/Desktop/GH/grand`.
+  It contains older unfinished work, modified `db.sqlite3`, untracked
+  `accounting/test_policy_concurrency.py` and historical screenshots. Its handoff
+  points here. Do not reset, force-switch, migrate, grant permissions or overwrite
+  operator data. Never stage its databases. Temporary worktrees belong under
+  `C:/Users/Administrator/.codex/worktrees`.
+
+### Current CI blocker — terminal, not a live wait
+
+[Candidate run 38580715859](https://github.com/tepong32/grand/actions/runs/38580715859),
+exact SHA `57add6ccbba2182181e524a2eae5be64d0ee1ddc`, freshly checked when saving:
+**completed / cancelled, attempt 1; NOT ACCEPTED**.
+
+- `security`, all eight native shards and `mysql`: **SUCCESS**.
+- Seven SQLite shards: **SUCCESS**.
+- `sqlite (3)`, job **115909573714**: **CANCELLED** at the unchanged twenty-minute
+  job limit, supported by its annotation.
+- `verify`, job **115926557704**: **FAILURE**, requiring complete successful SQLite
+  coverage. **No retry has been performed.** Specific performance cause remains
+  unproven; repeated runtime/headroom failures are a **MEDIUM unresolved risk**.
+
+Partial evidence: `.tmp/ci-proof-38580715859/sqlite3-job.json`,
+`sqlite3-annotations.json`, `sqlite3-full.log`. Preserve complete original run/job
+metadata and all nineteen raw logs before retrying. Inspect terminal `FAIL:` /
+`ERROR:` summaries and individual `FAIL` / `ERROR` lines before classifying the
+failure as timeout-only. A successful retry is not a root-cause repair.
+
+**Immediate action:** if complete logs confirm only the timeout/dependent-gate
+failure, perform at most **one bounded same-SHA cancelled-worker/dependent-gate
+retry**, retaining the failed attempt. Do not weaken tests, assertions, checks or
+timeouts. Do not begin extended CI optimization. Expected discovery is 2,547
+identities: native all passed / zero skips; SQLite 2,348 passed / 199 native-only
+skips. These are expectations until actual coverage and named gates are verified.
+
+Read `.tmp/accept_ci.py`, `.tmp/accept_ci_retry.py` and
+`.tmp/capture_partial_timeout.py` before use. Older retention/promotion helpers
+hardcode master, older SHAs or 2,545 tests; do not execute them unchanged.
+If accepted, integrate against then-current master, publish intended master/tag,
+verify remote refs and inspect resulting primary CI. Preserve this handoff edit
+through integration. If the bounded retry fails, document the release blocker and
+continue independent Finance work as authorized; do not bypass required gates.
+
+### Already implemented and locally validated
+
+The [v172 clerk handoff checkpoint](docs/FINANCE_CLERK_HANDOFFS_2026-10-14.md)
+repairs a **pre-existing MEDIUM dashboard aggregate exposure**: requesting-office
+counts included other offices' voucher cases. Totals now reuse
+`vouchers.case_exports.visible_cases_for_user`; existing broader UAT read scope is
+preserved. A demonstrated **LOW empty-queue usability issue** is repaired:
+non-empty My Work groups appear first; all empty queue links remain in a closed
+disclosure using a shared include. No schema, financial transition, permission
+policy or CSV contract changes. Do not reimplement this work.
+
+Code/tests: `departments/services/dashboard_service.py`,
+`departments/test_dashboard_presets.py`, `finance/portal_views.py`,
+`templates/finance/my_work.html`, `templates/finance/_work_attention_groups.html`.
+Final local dependent scope **PASS**: 31 cases on SQLite / 14.630s and native /
+19.586s, zero skips, actual exit 0, both stores destroyed. Django/diff checks pass;
+operator database hashes unchanged. Read-only synthetic desktop/mobile proof:
+requester dashboard → waiting case, Accounting ready item/review controls and
+Treasury not-yet-ready state. Same case/OBR, zero allocation difference, unchanged
+case version/stage/journal count. No approval/payment/physical-signature submitted;
+this does not establish full office or operational acceptance.
+
+Evidence: `.tmp/clerk-local-acceptance.json`, `.tmp/clerk-final-{sqlite,native}.log`,
+`.tmp/clerk-source-freeze.json`, the leaf report and
+`output/playwright/clerk-*-20261014.png`. Owned local browser/server/MySQL stopped.
+
+### Execution and remaining original goal
+
+Read AGENTS.md, README.md, this handoff, Finance roadmap, foundation gate/requirement
+audit, gap register, required-output map, remaining-work list and native testing
+guide before substantial work; reconcile stale documentation against source/refs.
+Use Python 3.11 at `C:/Users/Administrator/Desktop/GH/grand/.venv/Scripts/python.exe`
+with `-X utf8`, including children. Accepted auth/security master now uses
+**Django 5.2.18**, superseding the earlier 5.2.17 request; preserve it and do not
+modify the operator environment. Isolated wrappers:
+`.tmp/intake_primary_manage.py`, `.tmp/intake_primary_sqlite.py`,
+`.tmp/intake_primary_native.py`. Preserve separate default/Finance stores, owning
+native lock order, maker-checker controls, UAT mutation denial, audit/correction
+lineage and environment-driven production settings. Never print credentials or
+run simultaneous native suites against the same fixed test schemas.
+
+Use installed `C:/Users/Administrator/Desktop/GH/workflow_version_manager/version_manager.py`
+for vm-commit; read its README and preview first. User authorization includes actual
+VM commit/tag, primary integration and push subject to required gates. Preserve
+historical version evidence and inspect maximum tags across branches before another
+version. v172 execution proof: `.tmp/release_clerk.py`, `.tmp/clerk-vm-preview.log`,
+`.tmp/clerk-vm-release.log`. Do not substitute a plain Git release commit.
+
+Continue bounded checkpoints using the finite
+[remaining-task inventory](docs/FINANCE_REMAINING_WORK_2026-10-14.md): evidenced
+Form 1 numerical treatment/successors/statutory issuance; quarterly reserved-column
+meaning and earmark lifecycle; required office outputs; remaining ordinary
+scenarios/history/corrections/recovery; retrieval and understandable handoffs;
+final security/regression/deployment/two-store restore and witnessed physical/form/
+printer/LGU acceptance. After resolving/documenting v172 publication, choose a
+concrete ordinary Finance checkpoint from the existing register. Use existing
+services; repair demonstrated gaps. Added tests are not new financial functionality.
+
+Defer manual LGU intervention without inventing answers: earmark appropriation-
+versus-allotment semantics remain **UNKNOWN** (user: “Not yet confirmed”); numerical/
+statutory authority and physical/operational acceptance remain open. Continue
+independent authorized work. Update README, handoff, roadmap/register and relevant
+leaf documents with actual behavior, validation, publication state and blockers.
+Avoid endless documentation releases merely narrating CI. Earlier 40-hour,
+80–140-hour and percentage forecasts were withdrawn as unsupported. Report measured
+progress and scoped next-checkpoint estimates, separately from CI waits; do not
+invent whole-goal percentages or model delivery multipliers. Keep reasoning finite
+and evidence-led. **Full goal incomplete; production NO-GO.**
 
 ## Current bounded Finance checkpoint — ordinary clerk handoffs
 
@@ -21,7 +1617,9 @@ ready item/review controls and Treasury's not-yet-ready state PASS. Same case/OB
 zero claim/allocation difference, unchanged case version/stage and journal count.
 Desktop/mobile screenshots inspected; reviewer mobile height 5,878 → 2,909 pixels,
 no page overflow; all eight empty links remain expandable. Owned browser and servers
-closed. Publication/current-code CI remain pending; production NO-GO.
+closed. v172 candidate branch is pushed; its terminal SQLite-3 timeout blocks
+full CI acceptance and master/tag publication. See the authoritative handoff above.
+Production NO-GO.
 
 ## Published partial-settlement checkpoint and CI evidence
 

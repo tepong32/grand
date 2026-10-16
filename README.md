@@ -6,6 +6,78 @@ The current MSWD pilot combines Assistance request processing, social-welfare pr
 
 ## Current capabilities
 
+Local [OBR entry/certification follow-up](docs/FINANCE_OBR_PAYABLE_HANDOFF.md#obr-entry-and-independent-certification-follow-up--2026-10-17)
+repairs an internal model-object label: existing authority choices now show ordinance
+and fiscal year. Synthetic browser entry verifies mismatch rejection/correction and
+independent Budget certification; focused HTTP/UAT/authorization SQLite tests pass
+3/3. No financial-rule change or release is claimed; [CONTINUE.md](CONTINUE.md)
+records current source chronology, pending integration and acceptance limits.
+
+Local release review also corrects one stale designation-history instruction to
+point to the implemented signing workflow. Its existing HTTP/source-isolation
+case passes 1/1 on SQLite. [Review scope and source chronology](docs/FINANCE_FORM1_SIGNED_COPIES_IN_PROGRESS.md#local-release-review-follow-up--2026-10-17)
+separate the earlier full baseline, prior-payable checks and this final one-line
+template follow-up. Local code review does not establish hosted CI or LGU acceptance.
+
+Local [existing-payable clerk follow-up](docs/FINANCE_PRIOR_PAYABLE_DV_2026-09-10.md#existing-payable-clerk-follow-up--2026-10-17)
+repairs a misleading new-JEV promise on a route that correctly reserves an existing
+claim without recognizing the expense again. Action/date wording is now truthful;
+financial services and controls are unchanged. Focused SQLite/MySQL 8/8 each and
+before/fixed browser checks pass, with one hold and unchanged original ledger.
+This four-file presentation follow-up postdates the full baseline below; it is
+not claimed as another full current-source run. All work remains unpublished;
+review, hosted CI, integration and original Finance acceptance gates remain open.
+
+Local signing-source review found and repaired a predecessor identity/archive
+binding gap; focused SQLite/native checks pass 8/8 each. Full repaired-source
+SQLite now passes: 2,370 passed / 202 native-only skips, 2,572 discovered,
+6,227.809s, exit 0, with exact coverage, cleanup and frozen sources verified.
+Native MySQL 8.4.11 also passes all 2,572 with zero skips (8,533.055s), exit 0;
+exact coverage, both-alias cleanup and unchanged source/operator hashes verified.
+Both runners are terminal and the owned fixture is stopped. The interrupted older full
+baseline is not a pass; [the feature report](docs/FINANCE_FORM1_SIGNED_COPIES_IN_PROGRESS.md#predecessor-row-and-archive-binding-repair--2026-10-17)
+and CONTINUE.md retain actual chronology and pending release/acceptance gates.
+
+Local [signed Form 1 return/final-issue workflow](docs/FINANCE_FORM1_SIGNED_COPIES_IN_PROGRESS.md)
+now includes clerk receipt/history, independent review/issuance, opt-in roles and
+original audited PDF/ZIP downloads with correction lineage. Scoped SQLite/native
+and mobile/desktop checks pass; the feature record distinguishes earlier scopes
+from the final retained-source context repair. This work remains unpublished;
+actual signatures, form/LGU acceptance and full release gates remain separate.
+Earlier combined lifecycle validation passed: SQLite 19 passed / three native-only
+skips; MySQL all 22 passed, including thirteen paired race scenarios. That scope
+predates the predecessor repair; the full repaired-source results are above.
+Local security-workflow commands pass; independent release review and hosted CI
+for this unpublished tree remain outstanding. See CONTINUE.md for the next gate.
+
+Local [unsigned Form 1 signing-copy release](docs/FINANCE_FORM1_UNSIGNED_COPIES_IN_PROGRESS.md)
+retains a complete source-linked PDF, independent release and original-byte
+downloads. Corrected module checks pass on SQLite/native, including three native
+races; all 255 financial cells in the five-page sample match their sources.
+The unsigned copy alone establishes no actual signature or final issuance; the
+separate local workflow above provides their governed evidence lifecycle. The
+work is unpublished; CONTINUE.md records exact scopes and release gates.
+
+Local [Form 1 designation preparation](docs/FINANCE_FORM1_DESIGNATIONS_IN_PROGRESS.md)
+adds source-linked officer/authority evidence, independent review and clerk screens.
+Focused and dependent SQLite/native validation and desktop/mobile layout checks
+pass. That prerequisite alone establishes no statutory approval or final issued form;
+unsigned-copy release is the separate extension above.
+The unpublished checkpoint and required release gates are in CONTINUE.md.
+
+The local [whole Form 1 print follow-up](docs/FINANCE_FORM1_PRINT_EVIDENCE_2026-10-16.md)
+replaces serialized appendix dictionaries with labelled evidence and numbers the
+complete draft continuously. Original financial/source evidence and all signing/
+issuance boundaries remain. Current validation and unpublished status are in CONTINUE.md.
+The [field/source follow-up](docs/FINANCE_FORM1_FIELDS_2026-10-16.md) restores the
+retained LGU name while keeping missing/conflicting identification unknown, and
+separates missing final-certification software from actual local signature acceptance.
+
+The [ordinary source/register comparison](docs/FINANCE_REGISTER_OUTPUT_PARITY_2026-10-16.md)
+validates OBR, journal and ledger CSVs against the same payable's reports on SQLite
+and native MySQL. It adds evidence, not financial functionality or accepted official
+forms. CONTINUE.md records current publication and remaining acceptance gates.
+
 The bounded [Finance clerk handoff repair](docs/FINANCE_CLERK_HANDOFFS_2026-10-14.md)
 aligns requesting-office dashboard counts with permitted workbench records and
 keeps empty My Work queues expandable beneath current work. Local dependent and

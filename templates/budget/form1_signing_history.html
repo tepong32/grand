@@ -1,0 +1,22 @@
+{% extends 'base.html' %}{% block content %}<main class="container py-4" style="overflow-wrap:anywhere">
+<a href="{% url 'budget:form1_package_detail' package.public_id %}">Original whole Form 1 package</a>
+<h1 class="h3">Form 1 designation preparation</h1>
+<p class="alert alert-info">Prepare the five designated functions over a complete, internally reviewed package. This records designation evidence; it supplies no signature, Chief Executive approval, issued copy or cash authority. Open a retained preparation to continue to unsigned-copy release, signed returns and final issuance.</p>
+<h2 class="h5">Retained preparations</h2>
+<ul>{% for record, status in rows %}<li><a href="{% url 'budget:form1_signing_detail' record.public_id %}">Version {{ record.version }} · {{ record.document_date }} · {{ status }}</a></li>{% empty %}<li>No preparation retained for this package.</li>{% endfor %}</ul>
+{% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">Previous</a>{% endif %}
+<span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+{% if page.has_next %}<a href="?page={{ page.next_page_number }}">Next</a>{% endif %}
+{% if form %}<section class="card card-body mt-4"><h2 class="h5">Prepare a successor</h2>
+<p>Use the LGU identification from the original office sources. Each designation must cover the intended Form 1 date. Upload actual authority evidence for every function; a typed name does not establish signing authority.</p>
+<form method="post" enctype="multipart/form-data">{% csrf_token %}
+{{ form.non_field_errors }}{{ form.expected_latest }}{{ form.expected_latest.errors }}
+<p>{{ form.document_date.label_tag }} {{ form.document_date }}{{ form.document_date.errors }}</p>
+<p>{{ form.lgu.label_tag }} {{ form.lgu }}{{ form.lgu.errors }}</p>
+<p>{{ form.reference.label_tag }} {{ form.reference }}{{ form.reference.errors }}</p>
+{% for title, fields in form.role_fields %}<fieldset class="border rounded p-3 mb-3"><legend class="h5">{{ title }}</legend>
+{% for field in fields %}<p>{{ field.label_tag }} {{ field }}{{ field.errors }}</p>{% endfor %}
+</fieldset>{% endfor %}
+<button type="submit" class="btn btn-primary">Retain designation preparation</button>
+</form></section>{% endif %}
+</main>{% endblock %}

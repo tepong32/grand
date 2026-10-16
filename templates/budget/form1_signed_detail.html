@@ -1,0 +1,41 @@
+{% extends 'base.html' %}{% block content %}
+<main class="container py-4" style="overflow-wrap:anywhere;min-width:0">
+<a href="{% url 'budget:form1_signed_history' record.copy.public_id %}">Signed return history and correction entry</a>
+<h1 class="h3">Form 1 signed return · version {{ record.version }}</h1>
+<p><strong>{{ record.copy.preparation.payload.lgu }}</strong><br>Fund {{ record.copy.preparation.package.payload.assembly.payload.members.0.scope.fund_code }} · Budget year {{ record.copy.preparation.package.payload.assembly.payload.members.0.scope.budget_year }}</p>
+<p>{{ display_status }}</p>
+<p class="alert alert-info">This page retains the paper-return declaration and any independent findings. The original unsigned copy remains unchanged. Final issue evidence is listed separately below; no cash authority is created.</p>
+<p><a href="{% url 'budget:form1_signing_detail' record.copy.preparation.public_id %}">Inspect original financial sources, designations and unsigned signing copy</a></p>
+<section class="card card-body mb-3"><h2 class="h5">Physical return declaration</h2>
+<p>Received {{ retained.payload.physical_return.received_on }} by {{ retained.payload.physical_return.received_by }}<br>Custody reference: {{ retained.payload.physical_return.custody_reference }}<br>Original paper location: {{ retained.payload.physical_return.custody_location }}</p>
+<p>Recorded {{ record.captured_at }} by {{ record.captured_by_label }}<br>Basis: {{ retained.payload.correction_reason }}</p>
+{% if retained.payload.predecessor %}<p>Proposed correction to final issue version {{ retained.payload.predecessor.version }} ({{ retained.payload.predecessor.public_id }}). Recording this scan does not replace that issue.</p>{% endif %}
+{% if can_export %}<p><a href="{% url 'budget:form1_signed_document' record.public_id %}">Download original returned signed PDF</a></p>{% endif %}
+<details><summary>Original evidence verification details</summary><p>Receipt ID: {{ record.public_id }}<br>Evidence checksum: {{ retained.payload_checksum }}<br>Original PDF SHA-256: {{ retained.payload.document.sha256 }}<br>Pages: {{ retained.payload.document.pages }}</p></details>
+</section>
+{% for entity, people in dates %}<section class="card card-body mb-3"><h2 class="h5">{{ entity }} · declared signing dates</h2>
+{% for title, name, day in people %}<p><strong>{{ title }}</strong><br>{{ name }} · {{ day|default_if_none:'Unknown — verification blocked' }}</p>{% endfor %}</section>{% endfor %}
+{% if retained.review %}<section class="card card-body mb-3"><h2 class="h5">Retained independent decision</h2>
+<p>{{ retained.review.payload.identity.actor_label }} · {{ retained.review.payload.identity.decided_at }}<br>{{ retained.review.payload.note }}</p>
+{% for label, finding in findings %}<p><strong>{{ label }}</strong>: {{ finding.verified|yesno:'Verified,Not verified' }}<br>{{ finding.basis }}</p>{% endfor %}
+</section>{% endif %}
+{% if issued %}<section class="card card-body mb-3"><h2 class="h5">Retained final issued package · version {{ issued.version }}</h2>
+<p>Issued {{ issued.issued_at }} by {{ issued.issued_by_label }}<br>Reference: {{ issued_state.payload.reference }}</p>
+<p>The package retains both original PDFs and their source/verification evidence. A later correction preserves this original issue.</p>
+{% if issue_export %}<p><a href="{% url 'budget:form1_final_document' issued.public_id %}">Download original final issued package</a></p>{% endif %}
+<details><summary>Final issue verification details</summary><p>Issue ID: {{ issued.public_id }}<br>Archive SHA-256: {{ issued_state.archive_sha256 }}<br>Evidence checksum: {{ issued_state.payload_checksum }}</p></details></section>{% endif %}
+{% if decision_errors %}<div class="alert alert-danger" role="alert">{{ decision_errors }}</div>{% endif %}
+{% if issue_errors %}<div class="alert alert-danger" role="alert">{{ issue_errors }}</div>{% endif %}
+{% if decision_form %}<section class="card card-body mb-3"><h2 class="h5">Independent signature and custody inspection</h2>
+<p>Inspect every original financial/signing page, actual signatures, designation dates and custody evidence. Positive choices cannot replace missing actual dates. A return preserves this receipt; record a successor to correct it.</p>
+<form method="post" action="{% url 'budget:form1_signed_review' record.public_id %}">{% csrf_token %}{{ decision_form.non_field_errors }}
+<div class="mb-3">{{ decision_form.note.label_tag }}{{ decision_form.note }}{{ decision_form.note.errors }}</div>
+{% for label, choice, basis in decision_form.finding_fields %}<fieldset class="border rounded p-3 mb-3" style="min-width:0"><legend class="float-none w-auto fs-6 px-2">{{ label }}</legend>
+{{ choice.label_tag }}{{ choice }}{{ choice.errors }}{{ basis.label_tag }}{{ basis }}{{ basis.errors }}</fieldset>{% endfor %}
+{% if can_verify_issue %}<div class="mb-3">{{ decision_form.reference.label_tag }}{{ decision_form.reference }}{{ decision_form.reference.errors }}</div><button type="submit" name="action" value="verify_issue" class="btn btn-primary mb-2">Verify signatures and issue package</button>{% endif %}
+<button type="submit" name="action" value="verify" class="btn btn-outline-primary mb-2">Verify evidence only</button>
+<button type="submit" name="action" value="return" class="btn btn-outline-secondary mb-2">Return for corrected evidence</button>
+</form></section>{% endif %}
+{% if issue_form %}<section class="card card-body"><h2 class="h5">Issue the independently verified package</h2>
+<form method="post" action="{% url 'budget:form1_signed_issue' record.public_id %}">{% csrf_token %}{{ issue_form.as_p }}<button type="submit" class="btn btn-primary">Issue verified package</button></form></section>{% endif %}
+</main>{% endblock %}

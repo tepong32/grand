@@ -4,6 +4,7 @@
 <p>{{ status }} · Prepared {{ record.prepared_at }}</p>
 <p class="alert alert-info">Draft history. This retained history does not certify current sources, authorize cash, supply statutory signatures or issue Form 1.</p>
 <p><a href="{% url 'budget:form1_treatment_history' record.public_id %}">Original PhilHealth source findings and independent review history</a></p>
+{% if can_view_designations %}<p><a href="{% url 'budget:form1_signing_history' record.public_id %}">Prepare and review Form 1 designation evidence</a></p>{% endif %}
 {% if not complete %}<p class="alert alert-warning">Resolve missing source coverage or policy evidence before internal approval. Unknown amounts remain unknown.</p>{% endif %}
 {% if decision_errors %}<div class="alert alert-danger" role="alert">{{ decision_errors }}</div>{% endif %}
 {% if state.status == 'returned' %}<p>Budget must prepare a successor that resolves the recorded return. This original version and its decisions stay retained.</p>

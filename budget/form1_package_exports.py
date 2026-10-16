@@ -34,6 +34,11 @@ def capture(record, actor):
     record = Form1Package.objects.select_for_update().get(pk=record.pk, proposal=proposal, fund=fund)
     record = packages._read(record, actor, export=True)
     state = reviews._state(record, record.payload['assembly']['payload'], list(record.decisions.all()))
+    return _retained(record, state)
+
+
+def _retained(record, state):
+    """Original evidence only; caller must authorize actual source read/export first."""
     originals = [(row.key, record.payload['attachments'][row.key], bytes(row.data))
         for row in record.attachments.all()]
     # These source documents are already authenticated by packages._sources.

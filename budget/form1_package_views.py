@@ -122,6 +122,7 @@ def render_detail(request,record,*,decision_role=None,decision_form=None,status=
                 decision_forms.append(dict(role=role,form=decision_form if role==decision_role else PackageDecision(role)))
     params=request.GET.copy();params.pop('page',None)
     return render(request,'budget/form1_package_detail.html',dict(record=record,state=state,
+        can_view_designations=has_budget_permission(request.user,'view_form1_signing_preparations'),
         status=STATUSES[state['status']],pending=pending,can_export=can_export,
         complete=body['calculation_coverage_complete'],decision_forms=decision_forms,
         decision_errors=decision_form.non_field_errors() if decision_form is not None and not any(

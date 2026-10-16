@@ -1,5 +1,97 @@
 # Prior-payable DV settlement
 
+## Existing-payable clerk follow-up — 2026-10-17
+
+Local/unpublished follow-up on accepted v172 / `32ab046`, under the original
+Finance foundation goal. **LOW, pre-existing wording defect:** Accounting's
+next-task banner and validation button promised a new JEV even when a prior-payable
+DV with no deductions correctly bypassed new recognition. Its reservation date
+was also labelled JEV date. The accepted base contains that wording; this was not
+introduced by the subsequent Form 1 work. No financial-service defect was found.
+
+The shared action now says **Validate voucher**, and the next-task text asks staff
+to validate against source evidence. The existing prior-payable form labels its
+optional JEV number as an adjustment, and uses **Validation date** without deductions
+or **Adjustment JEV date** with deductions. Requiredness, querysets, grants,
+independence, posting rules, reservation amounts and transitions are unchanged.
+Six existing button-presence/denial assertions now use the new label; none were
+removed or weakened. No new model, migration, field, route or test method.
+
+### Actual browser observations
+
+Before and after the copy repair, an isolated fixture retained one original
+posted expense/payable of 1,500 and a partial DV of 1,000 with zero deductions:
+
+1. Missing original-claim selection retained the entered date/note, displayed the
+   selection error and left case version 4, zero reservations and original ledger
+   lines unchanged.
+2. Selecting the exact original claim advanced to Treasury check preparation,
+   case version 5, with one 1,000 hold and 500 remaining. No JEV or posting request
+   was created; the original expense/payable lines were unchanged.
+3. A separate Treasury actor could read the same original claim/retained allocation
+   and the cash-position/check-preparation next action. That GET changed nothing;
+   no instrument, advice or payment was issued.
+4. Corrected validation cards were visually inspected at 390px and 1440px. Mobile
+   viewport/document widths were both 390px, with no horizontal page overflow.
+
+This starts at Accounting validation using `PriorPayableDVTests` setup. Budget,
+intake/DV readiness and signature returns were fixture-created, not an interactive
+authoritative OBR cycle or real physical evidence. Authentication used synthetic
+force-login states; real sign-in/operator provisioning is not tested here. Existing
+new-expense/quarterly browser proofs were not repeated or relabelled complete.
+
+Proof `.tmp/prior-payable-clerk-browser-evidence-20261017.json` pins retained
+before/fixed DOM snapshots, actual before/after state JSON and screenshot hashes.
+Inspected images: `output/playwright/prior-payable-validation-{mobile,desktop}-fixed-20261017.png`.
+Before screenshots and both disposable two-store fixtures are retained separately;
+no original history was reset to create the after demonstration.
+
+### Proportionate validation and chronology
+
+Current source differs from the full 2,572-test baseline in exactly four files:
+`vouchers/roles.py`, `vouchers/forms.py`, `vouchers/tests.py` and the existing
+`templates/vouchers/case_detail.html`. The difference is wording/field labels and
+their existing assertions, not financial services or authorization behavior.
+
+PASS, exit 0, zero skips, both aliases destroyed and exact eight identities verified:
+
+| Backend | Passed | Suite seconds | Raw log under `.tmp/` |
+| --- | --- | --- | --- |
+| SQLite, session 96194 | 8/8 | 10.114 | `prior-payable-clerk-fixed-sqlite-20261017.log` |
+| MySQL 8.4.11, session 29717 | 8/8 | 9.483 | `prior-payable-clerk-fixed-native-20261017.log` |
+
+Suite seconds exclude fresh database/setup time and are not an implementation-hour
+or whole-project remaining-work estimate.
+
+The scope covers the four existing independent-review/exemption/UAT/current-office
+button contracts in `VoucherWorkflowTests` and these four `PriorPayableDVTests`:
+`test_no_deduction_dv_reuses_prior_claim_and_posts_only_actual_payment`,
+`test_deduction_adjustment_payment_bank_return_and_replacement`,
+`test_form_scopes_claim_and_invalid_rule_cannot_duplicate_recognition`, and
+`test_http_validation_and_uat_denial`. Exact labels are retained in
+`.tmp/prior-payable-clerk-labels-20261017.json`; commands used the documented Python
+3.11 and `.tmp/intake_primary_{sqlite,native}.py --verbosity 2` with those eight
+explicit labels (PowerShell array splatting), no skips/timeout changes.
+
+Combined proof `.tmp/prior-payable-clerk-validation-evidence-20261017.json` verifies
+log/browser hashes, all 1,193 current source hashes and unchanged operator stores.
+Current freeze `.tmp/prior-payable-clerk-current-source-freeze-20261017.json`.
+Earlier full SQLite 2,370 passed / 202 native-only skips and native 2,572 passed /
+zero skips remain valid for their **pre-copy-repair** source; do not call them a
+full execution of these later four files. Full local rerun **NOT RUN — OUT OF
+SCOPE** for this bounded presentation-only repair; affected view/form/role and
+dependent financial contracts plus browser behavior are checked. Current-tree
+hosted CI/review remain required before any separately authorized release.
+
+Both focused runners are terminal. Owned browser/preview and MySQL were stopped;
+no operator migration, grant, data change, deployment or eGAPS access. **GO for
+continued local foundation development; NO-GO for release/production or whole-goal
+completion.** Local forms/semantics, remaining office scenarios and operational/LGU
+acceptance stay open. See the [current requirement reconciliation](FINANCE_FOUNDATION_REQUIREMENT_AUDIT.md#current-reconciliation--2026-10-17)
+and CONTINUE.md; do not repeat this clerk branch as an unfinished milestone.
+
+## Historical settlement checkpoint — v0.7.80
+
 v0.7.80 on `codex/finance-prior-payable-dv`, based on v0.7.79 (`3ea35c2`). Read the validation results and remaining boundaries below. Production remains **NO-GO**.
 
 ## Office workflow

@@ -1,9 +1,61 @@
 # Remaining Finance foundation work and estimation basis
 
+October 17 upstream OBR follow-up is complete locally: actual browser request/
+schedule entry, mismatch rejection/correction, submission and independent Budget
+certification are now checked. A pre-existing authority-choice label is repaired;
+focused HTTP/UAT/authorization SQLite scope passes 3/3. [Evidence and limits](FINANCE_OBR_PAYABLE_HANDOFF.md#obr-entry-and-independent-certification-follow-up--2026-10-17).
+Do not repeat this branch or count it as full annual-budget, downstream payment,
+native/full-current-source or LGU acceptance. Known certificate/form/deployment
+dependencies below remain open; no new feature family or hours estimate is added.
+
+October 17 follow-up: the [predecessor identity/archive binding repair](FINANCE_FORM1_SIGNED_COPIES_IN_PROGRESS.md#predecessor-row-and-archive-binding-repair--2026-10-17)
+passes focused SQLite/native 8/8 each. It fixes one introduced local integrity gap
+without new financial scope. The earlier full baseline was deliberately interrupted
+and is not a pass. Repaired-source full SQLite now passes: 2,370 passed / 202
+native-only skips, 2,572 discovered, 6,227.809s, exit 0; exact identities, both
+alias cleanup and frozen sources verified. Native full 62511 also passes all
+2,572 / zero skips, 8,533.055s, exit 0, with exact coverage/cleanup and unchanged
+source/operator hashes verified. Both runners are terminal; owned MySQL is stopped.
+Independent release review, current-tree hosted CI/publication and all original remaining
+requirements stay open; no extra replay or unsupported hours estimate is added.
+
+Earlier October 17 combined validation, before the predecessor repair:
+SQLite 19 passed / three native-only skips; native MySQL all 22 passed, including
+thirteen paired race scenarios, on unchanged current source. Local security
+commands pass; that checkpoint's 2,569-case discovery was not execution evidence.
+The later repaired-source 2,572-case full results are above.
+[Exact scope and checkpoint report](FINANCE_FORM1_SIGNED_COPIES_IN_PROGRESS.md#combined-current-tree-lifecycle-validation--2026-10-17).
+Full local regression is now verified; independent release review and current-tree
+hosted CI remain pending;
+no publication is authorized. The [official COA scope check](FINANCE_FORM1_PHILHEALTH_SOURCE_AUDIT.md#official-coa-lead-resolved-by-scope-inspection--2026-10-17)
+does not establish the municipal numerical rule. Keep all original remaining
+requirements below open and manual interventions deferred; no new hours estimate.
+
+October 17: [signed-return/final-issue clerk software](FINANCE_FORM1_SIGNED_COPIES_IN_PROGRESS.md)
+is locally implemented/validated, including receipt/history, independent decisions,
+immutable issuance/corrections, opt-in roles and audited original downloads.
+SQLite 3/3 + 8/8, native 10/10, final source-context 1/1 per backend and eight
+desktop/mobile captures pass with documented scope distinctions. This supersedes
+older statements below that the signed/final software is missing. Actual paper/
+form/LGU acceptance and release gates remain open. Next inspect the evidenced
+numerical treatment, retaining unsupported behavior when no safe authority is
+established. No new remaining-hours estimate is inferred.
+
 Scope: the user's original 22-section Budget → Accounting → Treasury Completion
 Gate, mapped by the [foundation register](FINANCE_FOUNDATION_GATE.md) and
 [requirement audit](FINANCE_FOUNDATION_REQUIREMENT_AUDIT.md). No unpurchased eGAPS
 module, unrelated feature family or framework replacement is added here.
+
+October 16 continuation: the known five-role [Form 1 designation prerequisite](FINANCE_FORM1_DESIGNATIONS_IN_PROGRESS.md)
+is locally implemented and validated on SQLite/native with clerk/layout checks.
+The [unsigned signing-copy extension](FINANCE_FORM1_UNSIGNED_COPIES_IN_PROGRESS.md)
+is also locally implemented/validated, retaining complete original financial
+fields and immutable issued unsigned bytes. Both remain unpublished. Remaining
+functional steps are physical signed-copy receipt/independent
+verification and immutable final issuance/successors. This prerequisite does not
+complete FG-03/06 or resolve unsupported numerical treatments, earmark semantics,
+required-output acceptance or the final operational/LGU gates. Record actual
+validation and elapsed work at the checkpoint; no new total estimate is inferred.
 
 ## Estimate correction
 
@@ -47,6 +99,32 @@ test/CI waits. Model choice alone supplies no measured GRAND delivery multiplier
 
 ## Finite remaining-task list
 
+[October 16 official-field audit](FINANCE_FORM1_FIELDS_2026-10-16.md) established
+the known Form 1 functions while final preparation/issuance software was then
+missing. Those configurable designation/unsigned/signed clerk stages now have
+local implementation and scoped validation. Actual operator appointments,
+physical signatures and local acceptance remain separately unconfirmed; they
+do not make the software missing again. Preserve all numerical/source-currentness
+and approval gates. The omitted draft LGU name and subsequent clerk context
+omission are repaired with original-source fields, never site-name inference.
+
+The local [whole Form 1 print repair](FINANCE_FORM1_PRINT_EVIDENCE_2026-10-16.md)
+addresses the already-recorded raw dictionary appendix and disconnected numbering
+gaps. It adds no source recipe, financial authority or statutory approval. Current
+dependent validation and unpublished status are in CONTINUE.md; broader required
+output fidelity and physical/local acceptance remain open. Do not extend this
+bounded repair into a framework or general application restyling project.
+
+The October 16 [source/register comparison](FINANCE_REGISTER_OUTPUT_PARITY_2026-10-16.md)
+completes the planned ordinary OBR-to-journal/ledger/Treasury evidence extension:
+four additional clerk CSVs and Accounting screen rows agree with original sources
+and period reports. Isolated SQLite / 9.456s and native / 14.867s pass, zero skips,
+both stores cleaned up. No production defect or new financial functionality was
+established. Keep official-output fidelity, remaining ordinary scenarios and all
+local acceptance requirements open. Choose the next concrete unresolved requirement;
+do not allocate another milestone to this same replay. These suite durations omit
+fresh migration/setup and are not whole-goal delivery estimates.
+
 The named [partial payment/return/reissue replay](FINANCE_PARTIAL_PAYMENT_OUTPUT_REPLAY.md)
 now passes its focused and 23-case dependent SQLite/native checks. It validates
 existing settlement/reporting behavior; it adds no financial feature and closes
@@ -85,7 +163,7 @@ remain unresolved rather than being replaced with additional feature breadth.
 
 | Original gate | Remaining work / completion evidence | Dependency and current estimate |
 | --- | --- | --- |
-| FG-03/06: Budget historical context and Form 1 | Source-finding intake, independent decisions, history/export and native races are implemented in v167. Remaining: implement only evidenced numerical treatment through a fresh whole-package successor; retain separate gross ending, deduction, adjustment and net controls. Finish statutory certification/Chief Executive approval and immutable issued output with the actual designated roles. | The earlier 2–4-hour checkpoint allowance is not an actual delivery-time claim: the observation connection was interrupted after candidate CI completed, and verification/integration resumed in the evening. Measured local/CI durations are recorded below. Numerical/issuance effort remains unestimated until the applicable recipe and exact role/output inputs are established. |
+| FG-03/06: Budget historical context and Form 1 | Source findings are implemented in v167; designation/unsigned/signed clerk software is subsequently validated locally and unpublished. Remaining: evidenced numerical treatment through a fresh whole-package successor, preserving gross ending/deduction/adjustment/net controls; actual appointment/signature/form acceptance and release gates. | Earlier checkpoint allowances were not actual delivery-time claims. Numerical effort remains unestimated until a safe recipe is established. Unknown local signatures do not make the now-implemented configurable software missing again. |
 | FG-04/05: quarterly plan and distinct earmark certificate | Existing quarterly authority/ARO route is implemented; confirm reserved-column/form meaning. Establish actual earmark appropriation-versus-allotment basis, certificate numbering, consumption, cancellation/correction and independent review before extending existing Budget controls. | Local earmark rules are UNKNOWN; the user explicitly said not yet confirmed. Do not substitute generic reserves or invent capacity. Manual decision deferred; implementation estimate follows the established lifecycle. |
 | FG-06: required outputs | Reconcile the [existing office output map](FINANCE_REQUIRED_OUTPUT_MAP.md) with actual Budget, Accounting and Treasury work. Reproduce required fields, columns, classifications, source references, totals, comparatives and signatures from accepted evidence. Fix demonstrated gaps using existing generation/export services. | Scope the remaining output repairs by named required forms, not the 31-form candidate catalog. A bounded next replay/inventory checkpoint can be planned at 2–4 active hours; that does not estimate every subsequently discovered repair or local printer acceptance. |
 | FG-07/08/09: ordinary work and source reuse | Extend retained ordinary-chain proof to the actual office scenarios, historical-source adoption, returns/corrections and interrupted recovery that are still required. Prove lineage and unchanged earlier financial evidence through outputs. | Existing core routes and synthetic replay are evidence, not blanket office acceptance. Name the next scenarios before estimating their repair work; no speculative cheque/agency edge-case breadth ahead of foundation completion. |
@@ -102,10 +180,25 @@ continue independent authorized implementation without manufacturing answers.
 
 ## GO / NO-GO and next action
 
-GO for the published source-findings checkpoint and bounded partial-settlement
-validation and its accepted candidate publication. Resulting primary acceptance
-requires its actual terminal verify/mysql results and retained exact coverage.
+The [current original-requirement reconciliation](FINANCE_FOUNDATION_REQUIREMENT_AUDIT.md#current-reconciliation--2026-10-17)
+preserves all 22 sections and finds already-retained quarterly/ARO and ordinary
+new-expense browser evidence. The subsequent [existing-payable clerk check](FINANCE_PRIOR_PAYABLE_DV_2026-09-10.md#existing-payable-clerk-follow-up--2026-10-17)
+is complete: a pre-existing misleading JEV promise is repaired; exact original-claim
+selection, retained invalid input/state, one hold and no duplicate expense JEV
+are verified before/after through the browser. Focused SQLite/native 8/8 each pass,
+zero skips, on the four-file presentation follow-up. Do not repeat this branch
+as another milestone or relabel the earlier broad baseline current-source proof.
+Conditional unsupported numerical treatment remains
+UNKNOWN until applicable authority and target-LGU scope are established; do not
+make a guessed recipe the next mandatory feature or infer that factual approval
+authorizes it. JEV form comparison still needs an applicable retained reference.
+
+GO for continued evidence-backed local foundation work. No new publication is authorized
+by this continuation; later release needs its actual review/current-tree CI and
+verified remote results. The earlier partial-settlement work is already recorded
+above; do not repeat it as the next milestone.
 NO-GO for unsupported numerical treatment, inferred earmark authority,
 statutory issuance without actual designation/evidence, and production acceptance.
-The [current checkpoint](FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md) and
+The [current clerk checkpoint](FINANCE_FORM1_SIGNED_COPIES_IN_PROGRESS.md),
+[treatment evidence](FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md) and
 [handoff](../CONTINUE.md) own actual validation and release status.

@@ -1,5 +1,103 @@
 # GRAND Finance complete-cycle roadmap
 
+October 17 upstream ordinary-workflow follow-up:
+[OBR entry and independent certification](FINANCE_OBR_PAYABLE_HANDOFF.md#obr-entry-and-independent-certification-follow-up--2026-10-17)
+now have actual browser entry/rejection/correction/submission proof, separate from
+the earlier already-certified fixture. One pre-existing authority-choice label is
+repaired; existing HTTP/UAT/authorization SQLite scope passes 3/3. No financial
+behavior or new module. Seven presentation/test files now postdate the broad
+baseline. The bounded follow-up review is complete and the handoff owns the
+103-path intended payload/preview; hosted CI and actual VM integration remain
+pending. Actual local semantics/forms, live deployment and operational/LGU
+acceptance remain open. Do not repeat this completed browser branch.
+
+October 17 release preparation: [bounded local review](FINANCE_FORM1_SIGNED_COPIES_IN_PROGRESS.md#local-release-review-follow-up--2026-10-17)
+is complete for intended production/migration/template changes. One stale
+designation-history instruction was corrected; its existing HTTP/source-isolation
+case passes 1/1 SQLite. This adds a fifth presentation/test difference after the
+earlier full baseline; no new financial scope, test method or authority. The local
+review does not establish hosted candidate/primary CI, publication or acceptance.
+Follow the existing finite foundation inventory; no completed signing replay or
+new feature family is required by this review.
+
+October 17 bounded original-workflow follow-up: [existing-payable clerk wording](FINANCE_PRIOR_PAYABLE_DV_2026-09-10.md#existing-payable-clerk-follow-up--2026-10-17)
+is repaired and validated on SQLite/native (8/8 each, zero skips) plus actual
+before/fixed browser actions. One original claim is reserved without duplicate
+expense recognition; action/date labels now describe that correctly. No new
+financial behavior or scope. This postdates the broad full baseline by four
+presentation/test files; do not relabel that baseline full-current-source proof.
+The [22-section reconciliation](FINANCE_FOUNDATION_REQUIREMENT_AUDIT.md#current-reconciliation--2026-10-17)
+keeps unsupported numerical applicability and local certificate/form decisions
+explicit. Do not replay completed quarterly/new-expense/prior-claim screens or
+invent a new feature to avoid the remaining evidence dependencies. Independent
+review, hosted CI/integration and functional/operational/LGU gates remain open.
+
+October 17 source-review repair: predecessor identity/payload now binds to its
+original issuance envelope. Focused SQLite/native checks pass 8/8 each; the prior
+full baseline was deliberately interrupted for the confirmed local defect. New
+full repaired-source SQLite PASS: 2,370 passed / 202 native-only skips, 2,572
+discovered, 6,227.809s, exit 0, exact identities/cleanup/source hashes verified.
+Native 62511 also passes all 2,572 / zero skips, 8,533.055s, exit 0, with exact
+coverage, both-alias cleanup and unchanged source/operator hashes verified.
+Both sessions are terminal; owned MySQL is stopped. Independent release review,
+current-tree hosted CI and publication remain pending.
+[Actual evidence and limits](FINANCE_FORM1_SIGNED_COPIES_IN_PROGRESS.md#predecessor-row-and-archive-binding-repair--2026-10-17).
+Keep the original foundation scope, manual deferrals and no-publication boundary.
+
+Earlier October 17 local validation: the complete signing lifecycle suites
+passed together on their then-unchanged source (SQLite 19 passed / three native skips; native
+22/22 with thirteen paired races). Local security commands and complete discovery/
+partition passed. That scope predates the repair; full repaired-source execution
+now passes above. Independent release review and hosted CI remain outstanding.
+[Exact scope and next gate](FINANCE_FORM1_SIGNED_COPIES_IN_PROGRESS.md#combined-current-tree-lifecycle-validation--2026-10-17).
+Continue full current-tree automated validation before any release claim; retain
+unsupported numerical treatment and deferred manual requirements without new
+module breadth. This does not authorize publication or close Finance acceptance.
+
+Locally validated, October 17: [signed-return/final-issue clerk checkpoint](FINANCE_FORM1_SIGNED_COPIES_IN_PROGRESS.md).
+Receipt/history, independent verification/issuance, immutable bundle/corrections,
+four opt-in presets and original audited downloads are implemented. Scoped
+SQLite/native and desktop/mobile checks pass, including a repaired retained-source
+LGU/fund/year header. Exact source chronology remains in the feature record;
+publication and physical/LGU acceptance remain pending. Next inspect the evidenced
+numerical-treatment route through a fresh source successor; do not recreate this
+software lifecycle or substitute more signing UI polish for missing functionality.
+
+Previous complete clerk/output checkpoint: [unsigned Form 1 signing-copy release](FINANCE_FORM1_UNSIGNED_COPIES_IN_PROGRESS.md)
+is implemented and validated with immutable original bytes, independent release,
+source-scoped clerk delivery and source-to-PDF cell parity. The later signed-copy/
+final-issuance software is now implemented locally above. Keep
+actual signatures, accepted printer/forms and LGU acceptance separate. Publication
+and full post-change CI remain pending; CONTINUE.md records exact scope/results.
+
+Earlier prerequisite: [final Form 1 designation preparation](FINANCE_FORM1_DESIGNATIONS_IN_PROGRESS.md).
+Local preparation, independent review and clerk screens have passed focused and
+dependent SQLite/native and layout checks; publication remains pending. The later
+unsigned and signed/final clerk extensions are now implemented locally above;
+actual statutory/physical acceptance and full Finance parity remain unproven.
+
+Next functional milestone: evidence-backed numerical treatment through the existing
+[source-finding route](FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md), only where official
+instructions and retained evidence establish a safe recipe. The formerly missing
+[final lifecycle](FINANCE_FORM1_FIELDS_2026-10-16.md#next-functional-milestone) now
+has local software/scoped validation above. Actual appointments/signatures and
+physical acceptance remain separate gates, not a reason to recreate that software
+or replace numerical progress with more replay/print polish.
+
+Earlier completed local output repair: [whole Form 1 draft evidence presentation](FINANCE_FORM1_PRINT_EVIDENCE_2026-10-16.md).
+The documented raw appendix notation and separate numbering are repaired through
+the existing renderer, retaining original money, source checks and draft boundaries.
+Artifact/visual checks and eleven dependent cases on each SQLite/native backend
+PASS without skips; cleanup and frozen source verified. Publication limits are in
+CONTINUE.md. This does not resolve numerical/statutory/local acceptance.
+
+October 16 bounded local evidence: [source/register output comparison](FINANCE_REGISTER_OUTPUT_PARITY_2026-10-16.md)
+passes on SQLite/native MySQL, extending the existing ordinary chain into clerk
+OBR/journal/ledger CSV and screen agreement. No production repair was justified.
+Select the next specific outstanding output or ordinary workflow requirement from
+the finite inventory; do not repeat completed replays or infer local acceptance.
+Actual publication/CI and remaining manual prerequisites are in CONTINUE.md.
+
 Current bounded ordinary-clerk work: [scoped dashboard counts and My Work](FINANCE_CLERK_HANDOFFS_2026-10-14.md).
 Repair demonstrated requesting-office aggregate exposure and bring current work
 above expandable empty queues. Preserve all grants, source queries and financial

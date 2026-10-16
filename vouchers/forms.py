@@ -785,6 +785,10 @@ class AccountingValidationForm(WorkflowForm):
             and hasattr(case, "obligation") and requires_prior_claim(case))
         self.fields["jev_number"].required = not is_prior or bool(case.disbursement_voucher.total_deductions)
         if is_prior:
+            self.fields["jev_number"].label = "Adjustment JEV number"
+            self.fields["jev_date"].label = (
+                "Adjustment JEV date" if case.disbursement_voucher.total_deductions else "Validation date"
+            )
             from accounting.claim_attributions import eligible_claims, identity
             sources = eligible_claims(case.configuration_release.department_id,
                 f"finance-party:{case.payee.code}" if case.payee_id else "").filter(

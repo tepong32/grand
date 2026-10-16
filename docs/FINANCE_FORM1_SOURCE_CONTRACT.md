@@ -1,5 +1,28 @@
 # Form 1 source and reconciliation contract — 2026-10-11
 
+October 17 [signed-return/final-issue service extension](FINANCE_FORM1_SIGNED_COPIES_IN_PROGRESS.md)
+pins the same original sources, unsigned PDF and designation evidence. A returned
+scan is an unverified declaration until independent complete per-entity findings;
+final archives preserve both PDFs and explicit predecessor lineage. Numerical
+recipes and cash authority are unchanged. Clerk delivery now has scoped two-backend
+and layout evidence, including visible pinned LGU/fund/year context. No full
+Finance completion, publication or external acceptance is claimed.
+
+The local [unsigned signing-copy checkpoint](FINANCE_FORM1_UNSIGNED_COPIES_IN_PROGRESS.md)
+reuses the exact complete reviewed package/designation and preserves original
+released bytes through separately authorized downloads. Grid extraction matches
+all five financial columns; no numerical recipe, actual signature, final issued
+state or cash capacity is invented. See CONTINUE.md for actual failed/repaired
+test scopes, source freezes and pending release/acceptance gates.
+
+October 16 local extension: [designation preparation](FINANCE_FORM1_DESIGNATIONS_IN_PROGRESS.md)
+retains exact complete reviewed sources and original role authority documents,
+with independent review and separately scoped read/export. SQLite/native and
+clerk/layout checks pass. That preparation creates no signature, final issued form
+or cash authority; unsigned-copy release is separate above. Signed/final lifecycle
+requirements remain open. See CONTINUE.md
+for the unpublished checkpoint and required release gates.
+
 Development branch `codex/finance-budget-attribution`, base v0.7.153 / `61e690e4`.
 This is a source audit and implementation contract, not an implemented Form 1 or
 accepted financial statement. Continue the [actuals contract](FINANCE_BUDGET_ACTUALS_CONTRACT.md)
@@ -19,7 +42,11 @@ One genuine-source case passes on SQLite/native MySQL without skips; a fresh SQL
 artifact-retention rerun also passes. All 22 pages of reviewed/unknown fixture PDFs
 were visually inspected, including the complete original flow/SPA appendix.
 Unknown deduction/net ending stays unknown; no signing or issuance is supplied.
-Raw field/dictionary notation and separate appendix numbering remain usability gaps.
+The local [print repair](FINANCE_FORM1_PRINT_EVIDENCE_2026-10-16.md) addresses raw
+dictionary notation and separate numbering; the [field audit](FINANCE_FORM1_FIELDS_2026-10-16.md)
+also restores omitted LGU source context. Current validation/publication is in
+CONTINUE.md. Final whole-form certification/issued-copy software is still missing;
+known national roles are separate from unconfirmed actual appointments/signatures.
 See CONTINUE.md for exact logs, hashes, render warnings and unperformed wider gates.
 
 The internal whole-package review checkpoint adds immutable role/office decisions

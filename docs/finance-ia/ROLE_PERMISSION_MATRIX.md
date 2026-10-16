@@ -1,6 +1,29 @@
 # Finance role and permission matrix
 
-This is the F1.1 target contract. `Target` means required by the complete-cycle design, not currently implemented. The existing Voucher Workbench roles remain a shadow prototype and must migrate through explicit permission mapping rather than name matching.
+This is the F1.1 target contract. `Target` describes a complete-cycle design requirement, not proof of current implementation. Consult current feature records and CONTINUE.md for implemented scope. Role changes require explicit permission mapping rather than name matching.
+
+## Local Form 1 signed-copy presets — 2026-10-17
+
+The following opt-in presets are implemented locally and remain unpublished.
+They extend the retained Form 1 source/copy permissions, not the financial source
+editing or ledger-posting grants. See [actual scope and validation](../FINANCE_FORM1_SIGNED_COPIES_IN_PROGRESS.md).
+Existing roles and the default UAT permission tuple are unchanged; no operator
+assignment is performed by this implementation.
+
+| Preset | Actual scope/actions | Exclusions |
+| --- | --- | --- |
+| Budget Form 1 Signed Copy Recorder | Original Budget office; record returned PDF, actual/unknown dates and custody facts; authorized original read/export | Cannot verify or issue through this preset; no source editing, JEV or cash authority |
+| Budget Form 1 Signed Copy Verifier and Issuer | Original Budget office; independently verify/return and issue, together or separately; original read/export | Source makers and receipt recorders cannot decide their own evidence; no ledger/cash authority |
+| Accounting Form 1 Final Package Viewer | Read/export only through actual original-source and signed-copy/final-package authority | No recording, verification or issuance; no hidden-office access |
+| Treasury Form 1 Final Package Viewer | Same read/export boundary with actual Treasury source visibility | No recording, verification or issuance; no hidden-office access |
+
+Both Budget presets retain only the existing read-only Budget audit bridge needed
+for adopted historical cash. Actual paper signatories remain the named officers
+and retained designation documents; these account roles do not substitute for
+their signatures or require invented accounts. UAT membership denies every signed
+financial mutation even when an operational preset is also granted, while
+separately authorized read/export remains available. Source LGU/fund/year context
+comes from the retained package, not the current site name or calendar year.
 
 ## Scope model
 

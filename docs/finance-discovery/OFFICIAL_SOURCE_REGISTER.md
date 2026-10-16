@@ -6,6 +6,10 @@ The [2026-09-09 scrutiny refresh](../FINANCE_SCRUTINY_2026-09-09.md) records new
 
 The canonical rule is: **official reference**, **observed eGAPS behavior**, **LGU-confirmed practice**, and **GRAND-implemented behavior** are recorded separately. A familiar screen or old blank form never overrides a current issuance.
 
+The [October 17 Form 1 source follow-up](../FINANCE_FORM1_PHILHEALTH_SOURCE_AUDIT.md#official-coa-lead-resolved-by-scope-inspection--2026-10-17)
+retains the filed COA 2025-002 scan and the exact seven-page inspection boundary.
+Its PhilHealth-office scope does not establish a municipal Form 1 adjustment.
+
 ## Baseline sources
 
 | ID | Official source | Current implementation use | Prescribed artifacts / controls to capture | Applicability status and next evidence |

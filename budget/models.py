@@ -521,6 +521,179 @@ class Form1PackageDecision(models.Model):
         raise ValidationError('Retain independent whole Form 1 decisions.')
 
 
+class Form1SigningPreparation(BudgetOwnedModel):
+    """Named statutory-role preparation only; never a signature or issued form."""
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    package = models.ForeignKey(Form1Package, on_delete=models.PROTECT, related_name='signing_preparations')
+    version = models.PositiveIntegerField()
+    document_date = models.DateField()
+    payload = models.JSONField()
+    payload_checksum = models.CharField(max_length=64)
+    prepared_by_id = models.PositiveBigIntegerField()
+    prepared_by_label = models.CharField(max_length=160)
+    prepared_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ('-version', '-pk')
+        constraints = [models.UniqueConstraint(fields=('package', 'version'), name='unique_form1_signing_version')]
+        permissions = tuple((action + '_form1_signing_preparations', title + ' Form 1 signing preparations')
+            for action, title in (('prepare', 'Can prepare'), ('review', 'Can independently review'),
+                                  ('view', 'Can view original'), ('export', 'Can export original')))
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError('Retain the signing preparation; create a successor.')
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('Retain signing preparations and original designation evidence.')
+
+
+class Form1SigningEvidence(models.Model):
+    preparation = models.ForeignKey(Form1SigningPreparation, on_delete=models.PROTECT, related_name='evidence')
+    role = models.CharField(max_length=24)
+    data = models.BinaryField(editable=False)
+
+    class Meta:
+        ordering = ('role',)
+        constraints = [models.UniqueConstraint(fields=('preparation', 'role'), name='unique_form1_signing_evidence')]
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError('Retain original signatory designation documents.')
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('Retain original signatory designation documents.')
+
+
+class Form1SigningReview(models.Model):
+    """Independent preparation review, explicitly not statutory certification."""
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    preparation = models.OneToOneField(Form1SigningPreparation, on_delete=models.PROTECT, related_name='review')
+    approve = models.BooleanField()
+    actor_id = models.PositiveBigIntegerField()
+    actor_label = models.CharField(max_length=160)
+    actor_department_id = models.PositiveBigIntegerField()
+    decided_at = models.DateTimeField()
+    payload = models.JSONField()
+    payload_checksum = models.CharField(max_length=64)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError('Retain the independent signing-preparation review.')
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('Retain the independent signing-preparation review.')
+
+
+class Form1UnsignedCopy(BudgetOwnedModel):
+    """Original released signing bytes; never proof of physical certification."""
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    preparation = models.OneToOneField(Form1SigningPreparation, on_delete=models.PROTECT, related_name='unsigned_copy')
+    payload = models.JSONField()
+    payload_checksum = models.CharField(max_length=64)
+    document = models.BinaryField(editable=False)
+    document_checksum = models.CharField(max_length=64)
+    released_by_id = models.PositiveBigIntegerField()
+    released_by_label = models.CharField(max_length=160)
+    released_at = models.DateTimeField()
+
+    class Meta:
+        permissions = tuple((action + '_form1_signing_copies', title + ' Form 1 unsigned signing copies')
+            for action, title in (('release', 'Can independently release'), ('view', 'Can view original'),
+                                  ('export', 'Can export original')))
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError('Retain released signing bytes; use a successor preparation.')
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('Retain original released Form 1 signing copies.')
+
+
+class Form1SignedReceipt(BudgetOwnedModel):
+    """Unverified original returned paper evidence; upload is not certification."""
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    copy = models.ForeignKey(Form1UnsignedCopy, on_delete=models.PROTECT, related_name='signed_receipts')
+    predecessor_issue = models.ForeignKey('Form1FinalIssue', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='proposed_receipt_successors')
+    version = models.PositiveIntegerField()
+    payload = models.JSONField()
+    payload_checksum = models.CharField(max_length=64)
+    document = models.BinaryField(editable=False)
+    captured_by_id = models.PositiveBigIntegerField()
+    captured_by_label = models.CharField(max_length=160)
+    captured_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ('-version', '-pk')
+        constraints = [models.UniqueConstraint(fields=('copy', 'version'), name='unique_form1_signed_receipt_version')]
+        permissions = tuple((action+'_form1_signed_copies',title+' original Form 1 signed-copy evidence')
+            for action,title in (('record','Can record'),('verify','Can independently verify'),
+                                 ('view','Can view'),('export','Can export')))
+
+    def save(self,*args,**kwargs):
+        if self.pk:
+            raise ValidationError('Retain signed-copy receipt evidence; prepare a successor.')
+        return super().save(*args,**kwargs)
+
+    def delete(self,*args,**kwargs):
+        raise ValidationError('Retain original physical-return declarations and document bytes.')
+
+
+class Form1SignedReview(models.Model):
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    receipt = models.OneToOneField(Form1SignedReceipt, on_delete=models.PROTECT, related_name='verification')
+    approve = models.BooleanField()
+    actor_id = models.PositiveBigIntegerField()
+    actor_label = models.CharField(max_length=160)
+    actor_department_id = models.PositiveBigIntegerField()
+    decided_at = models.DateTimeField()
+    payload = models.JSONField()
+    payload_checksum = models.CharField(max_length=64)
+
+    def save(self,*args,**kwargs):
+        if self.pk:
+            raise ValidationError('Retain independent signed-copy decisions unchanged.')
+        return super().save(*args,**kwargs)
+
+    def delete(self,*args,**kwargs):
+        raise ValidationError('Retain independent signed-copy decisions.')
+
+
+class Form1FinalIssue(BudgetOwnedModel):
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    receipt = models.OneToOneField(Form1SignedReceipt, on_delete=models.PROTECT, related_name='final_issue')
+    proposal = models.ForeignKey(BudgetVersion, on_delete=models.PROTECT, related_name='form1_final_issues')
+    fund = models.ForeignKey(Fund, on_delete=models.PROTECT, related_name='form1_final_issues')
+    predecessor = models.OneToOneField('self', on_delete=models.PROTECT, null=True, blank=True, related_name='successor')
+    version = models.PositiveIntegerField()
+    payload = models.JSONField()
+    payload_checksum = models.CharField(max_length=64)
+    archive = models.BinaryField(editable=False)
+    archive_checksum = models.CharField(max_length=64)
+    issued_by_id = models.PositiveBigIntegerField()
+    issued_by_label = models.CharField(max_length=160)
+    issued_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ('-version', '-pk')
+        constraints = [models.UniqueConstraint(fields=('proposal','fund','version'), name='unique_form1_final_issue_version')]
+        permissions = tuple((action+'_form1_signed_packages',title+' final Form 1 packages')
+            for action,title in (('issue','Can independently issue'),('view','Can view original'),('export','Can export original')))
+
+    def save(self,*args,**kwargs):
+        if self.pk:
+            raise ValidationError('Retain issued Form 1 packages; issue a governed successor.')
+        return super().save(*args,**kwargs)
+
+    def delete(self,*args,**kwargs):
+        raise ValidationError('Retain immutable final Form 1 packages and their predecessors.')
+
+
 class BudgetOfficeForm(BudgetOwnedModel):
     """Retained Form 2 preparation and independently issued unsigned bytes."""
     PREPARED, ISSUED, RETURNED = 'prepared', 'issued', 'returned'

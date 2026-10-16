@@ -6,6 +6,34 @@ Department-aware Django platform for municipal public services and internal oper
 
 ### Durable boundaries
 
+Signed Form 1 returns retain per-entity dates, original PDF bytes and declared
+physical custody separately from independent verification and immutable final
+issue archives. An upload/PDF parse does not establish signatures. Preserve
+original unsigned evidence, source/actor/export boundaries and explicit issue
+predecessors under the existing proposal/Fund locks; create no ledger/cash
+authority. Advertised predecessor identity/payload must match its original
+issuance envelope; validate that bounded member without recursive history walks.
+Clerk delivery and opt-in roles are implemented locally; history
+re-fetches actual rows after common-source authorization, and visible LGU/fund/year
+context uses retained originals. Validation/publication state belongs to CONTINUE.md; see
+[scope and actual validation](docs/FINANCE_FORM1_SIGNED_COPIES_IN_PROGRESS.md).
+
+Form 1 designation preparation retains all five statutory functions and their
+original authority documents over a complete internally reviewed whole package.
+Independent Budget review requires current sources under BudgetVersion → Fund →
+package → preparation locks; historical evidence remains immutable. Separate
+original-source export authority and UAT mutation denial apply. These records
+do not establish signatures, Chief Executive approval, signing-copy release,
+final issuance or cash capacity. See [local implementation and actual validation](docs/FINANCE_FORM1_DESIGNATIONS_IN_PROGRESS.md).
+
+Unsigned Form 1 copies retain original released PDF bytes and complete source/
+designation decisions separately from preparation history. Release rechecks current
+heads under the same owning lock order and requires a different maker; downloads
+recheck original read/export authority and never rerender retained copies. Physical
+signatures/final issuance remain separate. Budget source roles need the existing
+read-only audit bridge for adopted historical cash; do not grant proposal editing
+or bypass source filtering. See [copy lifecycle and validation](docs/FINANCE_FORM1_UNSIGNED_COPIES_IN_PROGRESS.md).
+
 Identity security (2026-10-14): public password/Google signup creates only a
 citizen identity; password sign-in requires its verified email. Employee
 provisioning requires HR directory authority plus `users.add_user`, explicit

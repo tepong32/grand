@@ -2470,7 +2470,7 @@ class VoucherWorkflowTests(TestCase):
         approve_override(override=override, actor=self.validator)
         self.client.force_login(self.preparer)
         response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
-        self.assertContains(response, "Validate and request GRAND JEV")
+        self.assertContains(response, "Validate voucher")
         self.assertTrue(response.context["case_ready_for_user"])
         validate_accounting(
             case=case, actor=self.preparer, jev_number="JEV-SOD", jev_date=date(2026, 8, 25), note="Emergency override used",
@@ -2496,7 +2496,7 @@ class VoucherWorkflowTests(TestCase):
         )
         self.client.force_login(self.preparer)
         response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
-        self.assertContains(response, "Validate and request GRAND JEV")
+        self.assertContains(response, "Validate voucher")
         self.assertTrue(response.context["case_ready_for_user"])
         validate_accounting(
             case=case,
@@ -4848,7 +4848,7 @@ class VoucherWorkflowTests(TestCase):
         response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
         self.assertEqual(response.status_code, 200)
         with self.subTest(control="validation form"):
-            self.assertNotContains(response, "Validate and request GRAND JEV")
+            self.assertNotContains(response, "Validate voucher")
         with self.subTest(control="next-task banner"):
             self.assertFalse(response.context["case_ready_for_user"])
 
@@ -4862,7 +4862,7 @@ class VoucherWorkflowTests(TestCase):
         self.return_signatures(case)
         self.client.force_login(self.validator)
         response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
-        self.assertContains(response, "Validate and request GRAND JEV")
+        self.assertContains(response, "Validate voucher")
         self.assertTrue(response.context["case_ready_for_user"])
         self.assertContains(response, "Synthetic controlled DV v1")
         self.assertNotContains(response, "FinanceTemplateVersion object")
@@ -4870,13 +4870,13 @@ class VoucherWorkflowTests(TestCase):
         self.client.force_login(self.treasury_user)
         response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
         self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, "Validate and request GRAND JEV")
+        self.assertNotContains(response, "Validate voucher")
         self.assertFalse(response.context["case_ready_for_user"])
         self.validator.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
         self.client.force_login(self.validator)
         response = self.client.get(reverse("vouchers:case_detail", args=(case.public_id,)))
         self.assertContains(response, "Read-only UAT review")
-        self.assertNotContains(response, "Validate and request GRAND JEV")
+        self.assertNotContains(response, "Validate voucher")
         self.assertFalse(response.context["case_ready_for_user"])
 
     def test_voucher_return_form_follows_current_stage_and_office(self):

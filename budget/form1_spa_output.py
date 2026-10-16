@@ -164,9 +164,9 @@ def verify(envelope):
         raise ValidationError('Invalid whole flow/SPA output draft.') from error
 
 
-def render_pdf(envelope):
+def render_pdf(envelope, *, number_pages=True):
     body=verify(envelope)
-    return flows.render_pdf(body['flow'],spa_draft=envelope)
+    return flows.render_pdf(body['flow'],spa_draft=envelope,number_pages=number_pages)
 
 
 def print_member(body,entity_key,p,financial_row,table,heading,scope):

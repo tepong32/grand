@@ -199,3 +199,25 @@ Runtime/model/migration/roles are unchanged. SQLite/native tests and browser/phy
 LGU acceptance NOT RUN - OUT OF SCOPE for this evidence checkpoint; no new runtime
 behavior is claimed. Missing local evidence does not block ordinary non-overlap clerk
 delivery, retrieval and outputs; unsupported adjustments remain explicit pending cases.
+
+## Official COA lead resolved by scope inspection — 2026-10-17
+
+The [UP Law Center ONAR record](https://naro.law.upd.edu.ph/issuances/8092)
+provides the filed [COA Circular 2025-002 PDF](https://naro.law.upd.edu.ph/storage/01K96TA5EB4D41Z2KZ5PNQTT8Y.pdf).
+The scan identifies the January 28, 2025 circular and April 23, 2025 ONAR filing.
+Section 2, PDF page 3, addresses PhilHealth head/regional-office accounting for
+provider payments. Section 4 and the opening of Section 5, page 7, concern those
+offices' budget registries and separate subsidiary accounts in Corporate Fund books.
+**Inference for GRAND:** this instrument alone does not establish a municipal
+Form 1 overlap-offset recipe. Do not transpose insurer-side entries into LGU
+books or treat a matching circular number as municipal presentation authority.
+
+Retrieval PASS with TLS verification: retained
+`.tmp/coa-circular-2025-002-onar-20261017.pdf`, 22,139,522 bytes, 35 pages, SHA-256
+`1104d2a10348ac419d7a2e9aee2c8eb370d3db4d8add73898875b659819cf497`.
+The scan has no extractable text; Poppler renders
+`.tmp/coa2025-002-page-01.png` through `-07.png` were visually inspected.
+**Only pages 1–7 were inspected; pages 8–35 and annexes are not claimed reviewed.**
+No numerical, posting or configuration change follows this scoped finding.
+The numerical gate remains open; the already-implemented factual-review route is
+documented in [the treatment checkpoint](FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md).

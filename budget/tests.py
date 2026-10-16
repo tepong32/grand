@@ -1565,6 +1565,11 @@ class AnnualBudgetPreparationTests(TestCase):
         authorization = self.make_executable_authority()
         seed_finance_internal_howtos()
         self.client.force_login(self.requester)
+        creation = self.client.get(reverse("budget:obligation_create"))
+        self.assertContains(
+            creation, f"{authorization.ordinance_number} · FY {authorization.version.fiscal_year.year}",
+        )
+        self.assertNotContains(creation, "AppropriationAuthorization object (")
         response = self.client.post(reverse("budget:obligation_create"), {
             "authorization": authorization.pk, "kind": ObligationRequest.ORIGINAL,
             "form_type": ObligationRequest.OBR, "request_reference": "GSO-WEB-001",

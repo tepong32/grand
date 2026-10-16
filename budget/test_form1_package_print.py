@@ -16,12 +16,38 @@ class Form1PackagePrintTests(fixtures.Form1PackageReviewFixture):
         record = self.retain()
         for role in self.reviewers: self.decide_package(record, role)
         envelope, files = exports.capture(record, self.treasurer)
+        original_envelope = deepcopy(envelope)
         with self.assertNumQueries(0, using='default'), self.assertNumQueries(0, using='finance'):
             content = output.render_pdf(envelope)
             self.assertEqual(output.render_pdf(envelope), content)
+        self.assertEqual(envelope, original_envelope)
         pages = PdfReader(BytesIO(content)).pages
         for page in pages: self.assertIn('INCOMPLETE DRAFT', page.extract_text())
         text = '\n'.join(page.extract_text() for page in pages)
+        flow = record.payload['assembly']['payload']['philhealth_source']['payload']['inventory']['payload']['stock']['payload']['flow']['payload']
+        lgu = flow['sources']['reconciliations'][0]['payload']['forms'][0]['payload']['lgu']
+        self.assertIn('LGU: ' + lgu, text)
+        # Identification must remain source-scoped and honest for older/mixed evidence.
+        from .form1_package_print import _source_lgu_text
+        def identity_flow(names, entity='general'):
+            return {'sources': {'reconciliations': [{'payload': {'entity_key': entity,
+                'forms': [{'payload': {'lgu': name}} for name in names]}}]}}
+        self.assertIn('Unknown', _source_lgu_text(identity_flow([]), 'general'))
+        self.assertIn('Unknown', _source_lgu_text(identity_flow([lgu, '']), 'general'))
+        self.assertIn('Unknown', _source_lgu_text(identity_flow([lgu], entity='another'), 'general'))
+        self.assertIn('conflicting', _source_lgu_text(identity_flow([lgu, lgu.lower()]), 'general'))
+        mixed = identity_flow([lgu])
+        mixed['sources']['reconciliations'] += identity_flow([lgu.lower()], entity='enterprise')['sources']['reconciliations']
+        self.assertIn('conflicting', _source_lgu_text(mixed, 'general'))
+        self.assertIn('LGU: ' + lgu, _source_lgu_text(identity_flow([lgu, lgu]), 'general'))
+        for index, page in enumerate(pages, 1):
+            self.assertIn(f'Page {index} of {len(pages)}', page.extract_text())
+        self.assertNotIn('Whole controls page', text)
+        for serialized in ("{'department_id':", "{'verified':", "{'key':", "{'role':"):
+            self.assertNotIn(serialized, text)
+        for phrase in ('Current year H1 actual', 'Budget department ID:', 'Restriction lineage:',
+                       'Verified: Yes', 'SHA256:'):
+            self.assertIn(phrase, text)
         for phrase in ('Beginning balance', 'Ending balance', 'Net ending balance', 'PHILHEALTH SIGNED PARTS',
             'OPENING STOCK CALENDAR', 'ORIGINAL SOURCE SHARES', 'SPA SUBDIVISIONS', 'NOT STATUTORY SIGNATURES'):
             self.assertIn(phrase, text)
@@ -39,7 +65,10 @@ class Form1PackagePrintTests(fixtures.Form1PackageReviewFixture):
         self.envelope = self.assembled(); unknown = self.retain(expected_latest=1)
         unknown_envelope, _ = exports.capture(unknown, self.checker)
         unknown_content = output.render_pdf(unknown_envelope)
-        self.assertIn('Unknown', '\n'.join(page.extract_text() for page in PdfReader(BytesIO(unknown_content)).pages))
+        unknown_pages = PdfReader(BytesIO(unknown_content)).pages
+        self.assertIn('Unknown', '\n'.join(page.extract_text() for page in unknown_pages))
+        for index, page in enumerate(unknown_pages, 1):
+            self.assertIn(f'Page {index} of {len(unknown_pages)}', page.extract_text())
         changed = deepcopy(envelope)
         changed['payload']['original_package']['payload']['assembly']['payload']['members'][0]['net_ending']['proposed'] = '999.00'
         original = changed['payload']['original_package']; root = original['payload']

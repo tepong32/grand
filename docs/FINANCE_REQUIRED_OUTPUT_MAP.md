@@ -1,5 +1,21 @@
 # Required office outputs: source map and unresolved acceptance
 
+Locally validated: [signed-return/final-issue clerk delivery](FINANCE_FORM1_SIGNED_COPIES_IN_PROGRESS.md)
+retains both original PDFs and immutable issue evidence, with role-scoped receipt/
+review/issue screens and original audited downloads. Scoped two-backend and layout
+checks pass; publication and actual form/signature/LGU acceptance remain open.
+
+Previous unsigned-output checkpoint: [immutable unsigned signing copy](FINANCE_FORM1_UNSIGNED_COPIES_IN_PROGRESS.md).
+Five pages and all 255 retained financial cells are checked; original bytes are
+downloaded after independent release, with four certification functions and
+separate Chief Executive approval left unsigned. Actual signed/final output and
+local acceptance remain open. Publication/validation limits are in CONTINUE.md.
+
+October 16 local [designation preparation](FINANCE_FORM1_DESIGNATIONS_IN_PROGRESS.md)
+adds the five-role evidence/review prerequisite and clerk screens. It does not yet
+produce a signing copy or final issued Form 1. Validation/publication status is in
+CONTINUE.md; the exact-output and physical/local acceptance gaps remain open.
+
 Latest functional checkpoint: [source findings](FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md)
 v0.7.167 / `51cad4be` is integrated/pushed after all 19 candidate jobs passed,
 native 2,544 / zero skips and SQLite 2,345 / 199 native-only skips. Resulting primary
@@ -42,11 +58,29 @@ row/source and internal decision is retained, with original package and account/
 documents in the ZIP. Currentness, statutory signatures and issuance remain separate.
 Whole-package PDF drafts now print complete controls and original flow/SPA evidence.
 Focused SQLite/native tests and all 22 reviewed/unknown fixture page inspections pass;
-raw evidence notation and separate appendix numbering remain clerk presentation gaps.
-Accepted printable, clerk register/intake and local output acceptance are still required;
+the local [print follow-up](FINANCE_FORM1_PRINT_EVIDENCE_2026-10-16.md) now addresses
+raw dictionary evidence and separate appendix numbering. Same-envelope amounts,
+source IDs and unknown controls are retained; current validation/publication is in
+CONTINUE.md. This does not establish accepted statutory/local presentation.
+Actual local printable, clerk-workflow and output acceptance remain required;
 see [the delivery contract](FINANCE_FORM1_PACKAGE_REVIEW_DESIGN.md) and CONTINUE.md.
 
 ## Working map
+
+The [October 16 official-field comparison](FINANCE_FORM1_FIELDS_2026-10-16.md)
+reconfirms the four Form 1 certification functions and separate Chief Executive
+approval. The later local [signed/final clerk software](FINANCE_FORM1_SIGNED_COPIES_IN_PROGRESS.md)
+is now implemented/validated; actual local appointments/signatures remain separately unconfirmed. The working
+draft now reuses its explicit retained office LGU name, with unknown/conflict
+handling; this does not supply final identity/designation or official acceptance.
+
+[October 16 local source/register comparison](FINANCE_REGISTER_OUTPUT_PARITY_2026-10-16.md):
+the same ordinary OBR/payable agrees with four clerk-facing Budget/Accounting CSVs,
+ledger screen rows and existing report outputs on SQLite and native MySQL. Source
+IDs/dates, gross/net/withholding, balances, archive bytes and tested office denials
+agree. Direct lifetime ledger scope differs from selected-period report scope;
+fixture agreement does not erase that distinction. No official layout, statutory
+signature, printer or LGU acceptance is established. No new report family.
 
 The [clerk handoff repair](FINANCE_CLERK_HANDOFFS_2026-10-14.md) changes entry-page
 counts and empty-queue presentation only. It retains original case/OBR links,
@@ -81,6 +115,117 @@ and [local form acceptance](FINANCE_LOCAL_FORM_ACCEPTANCE.md) own approval and
 fidelity requirements. This map does not duplicate their specifications.
 
 ## Evidence and next bounded work
+
+### Named independent output investigation — JEV, 2026-10-17
+
+The initial bounded source inspection occurred while repaired-source full
+regressions ran; both broad runs have since completed. The executed working-report
+follow-up below changes no application, template or repository test source. If Form 1
+numerical step still needs unavailable authority, investigate the **individual
+Journal Entry Voucher output** already named in the Accounting row above.
+Do not start a new report family or treat every catalog form as required.
+
+Observed in the current unpublished checkout:
+
+- `accounting/urls.py` exposes the individual `entry_detail` and journal register,
+  ledger and trial-balance exports. No dedicated individual JEV print/download
+  route was found in that URL module.
+- `accounting/views.py:entry_detail` renders journal header, lines, debit/credit
+  totals, recorded preparation/posting actors and reversal links through
+  `templates/accounting/entry_detail.html`. That working screen is not evidence
+  of a retained accepted paper JEV.
+- `reporting/presets.py` and `reporting/datasets.py` supply the posted general
+  ledger by covered period. The preset itself leaves exact local layout,
+  pagination, signatories and submission route unconfirmed. Do not call that
+  period register an accepted individual JEV simply because it includes JEV
+  references and account lines.
+
+Classification: existing journal workflow and period outputs **IMPLEMENTED**;
+individual official-output parity **UNKNOWN / NOT PROVEN**. Source inspection of
+these entry points alone does not prove that every configurable template lacks
+the capability. The subsequent source trace found that `ReportDefinition.clean`
+permits `jev_reference__exact` and `ReportDefinitionForm` exposes that field through
+the existing controlled filter. `datasets._build_dataset` applies it to visible
+rows before calculating displayed totals, while retaining the original period
+payload's sources/control totals. `services._generate_stored_report` already
+supports native PDF, mapped XLSX and PDF overlays. This initial trace established
+reuse paths; the subsequent execution below proves a filtered native working
+report, not an accepted official form. Selected-row totals and whole-period source
+controls have different scopes and must remain labelled correctly.
+No new dataset or parallel printing framework is justified by this inspection.
+Next locate any already-governed template, then compare a single
+original posted JEV and its source references with a retained applicable blank or
+accepted redacted form. Only a demonstrated gap justifies a small repair using
+existing output/access/archive services. Verify actual designation/signature
+requirements rather than equating a system posting actor with a paper signatory.
+
+#### Executed existing filtered JEV working report — 2026-10-17
+
+The existing approved native `posted-general-ledger` starter was configured through
+`ReportDefinition.full_clean` with `jev_reference__exact`, then generated through
+`create_manual_run` in PDF and XLSX. Disposable two-store fixtures contain two
+posted entries: the selected synthetic JEV is 750 and the other is 1,250. Each
+output contains exactly the selected two lines, full source reference and 750/750
+displayed totals; the other JEV is absent from visible output. Original period
+source evidence deliberately retains both entries and 2,000/2,000 controls.
+These are distinct scopes, not an incorrect total or a single-source archive.
+
+Retained integrity validation passes for each run. Changing the live definition
+to the other JEV and invoking generation again leaves the original output bytes
+and pinned filter unchanged. Original journal/line state is unchanged. The final
+one-page PDF was rendered with Poppler and visually inspected: no clipping or
+overlap observed; wrapped identifiers retain all characters. Placeholder
+signatories and the local-acceptance disclaimer remain visible, not signatures.
+Poppler's missing Symbol/ArialUnicode display-font warnings are retained; no
+visible defect was observed on this page.
+
+Actual command: documented Python 3.11 `-B -X utf8
+.tmp/run_jev_filtered_output_probe_20261017.py`. **PASS: one disposable SQLite
+probe, zero skips, 1.176s test execution, exit 0; both aliases destroyed.** Terminal
+session 48078. Log `.tmp/jev-filtered-output-probe-20261017.log`; exact assertion,
+output/checksum, visual and source evidence:
+`.tmp/jev-filtered-output-evidence-20261017/probe-evidence.json`.
+All 1,193 current reviewed source hashes and both operator database hashes match.
+
+The initial probe (39672, exit 1) incorrectly required contiguous extracted PDF
+identifiers despite normal table wrapping. Its failed log, PDF, extracted text
+and image are preserved under `.tmp/jev-filtered-output-initial-20261017`.
+Only the ignored probe's text matching was corrected to check every identifier
+character after whitespace normalization. Exact structured-row/amount/source and
+negative-other-JEV assertions remain. No production source or repository test was
+changed or weakened. This is probe repair, not a confirmed application regression.
+
+Native/full reruns: **NOT RUN — OUT OF SCOPE** for this no-code-change exporter
+investigation; prior broad/scoped evidence retains its original chronology. A
+live authenticated clerk journey, mapped local JEV template, paper copies,
+signature acceptance and actual LGU acceptance are **NOT PROVEN**. Existing native
+filtered export capability is now demonstrated; official individual JEV parity
+remains UNKNOWN pending an applicable retained form. No new report framework,
+financial recipe or mandatory catalog form is justified by this result.
+
+Authority limitation: the official
+[COA 2002-003 reference](https://www.coa.gov.ph/wpfd_file/coa-circular-no-2002-003-june-20-2002/)
+returned HTTP 403 during this attempt. A separate municipality's indexed
+Accounting page also returned HTTP 403 when opened. Neither page was read;
+search snippets and national-agency/water-district examples were not adopted as
+the target LGU's form contract. Current local layout, mandatory fields,
+certifications, copies and acceptance remain unconfirmed. Defer genuine local
+decisions without inventing a statutory form or blocking unrelated validated
+Finance work. The ongoing full suites are not JEV-form acceptance evidence.
+
+Bounded primary-source follow-up: [San Juan, Batangas, Municipal Accounting
+services](https://accounting.sanjuanbatangas.gov.ph/services) was read directly.
+Its published process prepares three JEV copies with control numbers and DV
+attachments, obtains the Municipal Accountant's review/approval, retains a filing
+copy and forwards the remaining documents to Treasury. This is evidence that an
+individual JEV paper handoff exists in an actual municipal workflow; it is not
+our LGU's required copy count, current local procedure or blank-form contract.
+The [Sorsogon provincial SEF page](https://sorsogon.gov.ph/sef-utilization/) lists
+a December 26, 2025 JEV heading, but no linked/embedded PDF was located in the
+retrieved page HTML. Only the index was read; no form fields or signed document
+were inspected. Stop this bounded search here rather than deriving a municipal
+layout from third-party uploads or national-agency examples. A retained applicable
+form and exact governed-template comparison remain the next evidence dependency.
 
 The [official source register](finance-discovery/OFFICIAL_SOURCE_REGISTER.md)
 remains the source trail. The DBM [Local Budget Circular index](https://www.dbm.gov.ph/index.php/dbm-issuances/local-budget-circulars)

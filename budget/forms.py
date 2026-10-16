@@ -236,6 +236,9 @@ class ObligationRequestForm(forms.ModelForm):
             authorizations = authorizations.filter(pk=current_authorization_id)
             self.fields["authorization"].disabled = True
         self.fields["authorization"].queryset = authorizations
+        self.fields["authorization"].label_from_instance = lambda item: (
+            f"{item.ordinance_number} · FY {item.version.fiscal_year.year}"
+        )
         corrections = ObligationRequest.objects.filter(
             requesting_department_id=requesting_department.pk, status=ObligationRequest.CERTIFIED,
         ) if requesting_department else ObligationRequest.objects.none()

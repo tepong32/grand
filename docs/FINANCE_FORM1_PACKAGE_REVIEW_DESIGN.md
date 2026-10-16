@@ -1,5 +1,24 @@
 # Form 1 whole-package review and delivery contract
 
+October 17 local [signed-return/final-issue services](FINANCE_FORM1_SIGNED_COPIES_IN_PROGRESS.md)
+retain original returned scans, per-entity signing/custody declarations, independent
+findings and immutable issued bundles/successors. Clerk/role/audited-download
+delivery now has scoped SQLite/native and layout validation. These records never rewrite the
+original unsigned-copy status or establish external acceptance by themselves.
+
+Current local extension: [unsigned signing-copy release](FINANCE_FORM1_UNSIGNED_COPIES_IN_PROGRESS.md)
+retains the approved designation/complete financial source pair and exact PDF
+bytes through independent release and separately authorized download. Source
+currentness is rechecked for new release, not retroactively inferred by historical
+reprints. Actual signed-copy verification and final immutable issuance remain next.
+
+October 16 local extension: [designation preparation and independent review](FINANCE_FORM1_DESIGNATIONS_IN_PROGRESS.md)
+is validated on SQLite/native and through clerk screens. It pins all five role
+designations and original authority evidence without statutory signatures or
+final issuance. Unsigned-copy release is the separate extension above; actual
+signed-copy verification/final issuance remain required. Current unpublished
+source and release gates are in CONTINUE.md.
+
 Latest functional checkpoint: [source findings](FINANCE_FORM1_TREATMENTS_IN_PROGRESS.md)
 v0.7.167 / `51cad4be` is integrated/pushed after all 19 candidate jobs passed,
 native 2,544 / zero skips and SQLite 2,345 / 199 native-only skips. Resulting primary
@@ -152,8 +171,12 @@ itemization and source index. Its service authenticates the same original source
 as JSON/ZIP; detached rendering grants no authority. All 22 rendered pages of the
 reviewed and unknown fixtures were inspected: financial tables and unknown controls
 are readable, without visible clipping or glyph defects. CONTINUE.md retains hashes,
-commands, outcomes and Poppler font warnings. Raw dictionary/field notation in the
-evidence appendix and separate source-page numbering remain clerk presentation gaps.
+commands, outcomes and Poppler font warnings. The October 16 local
+[print follow-up](FINANCE_FORM1_PRINT_EVIDENCE_2026-10-16.md) replaces raw appendix
+dictionaries with labelled retained fields and numbers the complete generated
+package continuously. Standalone source numbering remains the default. Original
+financial/source evidence and draft boundaries are preserved; current dependent
+validation and unpublished status are in CONTINUE.md.
 This is fixture layout evidence, not accepted office formatting or a form ready for signing.
 
 ## Clerk workflow and full delivery

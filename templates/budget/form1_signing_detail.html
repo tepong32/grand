@@ -1,0 +1,37 @@
+{% extends 'base.html' %}{% block content %}<main class="container py-4" style="overflow-wrap:anywhere">
+<a href="{% url 'budget:form1_signing_history' record.package.public_id %}">Designation preparation history</a>
+<h1 class="h3">Form 1 designation preparation · version {{ record.version }}</h1>
+<p>{{ display_status }} · Intended form date {{ record.document_date }} · {{ retained.payload.lgu }}</p>
+<p class="alert alert-info">This is retained preparation evidence. No statutory signature, Chief Executive approval or final issued form is established. Any released unsigned signing copy is listed separately below. This history does not certify current sources or authorize cash.</p>
+<p><a href="{% url 'budget:form1_package_detail' record.package.public_id %}">Inspect the original whole package and its financial sources</a></p>
+<p>Prepared by {{ record.prepared_by_label }} · {{ record.prepared_at }}<br>Reference: {{ retained.payload.reference }}</p>
+<details class="mb-3"><summary>Source verification details</summary><p>Preparation checksum: {{ retained.payload_checksum }}<br>Original package checksum: {{ retained.payload.source.package_checksum }}</p></details>
+{% for role, title, person in people %}<section class="card card-body mb-3">
+<h2 class="h5">{{ title }}</h2><p>{{ person.name }} · {{ person.position }}<br>Authority: {{ person.authority_reference }}<br>Effective {{ person.valid_from }}{% if person.valid_to %} through {{ person.valid_to }}{% else %}; no end date stated{% endif %}</p>
+<p>Original document: {{ person.evidence.name }}</p>
+<details><summary>Document integrity details</summary><p>{{ person.evidence.size }} bytes<br>SHA-256: {{ person.evidence.sha256 }}</p></details>
+{% if can_export %}<p><a href="{% url 'budget:form1_signing_document' record.public_id role %}">Download original designation document</a></p>{% endif %}
+</section>{% endfor %}
+{% if retained.review %}<section class="card card-body"><h2 class="h5">Retained independent review</h2>
+<p>{{ retained.review.payload.identity.actor_label }} · {{ retained.review.payload.identity.decided_at }}<br>{{ retained.review.payload.note }}</p>
+<ul>{% for finding in findings %}<li>{{ finding.label }}: {{ finding.verified|yesno:'Verified,Not verified' }} · {{ finding.basis }}</li>{% endfor %}</ul>
+<details><summary>Review verification details</summary><p>Review checksum: {{ retained.review.payload_checksum }}</p></details></section>{% endif %}
+{% if decision_errors %}<div class="alert alert-danger" role="alert">{{ decision_errors }}</div>{% endif %}
+{% if unsigned_copy %}<section class="card card-body mb-3"><h2 class="h5">Released unsigned signing copy</h2>
+<p>Released {{ unsigned_copy.released_at }} by {{ unsigned_copy.released_by_label }}. This is the original unsigned document, not evidence of physical handover, actual signatures or final issuance.</p>
+{% if copy_export %}<p><a href="{% url 'budget:form1_unsigned_document' unsigned_copy.public_id %}">Download original unsigned signing PDF</a></p>{% endif %}
+{% if signed_history %}<p><a href="{% url 'budget:form1_signed_history' unsigned_copy.public_id %}">Signed returns and final issue history</a></p>{% endif %}
+<details><summary>Copy verification details</summary><p>Copy ID: {{ unsigned_copy.public_id }}<br>SHA-256: {{ copy_state.document_sha256 }}<br>Evidence checksum: {{ copy_state.payload_checksum }}</p></details>
+</section>{% endif %}
+{% if copy_errors %}<div class="alert alert-danger" role="alert">{{ copy_errors }}</div>{% endif %}
+{% if copy_form %}<section class="card card-body mb-3"><h2 class="h5">Release an unsigned signing copy</h2>
+<p>Check the complete original package and approved designation evidence. Release rechecks current sources and retains the PDF permanently. Actual physical certification, approval and final issuance remain separate steps.</p>
+<form method="post" action="{% url 'budget:form1_unsigned_release' record.public_id %}">{% csrf_token %}{{ copy_form.as_p }}
+<button type="submit" class="btn btn-primary">Release unsigned signing copy</button></form></section>{% endif %}
+{% if form %}<section class="card card-body"><h2 class="h5">Independent preparation review</h2>
+<p>Inspect the original package and each designation document. Approval requires the latest preparation, current complete sources and all checks verified. A return preserves this version; prepare a successor to correct it.</p>
+<form method="post" action="{% url 'budget:form1_signing_review' record.public_id %}">{% csrf_token %}{{ form.as_p }}
+<button type="submit" name="action" value="approve" class="btn btn-primary">Approve preparation evidence</button>
+<button type="submit" name="action" value="return" class="btn btn-outline-secondary">Return for a successor</button>
+</form></section>{% endif %}
+</main>{% endblock %}

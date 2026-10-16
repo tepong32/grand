@@ -36,7 +36,7 @@ def package(snapshot):
         raise ValidationError('Retain complete reviewed-source draft evidence.') from error
 
 
-def render_pdf(envelope, *, spa_draft=None):
+def render_pdf(envelope, *, spa_draft=None, number_pages=True):
     try:
         data=envelope['payload']
         if checksum(data)!=envelope['checksum'] or package(data['account_review'])!=envelope:
@@ -129,7 +129,9 @@ def render_pdf(envelope, *, spa_draft=None):
             else:
                 spa_identity=spa_data['spa_review']['payload']['identity']
                 canvas.drawString(28,18,f"INCOMPLETE DRAFT | SPA v{spa_identity['version']} {spa_data['spa_review']['status']} | {spa_draft['checksum'][:16]}")
-            canvas.drawRightString(landscape(A4)[0]-28,18,f'Page {document.page}');canvas.restoreState()
+            if number_pages:
+                canvas.drawRightString(landscape(A4)[0]-28,18,f'Page {document.page}')
+            canvas.restoreState()
         doc.build(story,onFirstPage=footer,onLaterPages=footer)
         return stream.getvalue()
     except (KeyError,TypeError,ValueError) as error:

@@ -14,7 +14,36 @@ FORM1_PACKAGE_READ_PERMISSIONS = tuple(
 )
 
 
+FORM1_SIGNED_READ_PERMISSIONS = (*FORM1_PACKAGE_READ_PERMISSIONS, *(
+    'budget.'+action+'_'+source
+    for source in ('form1_signing_preparations','form1_signing_copies','form1_signed_copies','form1_signed_packages')
+    for action in ('view','export')))
+
+
 FINANCE_ROLE_PERMISSIONS = {
+    'Budget Form 1 Signed Copy Recorder': (*FORM1_SIGNED_READ_PERMISSIONS,
+        'budget.view_budget_audit','budget.record_form1_signed_copies'),
+    'Budget Form 1 Signed Copy Verifier and Issuer': (*FORM1_SIGNED_READ_PERMISSIONS,
+        'budget.view_budget_audit','budget.verify_form1_signed_copies','budget.issue_form1_signed_packages'),
+    'Accounting Form 1 Final Package Viewer': FORM1_SIGNED_READ_PERMISSIONS,
+    'Treasury Form 1 Final Package Viewer': FORM1_SIGNED_READ_PERMISSIONS,
+    'Budget Form 1 Signing Copy Releaser': (*FORM1_PACKAGE_READ_PERMISSIONS,
+        'budget.view_budget_audit', 'budget.view_form1_signing_preparations', 'budget.export_form1_signing_preparations',
+        'budget.release_form1_signing_copies', 'budget.view_form1_signing_copies', 'budget.export_form1_signing_copies'),
+    'Budget Form 1 Designation Preparer': (*FORM1_PACKAGE_READ_PERMISSIONS,
+        'budget.view_budget_audit',
+        'budget.view_form1_signing_preparations', 'budget.export_form1_signing_preparations',
+        'budget.prepare_form1_signing_preparations', 'budget.view_form1_signing_copies', 'budget.export_form1_signing_copies'),
+    'Budget Form 1 Designation Reviewer': (*FORM1_PACKAGE_READ_PERMISSIONS,
+        'budget.view_budget_audit',
+        'budget.view_form1_signing_preparations', 'budget.export_form1_signing_preparations',
+        'budget.review_form1_signing_preparations', 'budget.view_form1_signing_copies', 'budget.export_form1_signing_copies'),
+    'Accounting Form 1 Designation Viewer': (*FORM1_PACKAGE_READ_PERMISSIONS,
+        'budget.view_form1_signing_preparations', 'budget.export_form1_signing_preparations',
+        'budget.view_form1_signing_copies', 'budget.export_form1_signing_copies'),
+    'Treasury Form 1 Designation Viewer': (*FORM1_PACKAGE_READ_PERMISSIONS,
+        'budget.view_form1_signing_preparations', 'budget.export_form1_signing_preparations',
+        'budget.view_form1_signing_copies', 'budget.export_form1_signing_copies'),
     'Budget Form 1 Package Preparer': (*FORM1_PACKAGE_READ_PERMISSIONS,
         'budget.view_budget_audit','budget.prepare_form1_packages'),
     'Accounting Form 1 Package Viewer': FORM1_PACKAGE_READ_PERMISSIONS,
@@ -434,7 +463,7 @@ STAGE_NEXT_ACTION = {
     "payable_review": "Review payable readiness or return specific corrections",
     "accounting_preparation": "Prepare the disbursement voucher",
     "awaiting_signatures": "Prepare the controlled signing copy, link its packet, and record returned wet signatures",
-    "accounting_validation": "Validate the voucher and request a JEV",
+    "accounting_validation": "Validate the voucher against its source evidence",
     "accounting_posting": "Create, submit, and independently post the GRAND JEV",
     "accounting_event_posting": "Post the governed payment-event JEV, then resume the recorded Treasury step",
     "accounting_returned_item": "Review bank-return evidence and record the governed Accounting treatment",

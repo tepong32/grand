@@ -1,5 +1,27 @@
 # Finance foundation completion gate — 2026-09-18
 
+The [current 22-section reconciliation](FINANCE_FOUNDATION_REQUIREMENT_AUDIT.md#current-reconciliation--2026-10-17)
+supersedes the September audit's next-repair instructions without deleting its
+history. Both repaired-source full backends now pass (2,572 discovered each;
+zero native skips); exact commands/evidence and unpublished status are in
+CONTINUE.md. Conditional SHF/PhilHealth numerical work still requires applicable
+authority and local scope; do not turn that unknown into an endless mandatory
+feature. The subsequent [existing-payable clerk investigation](FINANCE_PRIOR_PAYABLE_DV_2026-09-10.md#existing-payable-clerk-follow-up--2026-10-17)
+found and repaired a pre-existing misleading JEV promise. Focused SQLite/native
+8/8 each and real synthetic browser checks pass without new financial behavior.
+Those four presentation/test files postdate the full baseline; local certificate/
+form semantics, wider office/operational proof and release gates remain open.
+
+Current software state, 2026-10-17: the [Form 1 designation preparation](FINANCE_FORM1_DESIGNATIONS_IN_PROGRESS.md),
+[immutable unsigned copy](FINANCE_FORM1_UNSIGNED_COPIES_IN_PROGRESS.md) and
+[signed-return/final-issue clerk lifecycle](FINANCE_FORM1_SIGNED_COPIES_IN_PROGRESS.md)
+are implemented locally with scoped SQLite/native and layout evidence. They remain
+uncommitted/unpublished; CONTINUE.md owns exact source scope, active validation and
+release state. Earlier statements below that these software stages are missing
+are historical. Unsupported numerical treatments, actual authority/signatures,
+accepted outputs, ordinary-office coverage and operational/LGU gates remain open.
+Do not rebuild completed stages or infer physical acceptance from synthetic tests.
+
 [Ordinary clerk handoff work](FINANCE_CLERK_HANDOFFS_2026-10-14.md) advances
 requesting-office retrieval/aggregate privacy and readable current work. It is
 locally validated, not full ordinary-office or LGU acceptance. Preserve all
@@ -127,8 +149,8 @@ and leaves a recoverable handoff. A checkpoint is not whole-goal completion.
 
 ## Living scope and gap register
 
-The [2026-09-22 A–K requirement audit](FINANCE_FOUNDATION_REQUIREMENT_AUDIT.md)
-maps all 22 attached sections and records remaining source-confirmed caps: ledger
+The [A–K requirement audit](FINANCE_FOUNDATION_REQUIREMENT_AUDIT.md)
+maps all 22 attached sections. Its historical September baseline recorded caps: ledger
 1,000 lines; Treasury cash/remittances and shadow cycles 100 records. Retrieval is
 not complete. The subsequent [ledger checkpoint](FINANCE_LEDGER_RETRIEVAL.md)
 repairs the 1,000-line cap with running-balance continuity and strict account scope.
@@ -241,14 +263,14 @@ potential future integration, out of current scope, or unknown before work begin
 |---|---|---|---|---|---|---|---|
 | FG-01 | Budget | OBR retrieval stops at 100; inadequate reference retrieval | IMPLEMENTED | Direct retrieval of older OBRs | Scope and full matching export preserved | Existing obligation selector/export | Automated, browser and synthetic volume checks passed; local acceptance open |
 | FG-02 | Treasury | Collection narrowing/counts/pagination | IMPLEMENTED | Locate and inspect matching sources | Availability retains excluded allocations; totals separate states | Collection register and source routes | SQLite/native/browser and synthetic volume checks passed; local acceptance open |
-| FG-03 | Budget | Historical proposal decision context and actuals consistency | PARTIALLY IMPLEMENTED | Dated context, external adoption and retained native/account/SPA source-review and draft-output routes | Preserve period activity, original certification, adoption and spending authority distinctions | Dated ledger/authority and actuals evidence | Native/adopted actuals, source/account/SPA reconciliation, whole draft assembly, guided intake and internal review are implemented; v166 candidate/primary CI passed all 19 jobs and 2,533 native tests without skips. Source-finding proposals/history are the current bounded checkpoint. Supported numerical overlap/SHF recipes, statutory certification/issuance and local acceptance remain open |
+| FG-03 | Budget | Historical proposal decision context and actuals consistency | PARTIALLY IMPLEMENTED | Dated context, adopted/native sources and whole Form 1 preparation/review/output routes | Preserve actual/estimate, certification, adoption and spending-authority distinctions | [Source contract](FINANCE_FORM1_SOURCE_CONTRACT.md) and original retained evidence | Source findings are published; designation, unsigned-copy and signed/final clerk software are locally implemented with scoped evidence. Numerical overlap/SHF recipes, actual signatures/form acceptance and current-tree release gates remain open; [CONTINUE.md](../CONTINUE.md) owns exact validation/publication state |
 | FG-04 | Budget | Operational quarterly financial plan | PARTIALLY IMPLEMENTED | Versioned quarters now connect authority and AROs | Approval does not move money; ARO evidence remains pinned | Existing authorized schedule and ARO | Focused/native/browser and full SQLite regression pass; local reserved-column/form acceptance open |
 | FG-05 | Budget | Distinct earmark certificate lifecycle | MISSING | Certificate identity/consumption absent | Generic withholding is not procurement certification | Exact capacity, consumption and correction semantics | Initial municipal evidence located; local lifecycle rules unresolved |
-| FG-06 | Reporting | Exact required office outputs | PARTIALLY IMPLEMENTED | Generic output may not meet office need | Local acceptance remains unproven | [Working output map](FINANCE_REQUIRED_OUTPUT_MAP.md); accepted references remain required | [Form 1 source contract](FINANCE_FORM1_SOURCE_CONTRACT.md): native cash source/preparation, exact historical restrictions, named capture/version races and controlled UI/full exports validated locally; joint cash decision service, role-specific UI/full exports and named races now validated locally; joint browser/mobile and specific clean-shell binary downloads now pass; read-only native receipt inventory and complete detached partition proposals retain unresolved evidence, exact correction inheritance and explicit deposit exclusions with SQLite/native regression; retained independent receipt review and complete reviewed receipt cohort/bridge validated locally, including six receipt races plus existing cash races on SQLite/native; same-observation actuals and explicit complete category/entity/class-mapping proposals now implemented; retained independent category/entity review and named version/review races now validated locally; native named joint actuals decisions and same-source Fund trial balance now validated locally, including three joint races; guided actuals preparation/category review/joint certification and full retained exports now validated locally on SQLite/native (66 labels) and desktop/mobile browser rehearsal; receipt classification clerk intake now validated locally with explicit split/reversal controls and complete batch review/export (70-label broad SQLite/native regression plus five focused current search/HTTP checks and real browser split/deposit rehearsal); native actuals source selection for retained office reconciliation now implemented with explicit route and source authority checks (validation in the source contract); supported numerical treatment and statutory Form 1 issuance, operator provisioning, normal Chrome IDM/other-output and exact LGU acceptance remain open |
+| FG-06 | Reporting | Exact required office outputs | PARTIALLY IMPLEMENTED | Working outputs and retained original copies exist; complete office acceptance remains unproven | Preserve full source rows, gross/deduction/net distinctions, export authority, original bytes and separate actual signatures | [Required-output map](FINANCE_REQUIRED_OUTPUT_MAP.md), [Form 1 source contract](FINANCE_FORM1_SOURCE_CONTRACT.md) and accepted references | Locally validated Form 1 designation/unsigned/signed clerk software now retains original PDF/ZIP evidence and corrections; this supersedes older missing-software statements. Supported numerical treatment, complete required-output/scenario coverage, operator provisioning, normal-browser/printer checks and exact LGU acceptance remain open. [CONTINUE.md](../CONTINUE.md) records scoped results and pending integration |
 | FG-07 | Cross-office | Ordinary end-to-end workflow proof | PARTIALLY IMPLEMENTED | Handoffs may remain confusing | Tests do not establish LGU acceptance | Existing Budget/Accounting/Treasury chains | OBR handoff focused/native/browser and dependent regression pass; wider ordinary proof open |
 | FG-08 | Accounting | Remaining source/history adoption | PARTIALLY IMPLEMENTED | Historical sources not all connected | Preserve original financial evidence | Existing reviewed attribution routes | Open; no speculative expansion |
 | FG-09 | Finance | Broader routine scenarios | PARTIALLY IMPLEMENTED | Not all ordinary work demonstrated | Controls must survive corrections | Earlier foundation checkpoints | Deferred until foundation coherent |
-| FG-10 | Deployment | Live configured rendering/production verification | UNKNOWN | Actual deployment behavior unverified | No production readiness inference | Authorized environment and operational gates | Open |
+| FG-10 | Deployment | Live configured rendering/production verification | UNKNOWN / VERIFICATION BLOCKED | GitHub-advertised test hostname fails local resolution; verified Google public DNS returns NXDOMAIN, October 17 | No application-defect or production-readiness inference | Actual authorized target or operator DNS/service evidence; live two-store/role/Finance and operational gates | External/manual dependency deferred; [exact evidence](../CONTINUE.md#latest-follow-up--public-deployment-target-investigation-2026-10-17) |
 | FG-11 | Cross-office retrieval | Complete retrieval across actual office work | PARTIALLY IMPLEMENTED | Reviewed register/history and personal-work caps are repaired | Preserve department scope and full register versus bounded snapshot export meaning | Existing source adapters and scoped registers | Known caps repaired and scoped validation retained; whole-scope office reachability/acceptance remains unproven |
 
 ## Checkpoint 1A — OBR retrieval
