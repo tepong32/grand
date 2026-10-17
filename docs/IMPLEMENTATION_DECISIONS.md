@@ -76,6 +76,21 @@ verification. Recommend retaining current gates until that dedicated review is
 authorized and validated. Feature development continues; no existing CI gate is
 changed, waived or treated as passed by this proposal.
 
+**DECISION-GSO-003 — Authoritative corrections to closed maintenance (open).**
+Which corrected fields, evidence and review authority may replace the effective
+documentary values of a closed work record? The existing maintenance service
+deliberately freezes closure; it provides no independently reviewed successor for
+those values. Reopening or silently replacing them would lose accountability.
+Alternatives: retain attributable correction notices alongside unchanged values,
+or add structured reviewed successors once the owner confirms their authority and
+downstream uses. Recommend notices now and a separately specified successor route
+later. Notices are operational statements under the existing maintenance-management
+grant, not approved corrections, signatures, payment or valuation. Safe provisional
+work includes recording the statement and optional protected source, with no
+effective cost/status/date/custody change. Applying corrected values or representing
+an approval blocks until the governing rule is established. Source-file integrity
+does not establish the truth or acceptance of a notice.
+
 ### Established implementation decisions
 
 - **AUTH-001 (2026-10-14):** public registration is a verified citizen identity;

@@ -73,6 +73,12 @@ authorized; draft outputs are not official form acceptance. New GSO/Finance work
 uses separate codex branches of GRAND after this integration checkpoint. User asks
 to pause after reviewed/tested integration and report actual outcomes in bullets.
 
+Closed-maintenance correction notices are attributable statements beside an
+unchanged original record, not approved replacements for cost, closure or custody.
+Keep them visible to future consumers; never infer authoritative corrected values
+or Finance adjustments from a notice. See [the notice boundary](docs/gso/maintenance.md)
+and DECISION-GSO-003 in the existing decision register.
+
 Signed Form 1 returns retain per-entity dates, original PDF bytes and declared
 physical custody separately from independent verification and immutable final
 issue archives. An upload/PDF parse does not establish signatures. Preserve

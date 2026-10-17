@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.178] - 2026-10-18
+### Added
+- feat(gso): retain correction notices beside closed maintenance
+
 ## [0.7.177] - 2026-10-18
 ### Added
 - feat(gso): prepare property drafts and reviewed SPC sources

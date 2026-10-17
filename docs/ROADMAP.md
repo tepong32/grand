@@ -4,8 +4,10 @@
 and complete useful workflow slices with proportional verification and non-technical
 usability built in. Finance dependencies remain indexed in the consolidated
 [decision log](IMPLEMENTATION_DECISIONS.md#consolidated-owner-decisions--2026-10-18).
-The next independent authorized output slice is GSO ICS/SPC working preparation,
-following its existing [placeholder direction](gso/inventory-roadmap.md#placeholder-output-direction--2026-10-17).
+Local v0.7.177 completes GSO ICS/SPC working preparation and the reviewed SPC source
+worksheet, following the existing [placeholder direction](gso/inventory-roadmap.md#placeholder-output-direction--2026-10-17).
+The next local slice adds [closed-maintenance correction notices](gso/maintenance.md)
+alongside unchanged original values; authoritative corrected values remain GSO-003.
 Local drafts do not establish official forms, signatures, ledger authority or
 operational acceptance. CONTINUE.md owns actual implementation/checkpoint results.
 Master integration, publication and deployment are outside this mission's authority.

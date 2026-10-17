@@ -1,0 +1,7 @@
+{% extends "inventory/base.html" %}{% block title %}Record a correction notice{% endblock %}{% block content %}
+<header class="hero"><div><h1>Record a correction notice</h1><p>{{ case.asset.asset_name }} · {{ case.get_status_display }} work record</p></div></header>
+<nav class="quick-links"><a href="{% url 'inventory:maintenance-detail' case.pk %}">Back to the work record</a></nav>
+<section class="panel"><p>Explain what needs correction and identify your basis. Your statement, name and recording time will be retained beside the original work record. You can add a supporting file or record a reference-only notice.</p>
+<p>The original closure, status and cost remain unchanged. A notice is a recorded statement, not approval of corrected values, a new repair or a Finance adjustment. If a notice itself is mistaken, record a further notice rather than replacing it.</p>
+{% if source_error %}<p class="errorlist" role="alert">{{ source_error }}</p>{% else %}<form method="post" enctype="multipart/form-data">{% csrf_token %}{{ form.as_p }}<button class="button primary" type="submit">Retain correction notice</button></form>{% endif %}</section>
+{% endblock %}

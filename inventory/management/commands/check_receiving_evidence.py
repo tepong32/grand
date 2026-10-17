@@ -15,6 +15,9 @@ class Command(BaseCommand):
     namespace_name = "receiving"
     report_unknown_hashes = False
 
+    def evidence_records(self):
+        return self.evidence_model.objects.order_by("pk").iterator()
+
     def handle(self, *args, **options):
         storage = self.evidence_model._meta.get_field("file").storage
         if not hasattr(storage, "location"):
@@ -25,7 +28,7 @@ class Command(BaseCommand):
         if self.report_unknown_hashes:
             report["unknown"] = []
         referenced = set()
-        for record in self.evidence_model.objects.order_by("pk").iterator():
+        for record in self.evidence_records():
             name = record.file.name
             path = root / name
             try:

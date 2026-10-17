@@ -1,5 +1,114 @@
 # GRAND continuation handoff
 
+## Current local slice — closed-maintenance notices, 2026-10-18
+
+Active workspace: isolated branch `codex/gso-maintenance-notices`, created clean
+from local VM v0.7.177 / `04f6200cc1eaf618ebc69cc5fbc5c3d076d3e1dd`.
+Remote master/tag v0.7.176 remains `6e1a04ab861c213001d1e80fd054ba3eb428ffea`;
+local v0.7.177 and this feature branch remain unpublished. Preserve the older operator
+checkout and its unrelated dirty files/databases.
+
+This slice adds [correction notices](docs/gso/maintenance.md) to completed or
+cancelled work records. Existing maintenance managers retain attributable
+statements and optional protected evidence; authorized viewers can read them.
+Original case fields, events, asset condition/custody, costs and Finance records
+are unchanged. Notices are not approvals or effective corrected values;
+DECISION-GSO-003 records that separate unresolved authority boundary.
+
+Migration0030 adds one inventory table in default, without old-row updates or new
+permissions. Asset-before-case locks serialize exact retries and the combined
+20-document/100 MB budget; individual files remain limited to 15 MB. Reference-only
+notices need no file space. Downloads recheck scope, record checksum, path, hash
+and size, then stream the same opened file. The read-only recovery checker covers
+notice/source metadata, files and orphans; run the original maintenance checker too.
+
+Validation so far: initial focused run found a real service-level TextField length
+gap (one failure among 14 tests); explicit service limits now reject before any
+file write. The next focused SQLite run passed 19 discovered / 17 executed with
+two native-only skips, including a populated closed-history 0029→0030 upgrade.
+That run predates two added signed-token/cancelled-case methods and missing-file
+retry handling. The first complete native GSO run executed 208 tests in 82.390s:
+207 passed and the new expiry test failed. Its global `signing.loads` mock also
+intercepted authenticated-session decoding, producing a login redirect before the
+form ran. The test now signs a genuinely expired form token, retaining its original
+assertions and normal session decoding. The second fresh complete native run
+passes **208/208, zero skips, 79.328s**, exit 0. Both native races pass, as does the
+populated additive upgrade. All ten Python source/test hashes match the frozen
+run receipt; the same 23 inherited W036 warnings match the v0.7.177 log exactly.
+Both native test schemas were dropped and the exact owned fixture was shut down
+gracefully after verifying its process identity and absence of other clients.
+The first failed run remains retained, not labelled a pass.
+
+Exact commands (documented Python 3.11 environment; ignored wrappers disable dotenv
+and isolate both databases/storage/logs):
+
+```text
+python -B .tmp/run_isolated.py makemigrations inventory --name maintenance_correction_notices
+python -B .tmp/run_isolated.py test gso_integration_tests.test_maintenance_notices gso_integration_tests.test_grand_maintenance --noinput --verbosity 1
+python -B .tmp/run_isolated.py test gso_integration_tests.test_maintenance_notices gso_integration_tests.test_maintenance_notice_races gso_integration_tests.test_grand_maintenance --noinput --verbosity 1
+python -B .tmp/native_notices.py gso_integration_tests --verbosity 1
+python -B .tmp/rehearse_notice_recovery.py
+git diff --check
+```
+
+Browser review uses synthetic SQLite copies and an owned loopback preview only.
+Reference-only and supporting-PDF posts work; unsupported upload errors preserve
+entered text. Mobile 390px and desktop 1440px layouts have no horizontal overflow.
+UAT history shows notices and original zero cost, without a write link, and its
+write-form request returns 403. Initial
+unauthenticated login static/media assets and favicon return 404 in this minimal
+preview; the authenticated notice journey has no console errors. Browser-save
+automation timed out waiting for a download event (both ordinary click and explicit
+event wait); a request using the same authenticated browser context returned 200,
+431 bytes and the expected attachment/no-store/nosniff headers. Automated endpoint
+integrity checks must not be conflated with a completed browser-save check.
+An initial preview seed used an incorrect profile relation; correcting the fixture
+to `employeeprofile` succeeded. No production schema, grant, data or service changed.
+The synthetic preview/browser are stopped. A stopped paired SQLite/private-file
+rehearsal recovered two notices and one file and detected same-size corruption,
+missing bytes and an orphan on restored copies, preserving every source hash and
+the Finance copy. Its first attempt found a missing empty original-maintenance
+namespace; initializing that known-empty fixture directory satisfied the existing
+fail-closed checker. No checker behavior or gate was weakened. Receipt/logs remain
+ignored under `.tmp`; screenshots remain untracked under
+`output/playwright/maintenance-notices/` and must be excluded from VM staging.
+
+System checks, migration drift (none), whitespace and complete eight-class-partition
+discovery pass: 2,780 distinct tests, including 208 GSO. Original operator/primary
+database and unrelated-file hashes still match the initial preservation receipt.
+Full-project and hosted gates are NOT RUN for this local bounded slice: no Finance
+contract changes or publication is proposed, and candidate CI remains mandatory
+before any later integration/publication. The v0.7.177 dependency audit applies to
+the unchanged dependency set; no new software or dependency is introduced here.
+
+Final review covers all nineteen intended source/test/handoff paths, without
+Finance workflow/model/router changes, old-row updates, grants or unrelated work.
+The installed Version Manager is used through the established GRAND preservation
+adapter: **v0.7.177 → v0.7.178**, commit message
+`Release v0.7.178: feat(gso): retain correction notices beside closed maintenance`.
+The local operation adds only VERSION/CHANGELOG to the reviewed nineteen-file
+manifest, retains historical release evidence, and creates lightweight local tag
+`v0.7.178` without push. Confirm actual HEAD/tag and ignored VM preview/release
+receipts before resuming. The operation is local only; current-source hosted CI
+and any publication remain unperformed and require separate authorization/gates.
+
+```text
+python <installed-version-manager>/version_manager.py --repo <this-worktree> inspect --json
+python -B .tmp/vm_local178.py
+python -B .tmp/vm_local178.py --execute
+```
+
+Next independent work: a separate concrete security follow-up is now identified in
+`stock_count_views.count_evidence`, `custody_return_views.return_evidence`,
+`requisition_views.request_evidence` and `supply_return_views.return_evidence`:
+each validates retained bytes, closes the checked handle, then reopens for streaming.
+Preserve sibling-file checks and all current scopes/headers/error behavior while
+adding authenticated regressions and same-handle validation on an isolated next
+branch. These paths are outside the completed F1 receiving/maintenance fix; do not
+mix this new work into the maintenance-notice payload or claim it already repaired.
+No publication, master integration, deployment or Finance/GSO
+operational acceptance is authorized. Finance remains **NO-GO**.
+
 ## Autonomous development mission — 2026-10-18
 
 Active goal: persist the [working doctrine](AGENTS.md#working-doctrine--2026-10-18)

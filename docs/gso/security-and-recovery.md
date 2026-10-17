@@ -257,3 +257,14 @@ and both event histories together. The stopped synthetic paired restore retained
 missing/changed original or child packets were detected. See validation for the
 backup receipt and limits. Adapter0006 only declares the inventory0028 dependency.
 No operator migration or online recovery acceptance is established by that drill.
+
+## Closed-maintenance correction notices (local development)
+
+Preserve the new `inventory/maintenance_notices/<case UUID>/` namespace, notice
+records and their observed original case/event metadata with the existing
+maintenance files and coordinated database pair. Reference-only notices have no
+file and retain empty file metadata. Run `check_maintenance_notices` for notice
+body/source checks, known file hashes/sizes and orphan reporting; also run
+`check_maintenance_evidence` for the original case files. Neither command repairs,
+rehashes or deletes evidence. File consistency does not establish that a recorded
+correction statement is true, approved or an effective replacement for closed values.

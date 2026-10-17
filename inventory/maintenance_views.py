@@ -5,6 +5,7 @@ from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
+from . import maintenance_notices
 
 from .access import in_gso_scope, gso_department_for_user, has_inventory_permission
 from .models import Asset, AssetMaintenanceCase, AssetMaintenanceEvidence
@@ -94,8 +95,27 @@ def maintenance_detail(request, pk):
                 version.add_error(None, " ".join(error.messages))
             else:
                 return redirect("inventory:maintenance-detail", pk=case.pk)
+    notice_page = Paginator(case.correction_notices.select_related('recorded_by'), 25).get_page(request.GET.get('notice_page'))
+    notices = []
+    basis, basis_error = None, ''
+    if notice_page.paginator.count:
+        try:
+            basis = maintenance_notices.case_basis(case)
+        except ValidationError as error:
+            basis_error = ' '.join(error.messages)
+    for row in notice_page:
+        error = basis_error
+        try:
+            maintenance_notices.verify_notice(row)
+            if basis is not None and basis != row.source_snapshot:
+                raise ValidationError('The original record changed after this notice. Investigate before relying on it.')
+        except ValidationError as problem:
+            error = ' '.join(problem.messages)
+        notices.append({'record': row, 'error': error})
     return render(request, "inventory/maintenance_detail.html", dict(
-        case=case, work_form=work, evidence_form=evidence, close_form=close, version=version, editable=editable))
+        case=case, work_form=work, evidence_form=evidence, close_form=close, version=version, editable=editable,
+        notices=notices, notice_page=notice_page,
+        can_notice=can_manage_maintenance(request.user, case.asset) and case.status != case.OPEN))
 
 
 @never_cache

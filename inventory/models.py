@@ -1241,6 +1241,46 @@ class AssetMaintenanceEvidence(models.Model):
         raise ValidationError("Maintenance evidence is retained.")
 
 
+def maintenance_notice_path(instance, filename):
+    extension = filename.rsplit(".", 1)[-1].lower()
+    return f"inventory/maintenance_notices/{instance.case.public_id}/{instance.public_id.hex}.{extension}"
+
+
+class MaintenanceCorrectionNotice(models.Model):
+    """An attributable statement; never a replacement for the closed case."""
+    public_id = models.UUIDField(default=uuid4, unique=True, editable=False)
+    case = models.ForeignKey(AssetMaintenanceCase, on_delete=models.PROTECT, related_name="correction_notices")
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+                                    related_name="gso_maintenance_notices")
+    recorded_at = models.DateTimeField(default=timezone.now, editable=False)
+    explanation = models.TextField(max_length=4000)
+    source_reference = models.CharField(max_length=240)
+    source_snapshot = models.JSONField()
+    file = models.FileField(upload_to=maintenance_notice_path, storage=disposal_private_storage,
+                            max_length=500, blank=True)
+    original_filename = models.CharField(max_length=255, blank=True)
+    sha256 = models.CharField(max_length=64, blank=True)
+    size = models.PositiveBigIntegerField(default=0)
+    checksum = models.CharField(max_length=64)
+
+    class Meta:
+        ordering = ("recorded_at", "pk")
+        default_permissions = ()
+        constraints = (
+            models.CheckConstraint(condition=(models.Q(file="", sha256="", size=0, original_filename="") |
+                (~models.Q(file="") & ~models.Q(sha256="") & models.Q(size__gt=0) & ~models.Q(original_filename=""))),
+                name="gso_notice_file_metadata"),
+        )
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Correction notices cannot be replaced. Record a further notice instead.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Correction notices are retained with the original work record.")
+
+
 class AssetReturnEvent(models.Model):
     transfer = models.ForeignKey(AssetTransfer, on_delete=models.PROTECT, related_name="return_events")
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="gso_return_events")

@@ -9,6 +9,7 @@ from . import receiving_views
 from . import receipt_amendment_views
 from . import receipt_quantity_views
 from . import maintenance_views
+from . import maintenance_notice_views
 from . import employee_custody_views
 from . import custody_review
 from . import custody_return_views
@@ -65,6 +66,8 @@ urlpatterns = [
     path("<int:pk>/maintenance/new/", maintenance_views.maintenance_open, name="maintenance-open"),
     path("maintenance/<int:pk>/", maintenance_views.maintenance_detail, name="maintenance-detail"),
     path("maintenance/evidence/<int:pk>/", maintenance_views.maintenance_evidence, name="maintenance-evidence"),
+    path("maintenance/<int:pk>/correction-notice/", maintenance_notice_views.notice_new, name="maintenance-notice-new"),
+    path("maintenance/correction-notices/<int:pk>/evidence/", maintenance_notice_views.notice_evidence, name="maintenance-notice-evidence"),
     path("receiving/", receiving_views.receipt_list, name="receiving-list"),
     path("receiving/new/", receiving_views.receipt_create, name="receiving-create"),
     path("receiving/line/<int:pk>/follow-up/", receiving_views.receipt_followup, name="receiving-followup"),

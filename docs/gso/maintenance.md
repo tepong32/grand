@@ -1,7 +1,47 @@
 # Asset maintenance
 
-Implementation branch: `codex/asset-maintenance`. See [handoff](../CONTINUE.md) for
-release status. Not installed in the operator database or GRAND.
+## Closed-record correction notices — local development, 2026-10-18
+
+`codex/gso-maintenance-notices` starts at local VM v0.7.177 / `04f6200`; it is
+unpublished and does not change GRAND's remote v0.7.176 baseline. The new notice
+workflow addresses a concrete closed-record limitation without rewriting its
+original outcome. [GRAND's handoff](../../CONTINUE.md) owns actual verification.
+
+A manager with the existing explicit maintenance grant may retain an attributable
+statement against a completed or cancelled case, with its basis/reference and an
+optional private PDF/image. A viewer, including a separately authorized UAT viewer,
+can read history and retained files but cannot record notices. No new grants or
+approval authority are introduced. Source metadata is observed and pinned; this
+does not certify the original supporting bytes or establish an approved correction.
+
+The original closure, cost, dates, status, asset history and events remain unchanged.
+The notice is immutable, actor/time-stamped and checksum-backed. A mistaken notice
+requires another statement, not deletion or replacement; none automatically becomes
+the effective truth. The work-record page warns before displaying original values
+and pages all notices. Current consumers of documented cost are confined to that
+page/history; no Finance integration or quantity/valuation calculation is added.
+Applying corrected values remains [DECISION-GSO-003](../IMPLEMENTATION_DECISIONS.md#consolidated-owner-decisions--2026-10-18).
+
+Asset-before-case locks serialize creation and the shared 20-document/100 MB case
+budget; reference-only notices remain possible when no additional file can be
+retained. Every file is at most 15 MB. A signed actor/case/source-bound request and
+unique UUID provide exact retries without duplicate notices/files. Record/body
+tampering is detected; valid file downloads verify hash/size and stream the same
+handle through the shared private-evidence helper.
+
+Migration0030 adds one default-store table, its foreign keys and an unconditional
+file-metadata check. It rewrites no old case, event, asset or Finance row and creates
+no model permissions. `inventory/maintenance_notices/<case UUID>/` is a separate
+private namespace; interrupted writes may leave an orphan, which is investigated
+rather than automatically removed. Coordinated recovery must retain it alongside
+the existing maintenance namespace and database. Run both
+`check_maintenance_evidence` and `check_maintenance_notices`; the latter verifies
+notice/source metadata, file hashes/sizes and orphan paths without changing data.
+No production migration, official approval or operational acceptance is implied.
+
+The original `codex/asset-maintenance` workflow below was carried into GRAND at
+v0.7.174. [GRAND's handoff](../../CONTINUE.md) records current code/release status;
+code integration does not establish installation or operational acceptance.
 
 The operational record follows an existing asset through a reported concern, work
 updates, retained supporting documents and completion or cancellation. It is not a
@@ -49,7 +89,8 @@ and restores the pre-case asset status, including a legacy maintenance status.
 Version checks reject stale writes. Duplicate starts and duplicate closure cannot
 create a second outcome. Each change appends an actor-stamped snapshot; status
 changes also append the existing asset audit trail. Closed cases are read-only.
-Corrections to closed records are not yet implemented; do not erase history or
+Authoritative replacements for closed values are not implemented; the local notice
+workflow above records statements without replacing values. Do not erase history or
 reopen closed rows directly. Model save/delete guards protect event/evidence use
 through the application, not arbitrary privileged SQL access.
 

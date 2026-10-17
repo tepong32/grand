@@ -132,7 +132,9 @@ physical workflow works and its current GRAND integration dependencies are check
 ### 3. Maintenance history
 
 Implemented on `codex/asset-maintenance`; see [workflow and limits](maintenance.md)
-and [handoff](../CONTINUE.md) for release status. Native concurrency, browser,
+and [GRAND handoff](../../CONTINUE.md) for release status. Local development now
+adds attributable notices beside unchanged closed records; applying authoritative
+corrected values remains DECISION-GSO-003. Native concurrency, browser,
 populated migration and synthetic evidence recovery pass. No operator deployment
 or installation in GRAND is implied.
 
