@@ -8,6 +8,7 @@ from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods
+from .private_evidence import open_checked_private_evidence
 from . import supply_returns as service
 from .models import StockMovement
 from .access import gso_department_for_user
@@ -104,8 +105,10 @@ def return_detail(request, pk):
 def return_evidence(request, pk):
     case = get_object_or_404(service.visible(request.user), pk=pk)
     try:
-        source = service.verify_source(case).open("rb")
-    except (OSError, ValidationError):
+        service.verify_source(case)
+        source = open_checked_private_evidence(case,
+            namespace=f"inventory/supply-returns/{case.public_id}")
+    except (OSError, ValueError, ValidationError):
         raise Http404("Return evidence is unavailable or needs integrity review.")
     response = FileResponse(source, as_attachment=True, filename=case.original_filename, content_type="application/octet-stream")
     response["Cache-Control"] = "private, no-store"

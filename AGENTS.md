@@ -73,6 +73,10 @@ authorized; draft outputs are not official form acceptance. New GSO/Finance work
 uses separate codex branches of GRAND after this integration checkpoint. User asks
 to pause after reviewed/tested integration and report actual outcomes in bullets.
 
+Private downloads must check path safety and retained hash/size on the actual
+streaming handle. Preserve additional case-wide checks; never replace them with
+a closed-file check followed by an unchecked reopen.
+
 Closed-maintenance correction notices are attributable statements beside an
 unchanged original record, not approved replacements for cost, closure or custody.
 Keep them visible to future consumers; never infer authoritative corrected values

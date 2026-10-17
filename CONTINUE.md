@@ -1,6 +1,107 @@
 # GRAND continuation handoff
 
-## Current local slice — closed-maintenance notices, 2026-10-18
+## Current local slice — protected download handles, 2026-10-18
+
+Active branch `codex/gso-protected-download-handles` began clean at local v0.7.178 /
+`f58b35f8ec70ae3e82dd3c7ef4e4ec7c272b9429`. Its maintenance-notice parent is a
+completed local VM checkpoint; remote master remains published v0.7.176 /
+`6e1a04ab861c213001d1e80fd054ba3eb428ffea`. No local checkpoint is published,
+and no integration, push, deployment or production operation is authorized.
+
+Concrete follow-up: stock counts, custody returns, requisitions and supply returns
+validate evidence then close/reopen it for download. Authenticated regressions now
+replace the requested bytes immediately after the existing verification returns;
+they must reject the changed file rather than stream unchecked bytes. The original
+first four-case reproduction confirmed the stock-count defect and hit three
+test-setup errors elsewhere: a fixture's `verifier` user collided with the patch
+path name, and ordinary module importing could not resolve a nested service
+attribute. Renaming the patch path and using `pkgutil.resolve_name` repairs the
+test harness without changing assertions. The corrected four-case reproduction
+against unchanged runtime code failed all four methods as intended (0.292s): each
+old handler returned 200 and the replaced bytes, rather than 404. There were no
+fixture errors in that corrected run. The original first-run failures remain in
+the ignored logs; they are not labelled as passing evidence.
+New coverage also
+retains headers, same final open handle, missing/same-size-corrupt/unsafe paths,
+revoked/anonymous/foreign denial, separate UAT read and legitimate personal return
+access. Stock-count/custody-return siblings must still be checked before download.
+
+The four handlers now keep their existing validators and use the shared
+checked-private-evidence opener for the final streamed handle; no new schema,
+grants, financial behavior, routing or history changes are needed. Preserve the
+existing whole-case validators, generic errors and response headers. Record actual
+red/green checks here before any local VM operation. Finance stays **NO-GO**.
+
+Post-fix full SQLite run: 235 discovered, 24 native-only skips, 38.288s; failed with
+four new valid-download test errors plus four secondary cleanup errors. The test
+inspected `FileResponse.file_to_stream` after Django's client had deliberately
+replaced it while wrapping the stream (confirmed in installed Django source).
+Each early assertion then left its response unconsumed. The test now captures the
+source passed to response construction, keeps the same identity assertion against
+the last opened file, and always exhausts the client's wrapper in `finally`.
+No runtime change or assertion was weakened to address this harness failure.
+All four post-validation replacement regressions passed in that first fixed run.
+The corrected complete SQLite run passes **235 discovered / 211 executed / 24
+native-only skips, 37.506s**, exit 0. All 27 new download methods pass. The fresh
+complete native GSO run passes **235/235, zero skips, 80.423s**, exit 0. All six
+Python source/test hashes match the frozen receipt, and the 23 inherited W036
+warnings match v0.7.178 exactly. Both native test schemas are absent; no other
+fixture clients remained, and the exact owned MySQL child/parent identity was
+verified before graceful shutdown. Its loopback listener is stopped. Retain the
+earlier failed runs; neither is relabelled as a pass.
+
+System checks, migration drift (none), whitespace and full discovery/eight complete
+class partitions pass: 2,807 tests, including 235 GSO (27 new download methods).
+The five runtime files are frozen unchanged; the updated six-file source receipt
+includes the corrected test harness. Browser/UI and dependency-audit repeats are
+NOT RUN here: templates, interactions and dependencies are unchanged; authenticated
+endpoint regressions cover bytes, headers and scope. Published/candidate CI remains
+unperformed and mandatory before any later authorized publication, not waived.
+
+Exact checks use the documented Python 3.11 environment. Ignored wrappers disable
+dotenv and redirect both aliases/storage/logs to disposable paths:
+
+```text
+python -B .tmp/run_isolated.py test gso_integration_tests.test_download_handles.StockCountDownloadTests.test_change_after_legacy_validation_cannot_supply_unchecked_download_bytes gso_integration_tests.test_download_handles.CustodyReturnDownloadTests.test_change_after_legacy_validation_cannot_supply_unchecked_download_bytes gso_integration_tests.test_download_handles.RequisitionDownloadTests.test_change_after_legacy_validation_cannot_supply_unchecked_download_bytes gso_integration_tests.test_download_handles.SupplyReturnDownloadTests.test_change_after_legacy_validation_cannot_supply_unchecked_download_bytes --noinput --verbosity 1
+python -B .tmp/run_isolated.py test gso_integration_tests --noinput --verbosity 1
+python -B .tmp/native_downloads.py gso_integration_tests --verbosity 1
+python -B .tmp/run_isolated.py check
+python -B .tmp/run_isolated.py makemigrations --check --dry-run
+python -B .tmp/run_isolated.py discover
+git diff --check
+```
+
+Original operator and clean primary protected-file hashes/status remain equal to
+the preservation receipt. Remote master remains v0.7.176; this feature branch/tag
+do not exist remotely. No production operations, unrelated changes or additional
+software installations occurred. Finance remains **NO-GO**.
+
+Reviewed local VM operation: **v0.7.178 → v0.7.179**, message
+`Release v0.7.179: fix(gso): validate streamed stock and custody evidence`.
+The explicit nine-path source/test/handoff manifest is limited to the four
+download views, helper description, new regression file, AGENTS, this handoff and
+the recovery/security contract. The installed Version Manager's established
+GRAND adapter adds only VERSION/CHANGELOG and lightweight local tag `v0.7.179`,
+preserving historical release evidence. Confirm HEAD/tag and ignored preview/
+release receipts. No push, remote CI, master integration or publication is performed.
+
+```text
+python <installed-version-manager>/version_manager.py --repo <this-worktree> inspect --json
+python -B .tmp/vm_local179.py
+python -B .tmp/vm_local179.py --execute
+```
+
+Next bounded security review after this checkpoint: HR custody-review packets,
+property determination/movement packets, receiving cost/quantity packets and the
+read-only shared property packet in inventory_finance also close verification
+handles before reopening for streaming. Preserve their history/snapshot and
+source-access checks, including the HR route's existing 409 contract. Separately
+inspect accounting-snapshot CSV downloads (retained SHA-256 exists, retained size
+does not) and disposal path namespaces (same-handle/legacy-integrity behavior
+already exists). Do not invent missing sizes/hashes, weaken legacy boundaries or
+claim inventory-wide download completion from this four-handler checkpoint.
+
+## Prior local checkpoint — closed-maintenance notices, 2026-10-18
 
 Active workspace: isolated branch `codex/gso-maintenance-notices`, created clean
 from local VM v0.7.177 / `04f6200cc1eaf618ebc69cc5fbc5c3d076d3e1dd`.

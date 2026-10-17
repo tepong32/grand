@@ -1,4 +1,4 @@
-"""Checked private receiving/maintenance downloads; return the verified open file."""
+"""Checked private evidence downloads; return the verified open file."""
 import hashlib
 from pathlib import Path, PureWindowsPath
 

@@ -16,6 +16,7 @@ from .custody_returns import (can_manage_return, record_return, attach_return_ev
     confirm_return, cancel_return, verify_return_evidence)
 from .custody_return_forms import ReturnStartForm, ReturnEvidenceForm, ReturnDecisionForm, ReturnVersionForm
 from .models import Asset, AssetTransfer, AssetReturnEvidence
+from .private_evidence import open_checked_private_evidence
 from .services import custody_source
 
 TOKEN_SALT = "gso-witnessed-return-source-v1"
@@ -121,8 +122,9 @@ def return_evidence(request, pk):
     evidence = get_object_or_404(AssetReturnEvidence, pk=pk, transfer__in=scoped_returns(request.user))
     try:
         verify_return_evidence(evidence.transfer)
-        source = evidence.file.open("rb")
-    except (OSError, ValidationError):
+        source = open_checked_private_evidence(evidence,
+            namespace=f"inventory/custody_returns/{evidence.transfer.public_id}")
+    except (OSError, ValueError, ValidationError):
         raise Http404("The retained evidence is unavailable or requires integrity review.")
     response = FileResponse(source, as_attachment=True, filename=evidence.original_filename,
                             content_type="application/octet-stream")

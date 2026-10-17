@@ -13,6 +13,7 @@ from django.views.decorators.http import require_GET, require_http_methods
 
 from .access import can_stock, gso_department_for_user, in_gso_scope
 from .models import ConsumableItem, StockCount, StockCountEvidence
+from .private_evidence import open_checked_private_evidence
 from .stock_count_forms import StockCountForm, StockCountEvidenceForm, StockCountDecisionForm, StockCountVersionForm
 from .stock_counts import can_manage_count, stock_basis, record_count, attach_count_evidence, decide_count, verify_count_evidence
 
@@ -123,8 +124,9 @@ def count_evidence(request, pk):
     evidence = get_object_or_404(StockCountEvidence, pk=pk, count__in=scoped_counts(request.user))
     try:
         verify_count_evidence(evidence.count)
-        source = evidence.file.open("rb")
-    except (OSError, ValidationError):
+        source = open_checked_private_evidence(evidence,
+            namespace=f"inventory/stock_counts/{evidence.count.public_id}")
+    except (OSError, ValueError, ValidationError):
         raise Http404("The count evidence is unavailable or needs integrity review.")
     response = FileResponse(source, as_attachment=True, filename=evidence.original_filename, content_type="application/octet-stream")
     response["Cache-Control"] = "private, no-store"

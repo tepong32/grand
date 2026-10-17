@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.179] - 2026-10-18
+### Fixed
+- fix(gso): validate streamed stock and custody evidence
+
 ## [0.7.178] - 2026-10-18
 ### Added
 - feat(gso): retain correction notices beside closed maintenance

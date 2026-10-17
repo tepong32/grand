@@ -3,6 +3,26 @@
 This shell is for controlled development. A release is not permission to expose it
 to the internet or an assertion that LGU operational acceptance has passed.
 
+## Checked download handles — local development, 2026-10-18
+
+The current protected-download follow-up is isolated from published v0.7.176 and
+the local v0.7.177/v0.7.178 checkpoints. [GRAND's handoff](../../CONTINUE.md)
+owns its actual test and commit status. Stock-count, custody-return, requisition
+and supply-return downloads retain their existing scoped access and source/case
+checks, then validate the requested file's relative case namespace, SHA-256 and
+size on the handle actually streamed. A separate earlier file check does not
+validate a later open. Reusing the shared private-evidence opener keeps this
+boundary consistent without changing workflow services or history.
+
+Case-wide validation intentionally remains: damage to a sibling count/return
+document still blocks the requested download. This means the target can be read
+again for its final streaming check; each file remains bounded by existing upload
+limits. Preserve attachment/no-store/nosniff headers, generic 404 responses,
+separately authorized UAT reads and the former custodian's legitimate personal
+return-evidence scope. No new grant, model, migration, financial action or recovery
+format is introduced. Hash consistency does not prove document authenticity, and
+same-handle validation does not lock a file against privileged in-place mutation.
+
 ## Implemented checkpoint
 
 - Django 5.2.18, Pillow 12.3.0 and python-dotenv 1.2.2 match the inspected GRAND

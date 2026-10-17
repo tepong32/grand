@@ -8,6 +8,7 @@ from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods
+from .private_evidence import open_checked_private_evidence
 from . import requisitions as service
 from .requisition_forms import RequisitionForm, RequisitionLines, DecisionForm, FulfillmentForm, VersionForm
 
@@ -109,8 +110,10 @@ def request_detail(request, pk):
 def request_evidence(request, pk):
     record = get_object_or_404(service.visible(request.user), pk=pk)
     try:
-        source = service.verify_source(record).open("rb")
-    except (OSError, ValidationError):
+        service.verify_source(record)
+        source = open_checked_private_evidence(record,
+            namespace=f"inventory/requisitions/{record.public_id}")
+    except (OSError, ValueError, ValidationError):
         raise Http404("The supplied document is unavailable or needs integrity review.")
     response = FileResponse(source, as_attachment=True, filename=record.original_filename, content_type="application/octet-stream")
     response["Cache-Control"] = "private, no-store"
