@@ -159,9 +159,11 @@ def receipt_detail(request, pk):
 @require_http_methods(["GET"])
 def evidence_download(request, pk):
     evidence = get_object_or_404(ReceivingEvidence, pk=pk, receipt__in=scoped(request.user))
+    from .private_evidence import open_checked_private_evidence
     try:
-        source = evidence.file.open("rb")
-    except OSError:
+        source = open_checked_private_evidence(evidence,
+            namespace=f"inventory/receiving/{evidence.receipt.public_id}")
+    except (OSError, ValueError, ValidationError):
         raise Http404("The retained document is unavailable.")
     response = FileResponse(source, as_attachment=True, filename=evidence.original_filename,
                             content_type="application/octet-stream")

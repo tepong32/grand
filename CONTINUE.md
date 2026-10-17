@@ -1,5 +1,64 @@
 # GRAND continuation handoff
 
+## F1/F2 evidence and retirement checkpoint — 2026-10-17
+
+Scope: receiving/maintenance evidence-download integrity and disposal-only asset
+retirement, on `codex/gso-evidence-retirement-fixes`, based on v0.7.175 /
+`d24a22c23c26f6cd501a5d26f8c270060ec18b65`. Publication is authorized through the
+installed Version Manager, exact-revision hosted gates, then fast-forward primary
+integration and branch/tag verification. Stop after verified publication; no
+additional development or deployment is authorized. Check the actual remote refs
+and Actions results before resuming; a prior revision's pass is not a current pass.
+
+The two downloads retain their scoped authorization, attachment/cache/nosniff
+headers and generic 404 behavior. `inventory/private_evidence.py` checks the
+per-record private namespace, rejects traversal/absolute paths and symlink/junction
+redirection, verifies retained SHA-256 and size, then rewinds and streams the same
+opened handle. Ordinary asset create/update reject `retired`; the existing
+evidenced disposal service remains the retirement route. No schema, permission,
+routing, Finance behavior or historical financial evidence changes.
+
+Local validation uses Python 3.11.5 / Django 5.2.18 and isolated disposable stores
+and files; operator databases and unrelated work are preserved. Fourteen new
+regression methods cover authorized/UAT reads, direct denied access, valid/changed/
+missing/unknown-integrity evidence, unsafe and cross-record paths, redirected
+directories, single-open streaming, rejected service retirement, ordinary edits
+and evidenced disposal with retained audit history.
+
+- EXPECTED FAIL on pristine base: 14 tests, eight defect failures, zero errors/skips, 1.761s.
+- PASS focused fixed SQLite: 14/14, zero skips, 1.901s.
+- PASS all destination GSO SQLite: 166 discovered / 144 passed / 22 native-only skips, 88.497s.
+- PASS final all destination GSO native MySQL: 166/166, zero skips, 139.578s, exit 0. Both fresh stores destroyed; owned fixture stopped. Suite timings exclude schema setup.
+- PASS system checks, migration drift (none), nine CI-runner unit tests, dependency consistency, changed-file compilation and whitespace checks. Complete discovery/eight partitions: 2,738 unique identities, including 166 GSO.
+
+Test commands: `python manage.py test gso_integration_tests.test_evidence_retirement --noinput --verbosity 1`
+and `python manage.py test gso_integration_tests --noinput --verbosity 1`, with both
+SQLite aliases and storage/logging explicitly redirected to disposable locations.
+Native: `python scripts/run_mysql_tests.py gso_integration_tests --verbosity 1`
+with the verified disposable server configured per [native testing](docs/FINANCE_NATIVE_TESTING.md).
+Checks: `python manage.py check`, `python manage.py makemigrations --check --dry-run`,
+`python -m unittest scripts.test_ci_test_runner -v`, `python -m pip check` and
+`git diff --check`. Local receipts remain in ignored test artifacts; they are not
+portable operator acceptance evidence. Hosted full discovery/coverage and zero
+native skips are mandatory publication gates, not inferred from these scoped runs.
+
+Retained validation failures: preliminary Django 5.2.17 runs were stopped and not
+counted as passes. Initial wrapper cleanup hit Windows log-file locks. Initial
+base reproduction had seven assertions plus seven streaming-cleanup errors;
+corrected cleanup gives the clean eight-failure reproduction above. First native
+run: 166 tests / four errors, 159.422s. Directly closing consumed FileResponses in
+the new tests fired request_finished and closed MySQL within TestCase's atomic
+transaction. Cleanup now consumes Django's client wrapper without repeat closes;
+final native passes all 166. SQLite broad execution precedes these cleanup-only
+test edits; final native covers the final production and test files. No assertion
+or gate was weakened. This is bounded local review, not independent human approval.
+
+Private storage still needs approved filesystem access and coordinated recovery;
+service guards do not constrain administrator SQL/filesystem writes. Full-project
+local execution was not repeated for this bounded fix; complete hosted regression
+must pass before primary promotion. Finance and formal GSO production/LGU acceptance
+remain NO-GO. No application deployment or production operation is authorized.
+
 ## Completed GSO integration checkpoint — 2026-10-17
 
 GSO and the latest paused Finance work are integrated into GRAND master at

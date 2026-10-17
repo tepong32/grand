@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.176] - 2026-10-17
+### Fixed
+- fix(gso): verify private evidence downloads and require disposal retirement
+
 ## [0.7.175] - 2026-10-17
 ### Documentation
 - docs: record verified GSO integration and paused continuation

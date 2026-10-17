@@ -94,6 +94,8 @@ def create_asset(*, actor, data):
     if department is None:
         raise PermissionDenied
     data = _editable_data(data, ASSET_INPUT_FIELDS)
+    if data.get("status") == Asset.RETIRED:
+        raise ValidationError("Use the documented disposal case workflow to retire an asset.")
     if data.get("status") == Asset.ENTRY_VOID:
         raise ValidationError("Only a reviewed receipt correction can mark an erroneous entry.")
     validate_asset_identifiers(department.pk, data)
@@ -117,6 +119,8 @@ def create_asset(*, actor, data):
 def update_asset(*, actor, asset, data):
     asset = Asset.objects.select_for_update().get(pk=asset.pk)
     _require(actor, "change", asset)
+    if data.get("status") == Asset.RETIRED:
+        raise ValidationError("Use the documented disposal case workflow to retire an asset.")
     from .receipt_quantity_corrections import require_asset_available
     require_asset_available(asset)
     if data.get("status") == Asset.ENTRY_VOID:
