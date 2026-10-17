@@ -143,10 +143,12 @@ def movement_detail(request, pk):
 @login_required
 @require_GET
 def movement_evidence(request, pk):
+    from .private_evidence import open_checked_private_evidence
     row = get_object_or_404(service.visible(request.user), pk=pk)
     try:
-        source = service.verify_evidence(row).open("rb")
-    except (OSError, ValidationError):
+        service.verify_evidence(row)
+        source = open_checked_private_evidence(row, namespace=f"inventory/property-movements/{row.public_id}")
+    except (OSError, ValueError, ValidationError):
         raise Http404("Movement evidence is unavailable or needs integrity review.")
     response = FileResponse(source, as_attachment=True, filename=row.original_filename, content_type="application/octet-stream")
     response["Cache-Control"] = "private, no-store"

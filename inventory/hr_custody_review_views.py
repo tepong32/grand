@@ -156,14 +156,16 @@ def review_detail(request, pk):
 @login_required
 @require_http_methods(["GET"])
 def review_evidence(request, pk):
+    from .private_evidence import open_checked_private_evidence
     review = get_object_or_404(workflow.visible_reviews(request.user), pk=pk)
     try:
         workflow.verify_history(review)
         workflow.verify_source(review)
-    except ValidationError:
+        source = open_checked_private_evidence(review, namespace=f"inventory/custody-reviews/{review.public_id}")
+    except (OSError, ValueError, ValidationError):
         from django.http import HttpResponse
         return HttpResponse("The retained evidence failed verification. Restore or investigate it.", status=409)
-    response = FileResponse(review.file.open("rb"), as_attachment=True, filename=review.original_filename,
+    response = FileResponse(source, as_attachment=True, filename=review.original_filename,
         content_type="application/octet-stream")
     response["X-Content-Type-Options"] = "nosniff"
     return response

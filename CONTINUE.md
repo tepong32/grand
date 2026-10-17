@@ -1,6 +1,91 @@
 # GRAND continuation handoff
 
-## Current local slice — protected download handles, 2026-10-18
+## Current local slice — retained packets and source boundaries, 2026-10-18
+
+Clean isolated branch `codex/gso-retained-packet-downloads` starts at local VM
+v0.7.179 / `ab67230f697acc63890f87d9cefcc565e335381e`. Remote master is still
+published v0.7.176 / `6e1a04ab861c213001d1e80fd054ba3eb428ffea`; local checkpoints
+remain unpublished. Preserve the protected operator/primary worktrees and databases.
+
+This bounded follow-up covers six remaining check/close/reopen download paths:
+HR-reference custody packets, property determinations, property movements, receiving
+cost amendments, receiving quantity corrections and read-only shared property
+packets. Preserve each route's existing history/snapshot/access checks and status
+contracts (HR uses 409, the other five 404), plus separately granted UAT reads.
+It also checks accounting CSV source downloads against their already-retained
+SHA-256 (there is no retained size) and disposal attachment asset namespaces while
+keeping known-hash/unknown-legacy headers and strict versus explicit legacy policy.
+
+Eight authenticated original-boundary regressions against unchanged runtime code
+all failed as intended (0.646s, eight failures, no fixture errors): six streamed
+changed bytes after validation, one CSV streamed bytes contradicting its retained
+hash, and one disposal download streamed matching bytes from outside its asset
+namespace. The runtime paths now use the shared checked opener while preserving
+the old validators. Additional tests preserve positive streams/headers, independent read
+scope, history checks, missing/corrupt files and the hash-only/known-size distinction.
+No migration, new role/grant, ledger, Finance workflow or database-routing change
+is needed. Do not invent missing size/hash metadata or rebaseline retained files.
+Finance remains **NO-GO**; no integration, publication or deployment is authorized.
+
+The row helper remains strict about hash and size. A small underlying file opener
+allows a retained hash-only CSV and explicit size-backed disposal legacy use; it
+does not invent metadata. Disposal's existing source helper delegates to it while
+preserving legacy denial and integrity/unavailable messages. CSV missing/unsafe/
+changed/unknown-hash cases gain generic 404 handling; valid headers remain intact.
+
+System checks, migration drift (none), whitespace and complete discovery/eight
+class partitions pass: 2,854 unique tests, including 282 GSO (47 new methods).
+Full current-source SQLite GSO regression passes **282 discovered / 258 executed /
+24 native-only skips, 39.912s**, exit 0. Fresh native MySQL GSO regression passes
+**282/282, zero skips, 85.005s**, exit 0. All 47 new methods pass on both backends;
+both post-fix runs passed first try. All ten Python source/test hashes are unchanged
+through the runs; the same 23 inherited W036 warnings match v0.7.179 exactly.
+Both native test schemas are absent; process/parent identity and no other fixture
+clients were verified before graceful shutdown. The owned listener is stopped.
+Logs/receipts and isolated runners remain ignored under `.tmp`.
+
+Exact checks use the documented Python 3.11 environment and ignored runners that
+disable dotenv and isolate both database aliases/storage/logs:
+
+```text
+python -B .tmp/run_isolated.py test gso_integration_tests.test_packet_download_handles -k original_boundary --noinput --verbosity 1
+python -B .tmp/run_isolated.py test gso_integration_tests --noinput --verbosity 1
+python -B .tmp/native_packets.py gso_integration_tests --verbosity 1
+python -B .tmp/run_isolated.py check
+python -B .tmp/run_isolated.py makemigrations --check --dry-run
+python -B .tmp/run_isolated.py discover
+git diff --check
+```
+
+Full-project/hosted CI and browser/UI repeats are NOT RUN for this local bounded
+slice: no ledger, permissions, routing, template or dependency changes are made;
+authenticated endpoint bytes/headers and source-integrity checks are exercised.
+Current-source hosted gates remain mandatory before any separately authorized
+integration/publication. This is not Finance readiness or formal GSO acceptance.
+
+Reviewed local VM operation: **v0.7.179 → v0.7.180**, message
+`Release v0.7.180: fix(gso): secure retained packet and snapshot downloads`.
+The explicit thirteen-file source/test/handoff manifest contains the six packet
+views, accounting CSV view, disposal/checking helpers, new tests and applicable
+AGENTS/handoff/security contract. The installed Version Manager's established
+GRAND adapter adds only VERSION/CHANGELOG and lightweight local tag `v0.7.180`,
+preserving historical release evidence. Confirm actual HEAD/tag and ignored VM
+preview/release receipts. No push, master integration, hosted CI or publication
+is authorized or performed by this local operation.
+
+```text
+python <installed-version-manager>/version_manager.py --repo <this-worktree> inspect --json
+python -B .tmp/vm_local180.py
+python -B .tmp/vm_local180.py --execute
+```
+
+After this code checkpoint, reassess the finite remaining roadmap against the
+consolidated decision register and current source. Official local outputs,
+earmark/quarterly semantics, valuation/import evidence, authoritative corrected
+maintenance values and operational acceptance remain separate unresolved gates.
+Do not manufacture a new rule/form/module to avoid those evidence dependencies.
+
+## Prior local checkpoint — protected download handles, 2026-10-18
 
 Active branch `codex/gso-protected-download-handles` began clean at local v0.7.178 /
 `f58b35f8ec70ae3e82dd3c7ef4e4ec7c272b9429`. Its maintenance-notice parent is a

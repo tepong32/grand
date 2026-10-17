@@ -76,6 +76,9 @@ to pause after reviewed/tested integration and report actual outcomes in bullets
 Private downloads must check path safety and retained hash/size on the actual
 streaming handle. Preserve additional case-wide checks; never replace them with
 a closed-file check followed by an unchecked reopen.
+Use actual retained metadata: accounting CSV sources have a hash without a size;
+disposal legacy downloads require their recorded size and explicit legacy policy.
+Never manufacture a missing integrity baseline or relax the strict hash/size row API.
 
 Closed-maintenance correction notices are attributable statements beside an
 unchanged original record, not approved replacements for cost, closure or custody.

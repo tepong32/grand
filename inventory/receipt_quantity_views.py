@@ -117,11 +117,12 @@ def detail(request, pk):
 @login_required
 @require_GET
 def evidence(request, pk):
+    from .private_evidence import open_checked_private_evidence
     row = get_object_or_404(Correction, pk=pk, line__receipt__in=scoped(request.user))
     try:
         verify_evidence(row)
-        source = row.file.open("rb")
-    except (ValidationError, OSError):
+        source = open_checked_private_evidence(row, namespace=f"inventory/receipt-quantity-corrections/{row.public_id}")
+    except (ValidationError, OSError, ValueError):
         raise Http404("The retained correction packet is unavailable or changed.")
     response = FileResponse(source, as_attachment=True, filename=row.original_filename,
                             content_type="application/octet-stream")

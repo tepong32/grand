@@ -196,10 +196,12 @@ def property_detail(request, pk):
 @login_required
 @require_GET
 def property_evidence(request, pk):
+    from .private_evidence import open_checked_private_evidence
     row = get_object_or_404(service.visible(request.user), pk=pk)
     try:
-        source = service.verify_source(row).open("rb")
-    except (OSError, ValidationError):
+        service.verify_source(row)
+        source = open_checked_private_evidence(row, namespace=f"inventory/property-determinations/{row.public_id}")
+    except (OSError, ValueError, ValidationError):
         raise Http404("Property evidence is unavailable or needs integrity review.")
     response = FileResponse(source, as_attachment=True, filename=row.original_filename, content_type="application/octet-stream")
     response["Cache-Control"] = "private, no-store"

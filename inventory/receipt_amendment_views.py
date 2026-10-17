@@ -94,11 +94,12 @@ def amendment_detail(request, pk):
 @login_required
 @require_GET
 def amendment_evidence(request, pk):
+    from .private_evidence import open_checked_private_evidence
     row = get_object_or_404(ReceiptCostAmendment, pk=pk, line__receipt__in=scoped(request.user))
     try:
         verify_amendment_evidence(row)
-        source = row.file.open("rb")
-    except (ValidationError, OSError):
+        source = open_checked_private_evidence(row, namespace=f"inventory/receipt-amendments/{row.public_id}")
+    except (ValidationError, OSError, ValueError):
         raise Http404("The retained document is unavailable or changed; investigate the evidence store.")
     response = FileResponse(source, as_attachment=True, filename=row.original_filename, content_type="application/octet-stream")
     response["X-Content-Type-Options"] = "nosniff"

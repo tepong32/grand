@@ -6,25 +6,33 @@ from django.core.exceptions import ValidationError
 
 
 def open_checked_private_evidence(row, *, namespace):
+    """Strict row contract: retained hash and size are both required."""
+    if row.size is None:
+        raise ValidationError("Retained evidence has no size baseline.")
+    return open_checked_private_file(row.file, namespace=namespace, sha256=row.sha256, size=row.size)
+
+
+def open_checked_private_file(field_file, *, namespace, sha256, size=None, allow_legacy=False):
+    """Use only retained metadata; hash-only sources and sized legacy files stay explicit."""
     source = None
     try:
-        name = row.file.name or ""
+        name = field_file.name or ""
         relative = Path(name)
-        root = Path(row.file.storage.location).resolve()
+        root = Path(field_file.storage.location).resolve()
         path = root / relative
         if (not name or relative.is_absolute() or PureWindowsPath(name).is_absolute()
                 or "\\" in name or ".." in relative.parts
                 or path.resolve() != path):
             raise ValueError("Unsafe private evidence path.")
         path.relative_to(root / namespace)
-        if not row.sha256:
+        if not sha256 and (not allow_legacy or size is None):
             raise ValidationError("Retained evidence has no integrity baseline.")
-        source = row.file.open("rb")
-        digest, size = hashlib.sha256(), 0
+        source = field_file.open("rb")
+        digest, actual_size = hashlib.sha256(), 0
         for block in source.chunks():
             digest.update(block)
-            size += len(block)
-        if digest.hexdigest() != row.sha256 or size != row.size:
+            actual_size += len(block)
+        if (sha256 and digest.hexdigest() != sha256) or (size is not None and actual_size != size):
             raise ValidationError("Retained evidence failed its integrity check.")
         source.seek(0)
         return source

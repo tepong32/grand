@@ -619,6 +619,8 @@ def asset_accounting_template(request):
 
 @asset_access_required("view")
 def asset_accounting_source_download(request, pk):
+    from django.http import Http404
+    from .private_evidence import open_checked_private_file
     if not can_manage_asset_verification(request.user, "import", read_only=True):
         raise PermissionDenied
     snapshot = get_object_or_404(
@@ -626,8 +628,13 @@ def asset_accounting_source_download(request, pk):
     )
     if not _verification_round_queryset(request.user).filter(pk=snapshot.verification_round_id).exists():
         raise PermissionDenied
+    try:
+        source = open_checked_private_file(snapshot.source_file,
+            namespace=f"inventory/reconciliation/{snapshot.verification_round_id}", sha256=snapshot.source_sha256)
+    except (OSError, ValueError, ValidationError):
+        raise Http404("The retained Accounting source is unavailable or requires integrity review.")
     response = FileResponse(
-        snapshot.source_file.open("rb"), as_attachment=True,
+        source, as_attachment=True,
         content_type="text/csv", filename=snapshot.source_filename,
     )
     response["X-Content-Type-Options"] = "nosniff"

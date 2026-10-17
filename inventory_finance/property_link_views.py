@@ -180,13 +180,16 @@ def detail(request, link_id):
 @never_cache
 @require_GET
 def evidence(request, link_id):
+    from inventory.private_evidence import open_checked_private_evidence
     row = get_object_or_404(service.visible(request.user).select_related("determination"), public_id=link_id)
     try:
         service.verify(row)
         if properties.snapshot(row.determination) != row.property_snapshot:
             raise ValidationError("Shared packet basis changed.")
-        source = properties.verify_source(row.determination).open("rb")
-    except (OSError, ValidationError):
+        properties.verify_source(row.determination)
+        source = open_checked_private_evidence(row.determination,
+            namespace=f"inventory/property-determinations/{row.determination.public_id}")
+    except (OSError, ValueError, ValidationError):
         raise Http404("The shared evidence is unavailable or requires integrity review.")
     response = FileResponse(source, as_attachment=True, filename=row.determination.original_filename, content_type="application/octet-stream")
     response["Cache-Control"] = "private, no-store"

@@ -3,6 +3,31 @@
 This shell is for controlled development. A release is not permission to expose it
 to the internet or an assertion that LGU operational acceptance has passed.
 
+## Retained packets and metadata limits — local development, 2026-10-18
+
+The follow-up after local v0.7.179 covers HR-reference custody, property/movement,
+receiving amendment/correction and explicitly shared property packets. It retains
+their original history/snapshot and source-access checks before opening the
+requested file for final path/hash/size verification and streaming from that same
+handle. HR's unavailable-evidence response stays 409; other packet routes stay 404.
+Shared Finance packet access does not confer access to the owning GSO packet route.
+See [current verification and publication status](../../CONTINUE.md).
+
+The core checked-file opener supports only the metadata actually retained. Ordinary
+evidence rows still require both hash and size. Accounting CSV snapshots retain
+SHA-256 but no size: validate their hash and verification-round namespace without
+inventing a size or adding a migration. Missing, changed, unsafe or unknown-hash CSV
+sources now return a generic 404 rather than an unchecked stream or missing-file
+server error; valid CSV filename/type/cache/nosniff behavior remains unchanged.
+
+Disposal uses the established asset-folder namespace and preserves its known size
+check on both paths. A known hash is checked; explicit legacy downloads/review keep
+their unknown-legacy status, while strict source use continues to reject that
+unknown baseline. A file with neither known hash nor known size is not a usable
+legacy baseline. No hash backfill, file rewrite or legacy approval is inferred.
+The opener closes failures and rewinds successful handles, but does not lock files
+against privileged in-place mutation or establish document authenticity.
+
 ## Checked download handles — local development, 2026-10-18
 
 The current protected-download follow-up is isolated from published v0.7.176 and

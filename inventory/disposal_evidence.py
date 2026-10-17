@@ -3,6 +3,7 @@ import hashlib
 from pathlib import Path
 
 from django.core.exceptions import ValidationError
+from .private_evidence import open_checked_private_file
 
 
 def prepare_uploads(groups):
@@ -32,25 +33,14 @@ def prepare_uploads(groups):
 def open_checked_evidence(row, *, allow_legacy=False):
     if not row.sha256 and not allow_legacy:
         raise ValidationError("Legacy disposal evidence has unknown integrity; no upload-time hash was retained.")
-    source = None
     try:
-        source = row.file.open("rb")
-        digest, size = hashlib.sha256(), 0
-        for block in source.chunks():
-            digest.update(block)
-            size += len(block)
-        if size != row.size or (row.sha256 and digest.hexdigest() != row.sha256):
-            raise ValidationError("Disposal evidence failed its integrity check. Investigate or restore the retained file.")
-        source.seek(0)
-        return source
+        return open_checked_private_file(row.file,
+            namespace=f"inventory/disposal/{row.disposal_case.asset_id}",
+            sha256=row.sha256, size=row.size, allow_legacy=allow_legacy)
+    except ValidationError as error:
+        raise ValidationError("Disposal evidence failed its integrity check. Investigate or restore the retained file.") from error
     except (OSError, ValueError) as error:
-        if source:
-            source.close()
         raise ValidationError("Disposal evidence is unavailable. Investigate or restore the retained file.") from error
-    except Exception:
-        if source:
-            source.close()
-        raise
 
 
 def verify_case_evidence(case, *, allow_legacy=False):
