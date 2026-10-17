@@ -1,0 +1,1160 @@
+{
+  "source_repo": "tepong32/GSOv2",
+  "source_commit": "a76a351f106b25828f1573d1641b2217e12cf13d",
+  "grand_base": "a53348207b924ef995adf2533642c0ae54ffaa6c",
+  "product_files": [
+    {
+      "path": "inventory/__init__.py",
+      "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+      "source_git_blob": "8b137891791fe96927ad78e64b0aad7bded08bdc"
+    },
+    {
+      "path": "inventory/access.py",
+      "sha256": "33e01e0b9f64c6be4ca7f3c5521b07811739ab6a31c5c765dedbb8068f126b35",
+      "source_git_blob": "543f5b66687c44702b922dc0f796c3daf2e4fcbf"
+    },
+    {
+      "path": "inventory/apps.py",
+      "sha256": "83f61c55a1aa06c6c22f9f3bae13ea35fd3832f477fbaa21ec45bcb184a29b6c",
+      "source_git_blob": "4080fba3790adcf20fc49eef8ee4576414d3b812"
+    },
+    {
+      "path": "inventory/custody_return_forms.py",
+      "sha256": "4ad697ee046f03f835e3107b80d25975474837276fac8bf15760dc630daa034b",
+      "source_git_blob": "50cb188f4c90365fa6ef7f386f14c0b8aab40e97"
+    },
+    {
+      "path": "inventory/custody_return_views.py",
+      "sha256": "c5c6ee7dbe50c5252db946dc7b558f1d6d263a8196f7e120fb9bb27e98cbd462",
+      "source_git_blob": "c67f13469cdd0bf91673cee823b1ff6a96581c52"
+    },
+    {
+      "path": "inventory/custody_returns.py",
+      "sha256": "3789a2d4ca8c90fe69a1ea69bd04b29e51e82cd720dd5aa46c99acac6fbe6c31",
+      "source_git_blob": "8965616999398b6b93130767083288db5ac77a67"
+    },
+    {
+      "path": "inventory/custody_review.py",
+      "sha256": "6ddf44752fff035d7b815611bbc239f5a6b9e5744a63524cc1f3a9eb09c1b48d",
+      "source_git_blob": "3b3303a731d9cae22d10c25b534ac6a8724002ad"
+    },
+    {
+      "path": "inventory/disposal_evidence.py",
+      "sha256": "ed9b4f7e4aa5be7b2a3e77242ac54164f15c4c6feca93e2cf1d4b49d06551149",
+      "source_git_blob": "21871f387537cd7ad979ab82e8cd33ac2a2710e7"
+    },
+    {
+      "path": "inventory/employee_custody_forms.py",
+      "sha256": "dca92b85a13d742e8892ddc6ac75b2f177376c120d5aec28862ff1629f5184ec",
+      "source_git_blob": "dbe8bb642243103587f43f8280a7c4ef815fd6c4"
+    },
+    {
+      "path": "inventory/employee_custody_views.py",
+      "sha256": "2432f93fc157bd6196e75fa8f9ba10dde0b32ab32eec582bf3a04dcf8394f8f3",
+      "source_git_blob": "d355f69049cb281d38758d55074eb9df616e3d22"
+    },
+    {
+      "path": "inventory/employee_sources.py",
+      "sha256": "ef45639123d85e783d3c4b271163db934a563a7613f64bd85eb521750193ae0a",
+      "source_git_blob": "973048957e6af71108ae27d2efc77c77ce13712f"
+    },
+    {
+      "path": "inventory/finance_sources.py",
+      "sha256": "54fad0b060f19d96b2ef2c38311accf6fa83652b8991d8a3b98ab87fbc3a2030",
+      "source_git_blob": "a04212eb683ced73557e1cb10c3a0b83624a4e5d"
+    },
+    {
+      "path": "inventory/forms.py",
+      "sha256": "fd52ad4ca7d3aef83305c1cfc19f2ac3a03f3ec5623efb521f2e4504ff82a36e",
+      "source_git_blob": "630330e1260d365b2562a80460ca5e4864358c2e"
+    },
+    {
+      "path": "inventory/hr_custody_review_views.py",
+      "sha256": "48e88b8bb9d5243b721712292eacbc7687656da9f4312ac90dbc42800fe06524",
+      "source_git_blob": "bc05a3ce93171b5aadcafea8b5ae55b3ed32d1a4"
+    },
+    {
+      "path": "inventory/hr_custody_reviews.py",
+      "sha256": "9bc090260436a4a5c6c1efe03292a7d998ae2e5691898a47a62610d21e675b0d",
+      "source_git_blob": "9aa80bf9d5d8f5b10e213537cb0e9509d73fe53e"
+    },
+    {
+      "path": "inventory/maintenance.py",
+      "sha256": "dad9a51ac8692a0511815b7e9a3c382e0ea057811848fac89938b1e257e1fede",
+      "source_git_blob": "bbb0b4ff1fcb5f8e24a877da0b5cafa4523fb6a3"
+    },
+    {
+      "path": "inventory/maintenance_forms.py",
+      "sha256": "83571954bcefa38cc6f1ec42dd3329129931098c2951ee9d74854532a3d7abce",
+      "source_git_blob": "38c30fae26befe7a70b41efeb215d04289ea87a2"
+    },
+    {
+      "path": "inventory/maintenance_views.py",
+      "sha256": "d15d55c156d2382bb81a8519e29b2a68694e8410a61ceedbfaa22f41219c85f2",
+      "source_git_blob": "7e7d532c779ec8877b7514c1d67a180dbbd8a8ae"
+    },
+    {
+      "path": "inventory/management/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "inventory/management/commands/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "inventory/management/commands/check_custody_return_evidence.py",
+      "sha256": "1eefd2c3811182d14733428aee9aa324e6725b2666e75c69dced1f41652323a6",
+      "source_git_blob": "cf21e853a697f78b8fec6ca430a03301ad92d9bb"
+    },
+    {
+      "path": "inventory/management/commands/check_custody_review_evidence.py",
+      "sha256": "f7b914d467c59ee5360c91b6bc33f3ba85a6da784f8ce0932707cf83372e990c",
+      "source_git_blob": "8ea1ae7b90444d016142631ee41f2639edcbd960"
+    },
+    {
+      "path": "inventory/management/commands/check_disposal_evidence.py",
+      "sha256": "bf2a63ccf36bb695edec4eb1bbfea112aa7aed1a25e84c0106436dd15b803752",
+      "source_git_blob": "84297f49904227bf5856cd4a5f53d767cab9b3f3"
+    },
+    {
+      "path": "inventory/management/commands/check_maintenance_evidence.py",
+      "sha256": "c5ffd93badf5e0136abd0665c5af4f01f8acdeb07233ca5798788d5af72c86ab",
+      "source_git_blob": "c054dd95b93ffee138f16c0344b17668446c4162"
+    },
+    {
+      "path": "inventory/management/commands/check_property_evidence.py",
+      "sha256": "f38e8f4d0e6e9b7fe0396438194b3375f44cc9322c6282372cb4207bb16835d7",
+      "source_git_blob": "2d88f30627065b074c143d5b81e0bc663fc59bc7"
+    },
+    {
+      "path": "inventory/management/commands/check_property_movement_evidence.py",
+      "sha256": "57f455092577ad67d94f17cc52f4e6d2f8efbe210fd88f24464161dd6893ca33",
+      "source_git_blob": "6b02f807cc4869796691276f5168441411536230"
+    },
+    {
+      "path": "inventory/management/commands/check_receipt_amendment_evidence.py",
+      "sha256": "9b34d20fde6a4bcc5b5ebe9cd41be70fd110c8c94a8ab536cae6d5604fdbd7bf",
+      "source_git_blob": "9e4948b934a30d309ace00227fd1c547072eb1fe"
+    },
+    {
+      "path": "inventory/management/commands/check_receipt_quantity_correction_evidence.py",
+      "sha256": "21c564a18e3f247c4f774a03d7730c58d8efb4e171107545614fe0a3498f3605",
+      "source_git_blob": "0436c5647ab157eac957e30dc949532d9cbf954a"
+    },
+    {
+      "path": "inventory/management/commands/check_receiving_evidence.py",
+      "sha256": "3aa8a7863770f3eddb72ba2d49b3ffe9d926d98d8b698b5d56d5e024c20f7d63",
+      "source_git_blob": "733db0b108743ba7284b071539c7093dcb3c4840"
+    },
+    {
+      "path": "inventory/management/commands/check_requisition_evidence.py",
+      "sha256": "dc75f6737a7a054e53b523baa886c95b76e5302a6bf30f99dd5e1fbd3c4614d1",
+      "source_git_blob": "23da88e3d98a987f0ae3eab6205e5a7932d94ed8"
+    },
+    {
+      "path": "inventory/management/commands/check_stock_count_evidence.py",
+      "sha256": "9c4bac7196776f2b0800a7a145c29dd49b9211b623496891b90e9e6adb4f4653",
+      "source_git_blob": "2d40a85aa920b33c3fe711fb3ad7d65a9a7f7b34"
+    },
+    {
+      "path": "inventory/management/commands/check_supply_return_evidence.py",
+      "sha256": "168325abface9c1a5bd197dc14c89e7cc0402f55848f7deac6bfd108b3629312",
+      "source_git_blob": "f419761b48b7d28a820db8bd2455b828185f859e"
+    },
+    {
+      "path": "inventory/migrations/0001_initial.py",
+      "sha256": "91eaebaf0382fc247c31661a2dcde86ad588ec41b859488a6383c41edafc9898",
+      "source_git_blob": "1bd3df4ee84a13f4b7772c46db40eba2b828a4b7"
+    },
+    {
+      "path": "inventory/migrations/0002_alter_asset_options.py",
+      "sha256": "1e077c15079a5a02d3e910873b15d0ece77fdc3a298ecf897c3e6635eee16761",
+      "source_git_blob": "52b3fad4100f3f4d03115b22d1e8a39c93177ba8"
+    },
+    {
+      "path": "inventory/migrations/0003_asset_asset_kind_asset_chassis_number_and_more.py",
+      "sha256": "d7941df12975b4080e69a3d9e6bc84fbd3cc73da3379dd039643841a01104227",
+      "source_git_blob": "ab683d88f390d25ec97d05b275f34e9493cdbc6b"
+    },
+    {
+      "path": "inventory/migrations/0004_alter_asset_options_alter_consumableitem_options_and_more.py",
+      "sha256": "9a19cfe6c5e5802b3181da3a1967c118112bf379b68223fb0b2d462202738cff",
+      "source_git_blob": "f8a305cd0b893943fb0801ab8e81c5666506e646"
+    },
+    {
+      "path": "inventory/migrations/0005_alter_consumableitem_minimum_stock.py",
+      "sha256": "083e0278ae7a17b189fe74357d84089f24aacaa1811b19e0698eae9075f834a7",
+      "source_git_blob": "ed5a5fd182074dd84c3b49bf6a8d7bd25b5d7982"
+    },
+    {
+      "path": "inventory/migrations/0006_asset_inventory_class_item_type_and_more.py",
+      "sha256": "c117878f1fb4c5ad7198c4b0be822e71202c6f8002cfcc6da39ced18fda409ae",
+      "source_git_blob": "da945b970cf8d05f587699ba4d150800e985177a"
+    },
+    {
+      "path": "inventory/migrations/0007_alter_asset_options_alter_assetauditevent_action_and_more.py",
+      "sha256": "4ae2df5ccbd8fa365a2ef042b202da2810e1140f7dd606c79fa439286cd9a367",
+      "source_git_blob": "a4880a2074378e3a2286b1903ab7e4f15ef3fd80"
+    },
+    {
+      "path": "inventory/migrations/0008_alter_asset_options_alter_assetauditevent_action_and_more.py",
+      "sha256": "0584b148f51c77e4c4049ea720fdb0e2fd9ece23a8c6dae6b81688ac812a58cb",
+      "source_git_blob": "4e8318edc9559cb29fbb2be2c447d6f5629a0ab5"
+    },
+    {
+      "path": "inventory/migrations/0009_alter_asset_options_assetverificationrecord_and_more.py",
+      "sha256": "54506c5573df6d1ef69d4dd03c133b747670bb3575af767224e310b6c9967e63",
+      "source_git_blob": "28c9005f6f6fef83f80ed92f761938fa60969fc6"
+    },
+    {
+      "path": "inventory/migrations/0010_alter_asset_options_and_more.py",
+      "sha256": "63b9edc9b547af646f97b997feb15d8b23acf6b701f2a5f14c95b51cc6b39bbb",
+      "source_git_blob": "6f1f9fbb917e36b10d1655ee84d77050fd00932a"
+    },
+    {
+      "path": "inventory/migrations/0011_assetaccountingimport_source_file.py",
+      "sha256": "bd9003267c6f8c2246ffc6727975d699adeb579965d238c2e0c5142c66340684",
+      "source_git_blob": "a5f64369e094b9c92c1d76260ef6c39b2a22dea2"
+    },
+    {
+      "path": "inventory/migrations/0012_portable_inventory_identity.py",
+      "sha256": "83f99860415e6dff4fc9e6726429fe691a963a53084dfe5cb023a2300a3508fd",
+      "source_git_blob": "fc36e2f19ae185baa661902456a3765329d0077e"
+    },
+    {
+      "path": "inventory/migrations/0013_receiving_records.py",
+      "sha256": "cdab6aa856ad0c62b88038edb87675d3e192f1ef68e5027d51b667446b21de41",
+      "source_git_blob": "5ac92d48a3f40bae4f9c4eeb5e17ebddd0ddae99"
+    },
+    {
+      "path": "inventory/migrations/0014_receiving_evidence.py",
+      "sha256": "dbbb75c492e5ef74ae606a17e4f0715c6d052c639e9eb178734a9998d6df1546",
+      "source_git_blob": "ed272450a966fbb859a65ef4f843a6040eb0a41f"
+    },
+    {
+      "path": "inventory/migrations/0015_portable_lifecycle_uniqueness.py",
+      "sha256": "7437c9ff9fa320528e9402d0eb379a9a3e6a554568caa4626e1edbaacbfb9c11",
+      "source_git_blob": "fb09b88209a70f8598f2c6509279ffc48a505d35"
+    },
+    {
+      "path": "inventory/migrations/0016_asset_maintenance_history.py",
+      "sha256": "ae6fb816c1620bff55e3f2796f65228afda473f97583469ec5c95501a0ccfc76",
+      "source_git_blob": "0fc2af97ef29703bb669914c13a2ce953cb540aa"
+    },
+    {
+      "path": "inventory/migrations/0017_employee_custody_links.py",
+      "sha256": "17d80892b629d95a2c82c1446d34fec90ade0719e729c3146739dead6700542f",
+      "source_git_blob": "72fd383deca91e7bbffd19240abb7551c55b3a7d"
+    },
+    {
+      "path": "inventory/migrations/0018_witnessed_custody_returns.py",
+      "sha256": "48b2d5d21f1c1d40d18b812c499cb0b2edc1a88a6b20d256e21007ab1250092e",
+      "source_git_blob": "d426539a096ae2769ecad54a33eb68a25caea8af"
+    },
+    {
+      "path": "inventory/migrations/0019_reviewed_stock_counts.py",
+      "sha256": "38c34f2936d5cfdfa981b5d2c90dd16ad8edf8e1be83332def94e5b00ae0dbeb",
+      "source_git_blob": "a51fa19a76ac239b615e423e6ebb252127fa9fdb"
+    },
+    {
+      "path": "inventory/migrations/0020_receipt_cost_amendments.py",
+      "sha256": "5c00099f871c141129c3b8efc9ee1455470ff369447e17da5ce9bd0d02a4827d",
+      "source_git_blob": "71e5a4bb06278c9ab0c785cd18097f19f6b055b9"
+    },
+    {
+      "path": "inventory/migrations/0021_employeecustodyreview_employeecustodyreviewevent_and_more.py",
+      "sha256": "112c127e51c190f6e58f051d88ef71209ea69ad3bbb3123250fa0e7ef9659c45",
+      "source_git_blob": "e637497959c9ec8a2031db3311446d7ae962ebbd"
+    },
+    {
+      "path": "inventory/migrations/0022_supplyrequisition_supplyrequisitionevent_and_more.py",
+      "sha256": "fb5d6dfc95cae028da70841bc16d7ab4300c344e4653c66414c84ca3c87b96e8",
+      "source_git_blob": "d741d8e343d22aa5be6bc6eecfc9ff25947db598"
+    },
+    {
+      "path": "inventory/migrations/0023_supplyreturn_supplyreturnevent_and_more.py",
+      "sha256": "44882f029474ac41aefe84c302bf4f07ab905df0a46c4f086b4136168cf7dabf",
+      "source_git_blob": "78c95f9ff863d6bb73b77554665023d7913b4531"
+    },
+    {
+      "path": "inventory/migrations/0024_property_determinations.py",
+      "sha256": "b6bffe7ed9bebda4d56507cb6984dccd52b91ee3700e7d94a331ea03e83b4465",
+      "source_git_blob": "24de608a13faa5077d09c692aba2695184f6d514"
+    },
+    {
+      "path": "inventory/migrations/0025_property_acquisition_facts.py",
+      "sha256": "96debe96ac320c8e50ae057dd93c641489f22be37de89d0652a84c64be3a0d77",
+      "source_git_blob": "87904e23c0ef46fa727481dd1b52770c5702d524"
+    },
+    {
+      "path": "inventory/migrations/0026_disposal_evidence_hash.py",
+      "sha256": "7a1279694246d5fec15bdeed8e6f9c5b2af6702ad006e41bb2b7cef11aaba361",
+      "source_git_blob": "d92a26e81bcd528d01596aab3f78bd5d9099dc51"
+    },
+    {
+      "path": "inventory/migrations/0027_property_movement_records.py",
+      "sha256": "46150b19fb9e8c9152af0a4c9c78b755aae650abfb35a11619f41bad3402ddc4",
+      "source_git_blob": "25f1bf92de1984dbe672b2433c7fe663e1e0302d"
+    },
+    {
+      "path": "inventory/migrations/0028_receiving_followup_source.py",
+      "sha256": "f3606281d377f3fb627c5b34d26e56af3db5401e41bd5c395ee2f3470d37a074",
+      "source_git_blob": "ab4ba787511b3908a8c77bf7fb7bc8e07d774aee"
+    },
+    {
+      "path": "inventory/migrations/0029_receipt_quantity_corrections.py",
+      "sha256": "40251948f9533bd8e4c96058ff82333f5f9f04b64a3e3e276394458a4d5482d2",
+      "source_git_blob": "a76f0570a745cf3b7f711fa91bb376dca1ab23b9"
+    },
+    {
+      "path": "inventory/migrations/__init__.py",
+      "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6",
+      "source_git_blob": "8b137891791fe96927ad78e64b0aad7bded08bdc"
+    },
+    {
+      "path": "inventory/models.py",
+      "sha256": "3f92613a28a68719ed89581154f41dc73200594d9310f886588814b09f4c4b49",
+      "source_git_blob": "c6a8cb7a35105f209b160508c0daf7c55e7e7570"
+    },
+    {
+      "path": "inventory/office_records.py",
+      "sha256": "967b86541530f95e7869202dc7b33aae2d9aeb73aa4e718b98317dc8a3b86d15",
+      "source_git_blob": "77241b74180ee8826d60f0a71c9184a0c5e6eb44"
+    },
+    {
+      "path": "inventory/property_determinations.py",
+      "sha256": "b1507e9002d741da4f222fff7e42f23d3504cc133c00ca04def19f8f856abad7",
+      "source_git_blob": "f6632d26398f51b80541691e320883a72bff96b2"
+    },
+    {
+      "path": "inventory/property_forms.py",
+      "sha256": "b6c063558896293f56d9d79f46addf5b5e57dcc5cbe184397f4b9c97d3b0c76e",
+      "source_git_blob": "1441a9d7174e8d16cbfcb2b561b9b866caf26913"
+    },
+    {
+      "path": "inventory/property_movement_forms.py",
+      "sha256": "418ad6459c839e62a845692f8ea95bb0cfdd7e215fa761c0d157bf0e41e77589",
+      "source_git_blob": "efcb227ab882c0be3865bd0f8e1c0165cad0bcad"
+    },
+    {
+      "path": "inventory/property_movement_views.py",
+      "sha256": "2a47d8049640289a338bd53f7c390b889256c70cc32b748e6683e031408252a0",
+      "source_git_blob": "bbeac1c1f062b3143a2ac80a278bfdb9e469191e"
+    },
+    {
+      "path": "inventory/property_movements.py",
+      "sha256": "0a0e54a67ac052c76bcc67cbfb5ff8c6e9a0c828e337c201a05f768f6411abfc",
+      "source_git_blob": "e55aa4118a99b0860f8febe806f29125f8a255cb"
+    },
+    {
+      "path": "inventory/property_output_views.py",
+      "sha256": "f8bd407864cd1cb55ac72605f09ef3c62d0da0ec5c91a846e5f4589861971605",
+      "source_git_blob": "8e2ea75d6d36e8219ca87160fbae9cf7d1406eb6"
+    },
+    {
+      "path": "inventory/property_views.py",
+      "sha256": "e628de13946757a0f1150bb296525d82dba4cd47bfb39bfd79b856c04505aedb",
+      "source_git_blob": "3f05fd44dddb034c0ec2cd61ebadf36a3485b1b6"
+    },
+    {
+      "path": "inventory/receipt_amendment_views.py",
+      "sha256": "3aa8b4088085555fc487779ea41b6cfee3de19998188c1013ccfa2b9f5010b7f",
+      "source_git_blob": "b2c5d2b432e49935ce9db971132eea278fe696b0"
+    },
+    {
+      "path": "inventory/receipt_amendments.py",
+      "sha256": "aa41ffab5397f4bf803505e50f63662a0c085913ec8ed2a6391c2b30303aa800",
+      "source_git_blob": "f951c75f333e507be3f2b2da4081567b06102353"
+    },
+    {
+      "path": "inventory/receipt_correction_sources.py",
+      "sha256": "321516ee24b08e99613bf901718db8ae12339561ad239fb329176c97bb028edb",
+      "source_git_blob": "ad153c62b597224dd09c80fe171a7677c15a0dac"
+    },
+    {
+      "path": "inventory/receipt_quantity_corrections.py",
+      "sha256": "e5417f04a8e900a7e6809c32a611120bde34c2e634d390d4228dcd481daa3b59",
+      "source_git_blob": "c17be261698c2f65a0109cec02dba91331c7efef"
+    },
+    {
+      "path": "inventory/receipt_quantity_views.py",
+      "sha256": "1fad95ba1991a1e595894fcc8ce2e2759bec642ed00ac3155ecc9d4363d09c85",
+      "source_git_blob": "d9570f495283f24ae8219576042055f55dad5e34"
+    },
+    {
+      "path": "inventory/receiving.py",
+      "sha256": "f72cb4356bc8c2c186c54fe8fed125e0d5ecfd63d75039a78318db2b5bb296b0",
+      "source_git_blob": "140464fcfd2b2e610d7f956957c8fda3861d0bd9"
+    },
+    {
+      "path": "inventory/receiving_followups.py",
+      "sha256": "8ee5a9a6573485347e36e0da5e777d6da1bc16d8a1cd4a57057ca37ff9b8dcb2",
+      "source_git_blob": "53c8388d19ad4bce9e3efc764460e42504b039b9"
+    },
+    {
+      "path": "inventory/receiving_forms.py",
+      "sha256": "8571d43d32a2e4a0d10445d3d2b8d164604fa3fb35c9a68cdec687352ac20af0",
+      "source_git_blob": "b3a5c44b1d8ef97d8b66dc2134f4c0bd2e92b5c0"
+    },
+    {
+      "path": "inventory/receiving_views.py",
+      "sha256": "de8f0515a6f762627327e708414e5b09fc83f1181900e4be38d1b2cfb1f08759",
+      "source_git_blob": "7f4d4df671416c9506b24756babd0c7a49720056"
+    },
+    {
+      "path": "inventory/requisition_forms.py",
+      "sha256": "f105d0e2c6ad9190b00ec269eb9147f5aed8db0bfb8929003b2f2f1ef67befbd",
+      "source_git_blob": "c4bf1fb4d3394cbbc3861fc43be82f235a01f5f4"
+    },
+    {
+      "path": "inventory/requisition_views.py",
+      "sha256": "b55e3106a447cc6cc80ec9e65287675b79e3123b9dc34f26a2f8e21a4354011f",
+      "source_git_blob": "00273c896b0f6afb09ecef5f04dc76aaa2a6ef80"
+    },
+    {
+      "path": "inventory/requisitions.py",
+      "sha256": "881c9527c96dc670b8bf992553e231f468bc865e0ac71667092b439a6bb34386",
+      "source_git_blob": "f7486f59b352443595058c355675f321d8d138a6"
+    },
+    {
+      "path": "inventory/services.py",
+      "sha256": "b4861a72e862c020e05784f310874db44b22cebf654362bec33bd687076b67b8",
+      "source_git_blob": "b670773cf1580aaa9d1104575f18a717ef595560"
+    },
+    {
+      "path": "inventory/stock_count_forms.py",
+      "sha256": "e14294289946b68b060093deb8783637aae4833a5f323d5469a321db4fb330ec",
+      "source_git_blob": "676557adc677a927fdb70197ea397496643cf0ea"
+    },
+    {
+      "path": "inventory/stock_count_views.py",
+      "sha256": "cda8350348ca8ba1a05e3002b6037b9c74e87a57e213d55e21dd95760fefce01",
+      "source_git_blob": "7d3b655f2ac92d2a90981b0c46dd84cd62f6a1b2"
+    },
+    {
+      "path": "inventory/stock_counts.py",
+      "sha256": "b9d08817c096f1b0d796ed4a5b2fd6df92897615578ee36d05dca9b83f007cb4",
+      "source_git_blob": "f3fcbfc05fe3a74f731f827066b8f466574e8ed8"
+    },
+    {
+      "path": "inventory/supply_return_forms.py",
+      "sha256": "388120129bf29bfb7747c08c7a1e17067ff9fd79aea256f083af472621a4852b",
+      "source_git_blob": "61bf70cab6fff75d5a16c7651bbd485c07d84066"
+    },
+    {
+      "path": "inventory/supply_return_views.py",
+      "sha256": "2e8010f3afd2aa670ac2686f98c5056eec40c9b967bfdd258b49a57f30ff24d6",
+      "source_git_blob": "7f5dab0203a78641530593f61030f186f3b9c080"
+    },
+    {
+      "path": "inventory/supply_returns.py",
+      "sha256": "715536a8d06e07a26d2a681c70d0633418196bcb5b310820c715c2a490987b0c",
+      "source_git_blob": "b821a8b701a74cb54ba0ef505600e2b1a88f2bd2"
+    },
+    {
+      "path": "inventory/templates/inventory/asset_detail.html",
+      "sha256": "e251e75ffd38d234297082396958109ef2ab6edcd5f56131fcb75bce96ec6592",
+      "source_git_blob": "8a747c6b1b9028b71c16a98bf5b71bb09746ec35"
+    },
+    {
+      "path": "inventory/templates/inventory/asset_disposal_detail.html",
+      "sha256": "5b2dd7e2db8687ccdf3326a66495c37b08671c954f21f0d9612bc4d9324042ec",
+      "source_git_blob": "950a2813e78e8d10c9a98764a68b1e813588d14e"
+    },
+    {
+      "path": "inventory/templates/inventory/asset_disposal_list.html",
+      "sha256": "71f5d62ac93dc7c5899509c12f3eabf023891ce03b27b97e09d19b3898b155e5",
+      "source_git_blob": "ecc11d144f9a5be45ced50b46b6f473c85e75e3b"
+    },
+    {
+      "path": "inventory/templates/inventory/asset_disposal_request.html",
+      "sha256": "5d4c5bbcd40ba459d0b3bcabd81bdad4d099a9e7f6da3d1398b9255ae9965d5a",
+      "source_git_blob": "afb9a432d0aad5364f05f58ec9911320b2de9300"
+    },
+    {
+      "path": "inventory/templates/inventory/asset_form.html",
+      "sha256": "f854b4cc90486406a476bed6333b3cbb713c2a9fd723a97bcc0aa1810810510c",
+      "source_git_blob": "772d719974e50b5224b80f73f7566e0235164527"
+    },
+    {
+      "path": "inventory/templates/inventory/asset_list.html",
+      "sha256": "6fe60ac24fade1d64f01abbc5347681889a52c85b0bcf395166ef86693272062",
+      "source_git_blob": "d64ef9442a556c48acf74250ce6e8e8684e5d9e7"
+    },
+    {
+      "path": "inventory/templates/inventory/asset_transfer_form.html",
+      "sha256": "630658893858bb9d3f19dca33c237a49e73f842642a05fdcb1932003094b4e7c",
+      "source_git_blob": "667c9887d6d249a330686302ef6b0bb8d0baaccd"
+    },
+    {
+      "path": "inventory/templates/inventory/asset_transfer_list.html",
+      "sha256": "ca220bf603970c5d861e24c7dcbde5b7448c65edba33e063b22b48a5b2a50b22",
+      "source_git_blob": "b83c3762b7a0f29df2df53e5d147b2bfe671b826"
+    },
+    {
+      "path": "inventory/templates/inventory/asset_verification_detail.html",
+      "sha256": "c55d8cbf9067f089febb921d2e8fad5913f8f3113d4184c0e5d4f4f6c7094b30",
+      "source_git_blob": "32accae3297a9162340e25683808073e2983de18"
+    },
+    {
+      "path": "inventory/templates/inventory/asset_verification_finding_form.html",
+      "sha256": "9e8db191579dd7da8b45005a2f2f409219331eb2a761085ed22dcb6ba9267c1e",
+      "source_git_blob": "2496c2c6cfc39cf2abc4e73aebbd67a935bb9162"
+    },
+    {
+      "path": "inventory/templates/inventory/asset_verification_finding_review.html",
+      "sha256": "fc1b812d8942b91a3fdc374565e023598fc47815809e0a75e66bf5765646839d",
+      "source_git_blob": "89be53ae93f6061f367c35d4d37aa6e0410684f6"
+    },
+    {
+      "path": "inventory/templates/inventory/asset_verification_followup.html",
+      "sha256": "979906c59af0232531c4f8d7d3f46ed7c3a50730599aca3a99b2762ad3a5efa2",
+      "source_git_blob": "8f1e57fdca1ade41a25b60c27bfb50af4de9a045"
+    },
+    {
+      "path": "inventory/templates/inventory/asset_verification_list.html",
+      "sha256": "40146bb489968f6dd685af9c3223250df23c28634f9a9aa2c61fe112015af6dd",
+      "source_git_blob": "e3b8434ff8e854d2f6b96e6b0b40275836dd353e"
+    },
+    {
+      "path": "inventory/templates/inventory/asset_verification_reconcile.html",
+      "sha256": "355983056400d0996223eccdebcdc5dd84e5acc97fc575b221ba6cbcc3583a38",
+      "source_git_blob": "80dc217d30b30fe8aa881f17d8ed83ef2b4227d1"
+    },
+    {
+      "path": "inventory/templates/inventory/asset_verification_record.html",
+      "sha256": "01ef9414c45072970cb5dd8992c94a2cd5ce5591b9e2833a8fa26376c0ed731e",
+      "source_git_blob": "53b497ec082100aef3992c82e3748bc2a4a36192"
+    },
+    {
+      "path": "inventory/templates/inventory/base.html",
+      "sha256": "c7e07ea5878ede0eccf0f49dea2258ea0ce45ece42e1cf99022e2492f09d85f3",
+      "source_git_blob": "3bfd2d4900c10d833b4d17938645321801468e55"
+    },
+    {
+      "path": "inventory/templates/inventory/consumable_detail.html",
+      "sha256": "e5709c1262ec5b0cf53d54b4f14de56d02af055ad7ac6df08021ee60c84ad33f",
+      "source_git_blob": "74960e2a156f5e49c78582596513cce8f1da488c"
+    },
+    {
+      "path": "inventory/templates/inventory/consumable_form.html",
+      "sha256": "33be9d3b2a09385f189ce898fd9b97f71ad1a5a4a54f0640dbf8429d013a4fb3",
+      "source_git_blob": "db7733ef546ec0e1d51a624a1ea1424d68290b3c"
+    },
+    {
+      "path": "inventory/templates/inventory/consumable_list.html",
+      "sha256": "bbc90c8662120d76afc49810d3abc249ae6657639c0e6461db3cd5055ade477b",
+      "source_git_blob": "bdb3c894adf951746af70268fcfc1fd7dddbcbc5"
+    },
+    {
+      "path": "inventory/templates/inventory/custody_return_detail.html",
+      "sha256": "e83af0bc301c91167dc905c302533416641d0ade6b9b6141cef9aa5d13191d0f",
+      "source_git_blob": "d9dfbc082bb684b98c639ef0451f240b029dfd36"
+    },
+    {
+      "path": "inventory/templates/inventory/custody_return_list.html",
+      "sha256": "7c6c995e8e02edf41b21aeba3496d55995f8739338a70bdd1482273969b31917",
+      "source_git_blob": "e721307014180fafa0243bc3fe77b3b2eeb450eb"
+    },
+    {
+      "path": "inventory/templates/inventory/custody_return_start.html",
+      "sha256": "ad9bc2caff0bc5408929a3078fc81304cbb4ac26742fcdec16029ddb92bee88f",
+      "source_git_blob": "71dd407be878d5c3fee7beff95beb5f457aea07c"
+    },
+    {
+      "path": "inventory/templates/inventory/custody_review.html",
+      "sha256": "a8a2757fcec8f9a7e837d4ca3783438e3d9ddf04f3c4572d04f3eb4116939742",
+      "source_git_blob": "70409d6e89d70df568df3aebe0a256f56dda4158"
+    },
+    {
+      "path": "inventory/templates/inventory/dashboard.html",
+      "sha256": "89e4fd601881c29ed2b6b6e493bbc6e944f346688a331b8e97ff9a5abf9390fa",
+      "source_git_blob": "d3bc1b82c3e0174a308dcfa54f3d8605f1183cb6"
+    },
+    {
+      "path": "inventory/templates/inventory/employee_handoff.html",
+      "sha256": "78941728d627879502bd0ad7f689ed5a3aa85c780e12a5775a4bcc0ac999fcc3",
+      "source_git_blob": "d254f440fa552d01e6d79df67e62285dea5b78a3"
+    },
+    {
+      "path": "inventory/templates/inventory/hr_custody_review_create.html",
+      "sha256": "f58ede7afdf52343e399c5b063ef6ee2034e13f0b75eb46c4184e77ce51a2df1",
+      "source_git_blob": "8a5c9651ccb58c6480919c21f9e2e12e1734de24"
+    },
+    {
+      "path": "inventory/templates/inventory/hr_custody_review_detail.html",
+      "sha256": "9f8c42eeb82aaddc0421bf6efdca7d45164bcbac660135073b4e483da527f60c",
+      "source_git_blob": "84c0314886e66f7fb5369278e05ebaecf90cc51c"
+    },
+    {
+      "path": "inventory/templates/inventory/hr_custody_review_list.html",
+      "sha256": "344c964ecca673e22887102f1cea5d36f61ad79d5670284be83afe9458c9e144",
+      "source_git_blob": "10d4b8349dc512130b07ee35fd4e222fd7f5b78d"
+    },
+    {
+      "path": "inventory/templates/inventory/maintenance_detail.html",
+      "sha256": "b5ac30b1aa95842ce2921c28a039f67cce01ad5be5ac025bfc229b450238ec40",
+      "source_git_blob": "c5f10aa617857a5f9932cbedfbd2763f5d013c1c"
+    },
+    {
+      "path": "inventory/templates/inventory/maintenance_list.html",
+      "sha256": "f77a8af112191f515741c4064cd22308245ae68614027d7d374564df6a1a2871",
+      "source_git_blob": "7ac4283e5de154bd2cd6d270b86ab446c4c2c079"
+    },
+    {
+      "path": "inventory/templates/inventory/maintenance_open.html",
+      "sha256": "86d293c0279411f835f74481d7e59bdab196f2722a536e5d19673812871a76f7",
+      "source_git_blob": "4ce1c7ef14d7c459470c478e8bd71aee7f8423ad"
+    },
+    {
+      "path": "inventory/templates/inventory/par_preparation.html",
+      "sha256": "72f5772348215e2759e0483f4b6b43680f2ca8cb8de9463e104cad4002f17a71",
+      "source_git_blob": "1ffbdd6eb31e6297c74f54cabfafc08781293295"
+    },
+    {
+      "path": "inventory/templates/inventory/property_detail.html",
+      "sha256": "9b5717cd8d8c718b2b97653840de6306ba33dbc4b45216f922a555e1a2604646",
+      "source_git_blob": "c86131baaf2b972dc72c4daea523704db19a874e"
+    },
+    {
+      "path": "inventory/templates/inventory/property_movement_detail.html",
+      "sha256": "63c1ad213a664df26e49354ecd2172d3dadc31babe0ce5246d59bbabd27605ff",
+      "source_git_blob": "ad6fe84612b5a5d91ef96b7c46e9cfdf07c55e58"
+    },
+    {
+      "path": "inventory/templates/inventory/property_movement_form.html",
+      "sha256": "bdbf0c026ed405f36152c236b5527242f53bf2f198fd2e8a578eab8392e63ed4",
+      "source_git_blob": "f1418912ad8b6dd78368d1cfd599fc3f074dfacc"
+    },
+    {
+      "path": "inventory/templates/inventory/property_movement_list.html",
+      "sha256": "3e5c268b5680b05e49901c951c4c4063ac29202681f5090760706b04fd0d56e0",
+      "source_git_blob": "f31b1fe266885602cc1077981b38a382434fee4b"
+    },
+    {
+      "path": "inventory/templates/inventory/property_records.html",
+      "sha256": "95ad71ef865066111a7f36266658acde1873ca2aa244090a802ce0e119b4edfd",
+      "source_git_blob": "2704d26e028b31b1bbf8e29b6cf0252a6b8c987d"
+    },
+    {
+      "path": "inventory/templates/inventory/property_register.html",
+      "sha256": "28501d5fb3ade801724c00328f40f9d00273fefe662dd03bdc047aa3725a2039",
+      "source_git_blob": "ea3c70fbd892b49ec59f7d28138553d125bf0234"
+    },
+    {
+      "path": "inventory/templates/inventory/receipt_amendment_detail.html",
+      "sha256": "6847b57fafb0020daac8fb8052605cfe0d1fae8315c81fe306051b5f71283b55",
+      "source_git_blob": "6434e0bc39256bae77194b9028c9b3c24a68852e"
+    },
+    {
+      "path": "inventory/templates/inventory/receipt_amendments.html",
+      "sha256": "ad89d73f77e3dfd48fd049a717d199b0fb6bd939f6f9ad4a31bbe15744026d81",
+      "source_git_blob": "a024c43ae610be707508e600f34fd75ee16e205c"
+    },
+    {
+      "path": "inventory/templates/inventory/receipt_quantity_corrections.html",
+      "sha256": "7a407222a2124e879afafbf2b66ef1960a64b10476e1ceef746c9d00f16963a8",
+      "source_git_blob": "c8186f626a979639c282510da1ad721ffab798fc"
+    },
+    {
+      "path": "inventory/templates/inventory/receipt_quantity_detail.html",
+      "sha256": "7dbefaf55a7c157ed5050161b44c17917b1cd42236e7a9cb6c74fab890a7ac33",
+      "source_git_blob": "3c72faac37cec3a19b06090b2ae6bc79c25b4f3b"
+    },
+    {
+      "path": "inventory/templates/inventory/receiving_detail.html",
+      "sha256": "8678808cf99585223bbb1aef8fa38f7708b769d71a32130575378f27d71a7450",
+      "source_git_blob": "82354867dad7fcaae82166490a1887f9c8e356c9"
+    },
+    {
+      "path": "inventory/templates/inventory/receiving_followup.html",
+      "sha256": "a5db852a67801cb466b2cde4c3930991ee1341f1782d5816fc0baa566640fbcb",
+      "source_git_blob": "d3b4d02ae0cd0c7aa9d242592b0195e0efba9225"
+    },
+    {
+      "path": "inventory/templates/inventory/receiving_form.html",
+      "sha256": "8ca52295c90a2e8224d0897a929b5860771d33f5845b6c3b39ab6ecc3b86c764",
+      "source_git_blob": "34279444125e1839b6aa2d649f3c4e677b0af308"
+    },
+    {
+      "path": "inventory/templates/inventory/receiving_list.html",
+      "sha256": "2306437135738e01010af0b87faf67e05df5fd4f8ac302297482ff7b44488c32",
+      "source_git_blob": "7cb4271f2a2de2a12317c813549c743f90ab935c"
+    },
+    {
+      "path": "inventory/templates/inventory/requisition_create.html",
+      "sha256": "9b166243e4df41f89df01101f3557e2c2620f3f8636ea0e2eb2fc455d2a1253c",
+      "source_git_blob": "6d7b07713edb27344dd5b2ce840a8d24e85249a8"
+    },
+    {
+      "path": "inventory/templates/inventory/requisition_detail.html",
+      "sha256": "02518d0c83f9969ceedbd08ba381880e344485876e9b78b4935597cb5d073e62",
+      "source_git_blob": "062fab7679fcca85fbfc5bde0d9b70f007eca667"
+    },
+    {
+      "path": "inventory/templates/inventory/requisition_list.html",
+      "sha256": "32898e0d2ba83c1a7eefc7dfce4ed9471a5b0149d370fa929e6cc76e96b96ae2",
+      "source_git_blob": "a0d849c58b82338d18ae49b389c04f577b35c42d"
+    },
+    {
+      "path": "inventory/templates/inventory/stock_count_detail.html",
+      "sha256": "3c0aa6a0260f6d905d2529a9197660c80520288b4d1abe758fa1a014567d4702",
+      "source_git_blob": "cb4edfc218b0b452085ac660993a0e1dcdbeb5a3"
+    },
+    {
+      "path": "inventory/templates/inventory/stock_count_list.html",
+      "sha256": "77da922a747d0838243e109685977489f13b019b2b017ccde206514fa6897afd",
+      "source_git_blob": "47430c8a7d41a9496fc8e86b8bc3ba1576016b6c"
+    },
+    {
+      "path": "inventory/templates/inventory/stock_count_start.html",
+      "sha256": "5aefce6ea7edbf3c1e996801ac104c2260be9c7c8ba45824e54d6cad180fae9d",
+      "source_git_blob": "6a621e15ebe070c49d59650a9c4e9f7ca4fae0ed"
+    },
+    {
+      "path": "inventory/templates/inventory/stock_movement_form.html",
+      "sha256": "89bceec7a01030ac9e7829b34f51f98790f8d2eabd29fe8b71dc63f109f5787f",
+      "source_git_blob": "d72654590acac743ac109057e3687610ef810294"
+    },
+    {
+      "path": "inventory/templates/inventory/supply_return_detail.html",
+      "sha256": "019444b98c46895e608c6d0da1d060002da54c5af3c58daf60ad2ae3898032f7",
+      "source_git_blob": "5f94c4aea05b99f077d2b67eda3acbe33c2d5a24"
+    },
+    {
+      "path": "inventory/templates/inventory/supply_return_list.html",
+      "sha256": "a4879ddb6f102a154346a2b7a282f5ca776453b3022f34f08112af262ba4b197",
+      "source_git_blob": "d81ba519c43b88d578694822b8ec4c447e49365e"
+    },
+    {
+      "path": "inventory/templates/inventory/supply_return_start.html",
+      "sha256": "449b30134a9392f05823a4b8a4bcbf79b3364beb96c467eace13657ff7e5ed85",
+      "source_git_blob": "1c7fc0efb6cac13c2538a5b3fba2a73a88dca6dc"
+    },
+    {
+      "path": "inventory/templatetags/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "inventory/templatetags/inventory_access.py",
+      "sha256": "1c90dc54a6730e344fdbc72bdd3b92eecd3b8e4740b0617df1ff4307557062f7",
+      "source_git_blob": "b6dddee6a55080639770c7a4b84688528f258325"
+    },
+    {
+      "path": "inventory/urls.py",
+      "sha256": "a174b0225d09c0366ae6b9ca64672e03a840c747fd3a7ad71e921aba19ce7d4f",
+      "source_git_blob": "82d14831efb7017881dca2e42b80d88b659aabee"
+    },
+    {
+      "path": "inventory/views.py",
+      "sha256": "cc94f21b81efa7d9d8943803a5cec9acda24f70d791efd3f99546c8279457a54",
+      "source_git_blob": "a265658a01af0a5b13e7a63bb46b490e0d90369c"
+    },
+    {
+      "path": "inventory_finance/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "inventory_finance/access.py",
+      "sha256": "27693c69113515605bea72bbc3f0a8f3725e50f705d43c9606f4a6fb55212647",
+      "source_git_blob": "93988cc318aa1944bc3ea9da1e1c9d8c10ac9e0e"
+    },
+    {
+      "path": "inventory_finance/apps.py",
+      "sha256": "6cf359e2b1ea7af1e126e6dc6ac696fceb211c700b7130d0249090e7df7140c0",
+      "source_git_blob": "66eedb14c1e7c6b57978f07039a45d170248a0b7"
+    },
+    {
+      "path": "inventory_finance/forms.py",
+      "sha256": "12c6621e46a78e8303c684347edc300d97be7786b840fcba5a81f7f9994a2641",
+      "source_git_blob": "a144d00535fee7806437fc9112790b97c4de1224"
+    },
+    {
+      "path": "inventory_finance/journal_mapping_views.py",
+      "sha256": "bd000857ea09bfd8cfee34ddf72cd5f213732a53eb07945a2bb03517be9beac8",
+      "source_git_blob": "b4bcfa85db39fcfd14fd71488eee1f2d3a59e88f"
+    },
+    {
+      "path": "inventory_finance/journal_mappings.py",
+      "sha256": "73c8b8ce3149651685dee38e2bcf2da47d967af15a63e9b466ababc1a59b4702",
+      "source_git_blob": "dcd040a174a8b6717cec3519e974938c188ee6ab"
+    },
+    {
+      "path": "inventory_finance/journal_sources.py",
+      "sha256": "38b96d32dfe1d5ea32d680eacd0962f7e6b392374b6e32971736980ee2c8a939",
+      "source_git_blob": "a6a5ff74bbdf9ddce2bb526d0d42a2736c2a3e49"
+    },
+    {
+      "path": "inventory_finance/migrations/0001_initial.py",
+      "sha256": "4b4f3e94d30d42ff99782af0d9129a0150ac49e56169146e4eefa597a7bdf576",
+      "source_git_blob": "a850bdbc670e9c1a3ed226bf4b57b24f810d5000"
+    },
+    {
+      "path": "inventory_finance/migrations/0002_receipt_review_basis.py",
+      "sha256": "55dfd9b1da7aaab3e3de6411f08b7b65160a37e3263bbe905f540dbfe3af2cc6",
+      "source_git_blob": "f3992951d8d6dea32b1508a353c99d51a76b52f4"
+    },
+    {
+      "path": "inventory_finance/migrations/0003_receipt_cost_amendment_basis.py",
+      "sha256": "1260f15909d311e9ff11f5357cde251a4ae80e267390245c28838e7f54458c95",
+      "source_git_blob": "6864ff129406b4011d51f4c96a55ec62eaf89bd9"
+    },
+    {
+      "path": "inventory_finance/migrations/0004_receiptjournalmapping_receiptjournalmappingevent_and_more.py",
+      "sha256": "7c4b6586a6003c7294ee9089afe1eac623fbf50c09afa757c0c59de3be1b12da",
+      "source_git_blob": "11c16948567e6ced6f89286b91346f6935194a62"
+    },
+    {
+      "path": "inventory_finance/migrations/0005_propertyfinancelink_propertyfinancelinkevent_and_more.py",
+      "sha256": "6b5870975e3e077e0a0b4e86bfe186c7f20d5f2c09c9d0be70ebcbf1be3166d5",
+      "source_git_blob": "489cc37ae40fcc469b2e7b99726c8dd303ab37ab"
+    },
+    {
+      "path": "inventory_finance/migrations/0006_receiving_followup_basis.py",
+      "sha256": "9834d84c3bed4b1bab94f852e15a9a8d91e91b6a8a7fb574da0686fb7dff8d39",
+      "source_git_blob": "d332c4d8befaa757f7febfc31b0b9c44ffd5b735"
+    },
+    {
+      "path": "inventory_finance/migrations/0007_receipt_quantity_correction_basis.py",
+      "sha256": "f6b8b96c8901177f83c2924181c39ff134c6e7f3d6952d64b497f5e0e8eba52f",
+      "source_git_blob": "22a8c4de82468ee6e32250272c44e00b66350694"
+    },
+    {
+      "path": "inventory_finance/migrations/__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_git_blob": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "inventory_finance/models.py",
+      "sha256": "93dd69657ffea28f245e7b028f3b58297e866c00cf31ed24ce0c619dc1746b41",
+      "source_git_blob": "beef3cda456e7db942dbf59803c282f4355b7111"
+    },
+    {
+      "path": "inventory_finance/property_link_views.py",
+      "sha256": "2755065384dcf9c07cfeb30ea3a86852f64cd3008f8383ebe80d6a04ab2ebfdc",
+      "source_git_blob": "51984605512adaa0b05d6d1c6175224accab3178"
+    },
+    {
+      "path": "inventory_finance/property_links.py",
+      "sha256": "3184c73908d5f012649df2dd8912a905186cb2a66aea5993a8cdca366cf9e3b6",
+      "source_git_blob": "f994c3daf4b7e9fa5736074979c904106816abea"
+    },
+    {
+      "path": "inventory_finance/receipt_basis.py",
+      "sha256": "adfc3488530593fef962ea4a643f919f118cf504fdd0aaad6cd7769a621d8ca4",
+      "source_git_blob": "148788baf31db86898bfa71abbab97dda049b13a"
+    },
+    {
+      "path": "inventory_finance/services.py",
+      "sha256": "fcfcd40db8ae622323408c824dce476060bd03bb12ebc7584feafd13c992752d",
+      "source_git_blob": "40799659dc496a4ae395cda05cfc0fc7496e0841"
+    },
+    {
+      "path": "inventory_finance/templates/inventory_finance/detail.html",
+      "sha256": "4a63ec680dba8f5e971784b91ece5972d5bc630b2b1add231f8cb528e95b81c9",
+      "source_git_blob": "8d48eeab05e43df679f22f3a384048bbf7a38568"
+    },
+    {
+      "path": "inventory_finance/templates/inventory_finance/journal_mapping_detail.html",
+      "sha256": "8808bfd0d75e9615001613c2580a9d605c47ea2c36d08357dbf60d49a3ad4049",
+      "source_git_blob": "f8b9b68f1285c5ad9a7042e9caac3e1ac074f04b"
+    },
+    {
+      "path": "inventory_finance/templates/inventory_finance/journal_mapping_workbench.html",
+      "sha256": "7b296fa43870c3ccb097526279dac384d026a6e5067f47f2065204d845fa86ee",
+      "source_git_blob": "73c2b8c95d932c09e94988c65ae46cd90d59e114"
+    },
+    {
+      "path": "inventory_finance/templates/inventory_finance/journal_sources.html",
+      "sha256": "f954dbc713ec2b6b58adc0fd38e06ad95ddc4b77ae92c39d65d241cbdb28c889",
+      "source_git_blob": "5cee66b1dff4d8d1f2572151aca196967c0411bf"
+    },
+    {
+      "path": "inventory_finance/templates/inventory_finance/property_link_detail.html",
+      "sha256": "87ec920b734720deb59ed62bb120159a33a36175fe08390658569f11a64681eb",
+      "source_git_blob": "11d92122ac06c610c5bdad2054cc2ab1f42580c9"
+    },
+    {
+      "path": "inventory_finance/templates/inventory_finance/property_link_request.html",
+      "sha256": "0f50e2fe96106532f6d47b1a5dcda35bd30db767b11cd728ea37ab32c2348167",
+      "source_git_blob": "5c92d1e54bc5a6ae887fd26f9839771ca91d631c"
+    },
+    {
+      "path": "inventory_finance/templates/inventory_finance/property_links.html",
+      "sha256": "df815e6edc5cbf320b448405f0ef4ed108e41205db708d7142b418f2082d2707",
+      "source_git_blob": "83c56501d7d3e713de7091b758b5cbba80d8f1f3"
+    },
+    {
+      "path": "inventory_finance/templates/inventory_finance/propose.html",
+      "sha256": "cdc89a4a3c08ecaf8def0126fc543fd5743ac9431c899d0080efb2585b8aeb39",
+      "source_git_blob": "0762be11bc225fd13a872361e2151d87bdff0d1e"
+    },
+    {
+      "path": "inventory_finance/templates/inventory_finance/workbench.html",
+      "sha256": "a7a731dfdc1f5914ac45d14b272eb7de3b23cadfc5b78d895ef74c25302c386c",
+      "source_git_blob": "5013fe9d3bcd515eb154caf484fccbda01901f9b"
+    },
+    {
+      "path": "inventory_finance/urls.py",
+      "sha256": "c7ee05fb1b2ba997abdef8e17781cfff4f3aa8f0b264e09be639ea4bc4f6bc3e",
+      "source_git_blob": "9926a54c8e0185b8c064d8b0362bfabecc078365"
+    },
+    {
+      "path": "inventory_finance/views.py",
+      "sha256": "86b3837176061bffaf7b36f9a28ec1cedc6d0790366510e824c7b7a6f02d9436",
+      "source_git_blob": "451cbca7b91ea079904125604a51b740e3ed38ad"
+    }
+  ],
+  "additional_paths": [
+    {
+      "source": "docs/claim-attribution.md",
+      "destination": "docs/gso/claim-attribution.md"
+    },
+    {
+      "source": "docs/coa-requirements.md",
+      "destination": "docs/gso/coa-requirements.md"
+    },
+    {
+      "source": "docs/completion-audit.md",
+      "destination": "docs/gso/completion-audit.md"
+    },
+    {
+      "source": "docs/continuity-history.md",
+      "destination": "docs/gso/continuity-history.md"
+    },
+    {
+      "source": "docs/custody-returns.md",
+      "destination": "docs/gso/custody-returns.md"
+    },
+    {
+      "source": "docs/custody-review.md",
+      "destination": "docs/gso/custody-review.md"
+    },
+    {
+      "source": "docs/employee-custody-design.md",
+      "destination": "docs/gso/employee-custody-design.md"
+    },
+    {
+      "source": "docs/grand-carryover-checkpoint.md",
+      "destination": "docs/gso/grand-carryover-checkpoint.md"
+    },
+    {
+      "source": "docs/grand-integration-design.md",
+      "destination": "docs/gso/grand-integration-design.md"
+    },
+    {
+      "source": "docs/hr-custody-review.md",
+      "destination": "docs/gso/hr-custody-review.md"
+    },
+    {
+      "source": "docs/inventory-roadmap.md",
+      "destination": "docs/gso/inventory-roadmap.md"
+    },
+    {
+      "source": "docs/journal-source-preview.md",
+      "destination": "docs/gso/journal-source-preview.md"
+    },
+    {
+      "source": "docs/maintenance.md",
+      "destination": "docs/gso/maintenance.md"
+    },
+    {
+      "source": "docs/media-storage-decision.md",
+      "destination": "docs/gso/media-storage-decision.md"
+    },
+    {
+      "source": "docs/native-testing.md",
+      "destination": "docs/gso/native-testing.md"
+    },
+    {
+      "source": "docs/office-records.md",
+      "destination": "docs/gso/office-records.md"
+    },
+    {
+      "source": "docs/property-finance-links.md",
+      "destination": "docs/gso/property-finance-links.md"
+    },
+    {
+      "source": "docs/property-movements.md",
+      "destination": "docs/gso/property-movements.md"
+    },
+    {
+      "source": "docs/property-record-design.md",
+      "destination": "docs/gso/property-record-design.md"
+    },
+    {
+      "source": "docs/receipt-cost-corrections.md",
+      "destination": "docs/gso/receipt-cost-corrections.md"
+    },
+    {
+      "source": "docs/receipt-journal-mappings.md",
+      "destination": "docs/gso/receipt-journal-mappings.md"
+    },
+    {
+      "source": "docs/receipt-quantity-corrections.md",
+      "destination": "docs/gso/receipt-quantity-corrections.md"
+    },
+    {
+      "source": "docs/receiving-followups.md",
+      "destination": "docs/gso/receiving-followups.md"
+    },
+    {
+      "source": "docs/receiving.md",
+      "destination": "docs/gso/receiving.md"
+    },
+    {
+      "source": "docs/security-and-recovery.md",
+      "destination": "docs/gso/security-and-recovery.md"
+    },
+    {
+      "source": "docs/stock-counts.md",
+      "destination": "docs/gso/stock-counts.md"
+    },
+    {
+      "source": "docs/stock-request-design.md",
+      "destination": "docs/gso/stock-request-design.md"
+    },
+    {
+      "source": "docs/supply-returns.md",
+      "destination": "docs/gso/supply-returns.md"
+    },
+    {
+      "source": "docs/validation-2026-10-16.md",
+      "destination": "docs/gso/validation-2026-10-16.md"
+    },
+    {
+      "source": "gso_integration_tests/__init__.py",
+      "destination": "gso_integration_tests/__init__.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_asset_authority.py",
+      "destination": "gso_integration_tests/test_grand_asset_authority.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_attribution.py",
+      "destination": "gso_integration_tests/test_grand_attribution.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_attribution_http.py",
+      "destination": "gso_integration_tests/test_grand_attribution_http.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_claim_sources.py",
+      "destination": "gso_integration_tests/test_grand_claim_sources.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_custody_return_http.py",
+      "destination": "gso_integration_tests/test_grand_custody_return_http.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_custody_return_races.py",
+      "destination": "gso_integration_tests/test_grand_custody_return_races.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_custody_returns.py",
+      "destination": "gso_integration_tests/test_grand_custody_returns.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_custody_review.py",
+      "destination": "gso_integration_tests/test_grand_custody_review.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_employee_custody.py",
+      "destination": "gso_integration_tests/test_grand_employee_custody.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_employee_custody_http.py",
+      "destination": "gso_integration_tests/test_grand_employee_custody_http.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_employee_custody_races.py",
+      "destination": "gso_integration_tests/test_grand_employee_custody_races.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_employee_sources.py",
+      "destination": "gso_integration_tests/test_grand_employee_sources.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_hr_custody_reviews.py",
+      "destination": "gso_integration_tests/test_grand_hr_custody_reviews.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_journal_mappings.py",
+      "destination": "gso_integration_tests/test_grand_journal_mappings.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_journal_sources.py",
+      "destination": "gso_integration_tests/test_grand_journal_sources.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_maintenance.py",
+      "destination": "gso_integration_tests/test_grand_maintenance.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_office_records.py",
+      "destination": "gso_integration_tests/test_grand_office_records.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_property.py",
+      "destination": "gso_integration_tests/test_grand_property.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_property_link_migration.py",
+      "destination": "gso_integration_tests/test_grand_property_link_migration.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_property_link_races.py",
+      "destination": "gso_integration_tests/test_grand_property_link_races.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_property_links.py",
+      "destination": "gso_integration_tests/test_grand_property_links.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_property_movements.py",
+      "destination": "gso_integration_tests/test_grand_property_movements.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_receipt_amendments.py",
+      "destination": "gso_integration_tests/test_grand_receipt_amendments.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_receipt_basis.py",
+      "destination": "gso_integration_tests/test_grand_receipt_basis.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_receipt_quantity_corrections.py",
+      "destination": "gso_integration_tests/test_grand_receipt_quantity_corrections.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_receiving_authority.py",
+      "destination": "gso_integration_tests/test_grand_receiving_authority.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_receiving_followups.py",
+      "destination": "gso_integration_tests/test_grand_receiving_followups.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_requisitions.py",
+      "destination": "gso_integration_tests/test_grand_requisitions.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_stock_authority.py",
+      "destination": "gso_integration_tests/test_grand_stock_authority.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_stock_counts.py",
+      "destination": "gso_integration_tests/test_grand_stock_counts.py"
+    },
+    {
+      "source": "gso_integration_tests/grand_supply_returns.py",
+      "destination": "gso_integration_tests/test_grand_supply_returns.py"
+    }
+  ],
+  "standalone_tests": "Retained in GSOv2; native integration tests adapted for complete GRAND discovery.",
+  "hash_scope": "sha256 records observed Windows source-checkout bytes; source_git_blob identifies canonical Git content across line-ending conversions."
+}

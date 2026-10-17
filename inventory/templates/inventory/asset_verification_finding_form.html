@@ -1,0 +1,7 @@
+{% extends "inventory/base.html" %}
+{% block title %}Record an unregistered item{% endblock %}
+{% block content %}
+<header class="hero"><div><p class="eyebrow">{{ verification_round.title }} · Count as of {{ verification_round.as_of_date|date:"M j, Y" }}</p><h1>Record item not in the register</h1><p>Capture what was found. GSO will review it before it is added to the asset register.</p></div></header>
+<nav class="quick-links"><a href="{% url 'inventory:asset-verification-detail' verification_round.pk %}">Back to round</a></nav>
+<form method="post" class="form-card">{% csrf_token %}{% for field in form %}<div class="field" style="margin-top:14px">{{ field.label_tag }}{{ field }}{% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}{{ field.errors }}</div>{% endfor %}<div class="actions"><button class="button primary" type="submit">Record finding</button><a class="button" href="{% url 'inventory:asset-verification-detail' verification_round.pk %}">Cancel</a></div></form>
+{% endblock %}

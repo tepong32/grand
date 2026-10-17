@@ -160,3 +160,5 @@ PW_RESET_FROM_EMAIL = os.getenv("PW_RESET_FROM_EMAIL")
 # Google Auth
 GAUTH_CLIENTID = os.getenv("GAUTH_CLIENTID")
 GAUTH_SECRET = os.getenv("GAUTH_SECRET")
+
+DISPOSAL_PRIVATE_ROOT = Path(_required_environment("DISPOSAL_PRIVATE_ROOT"))

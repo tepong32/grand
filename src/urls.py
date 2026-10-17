@@ -29,6 +29,8 @@ class LoginView(auth_views.LoginView):
 
 urlpatterns = [
     path('healthz/', health, name='health'),
+    path('gso/inventory/', include('inventory.urls')),
+    path('gso/claim-support/', include('inventory_finance.urls')),
     path('admin/', admin.site.urls),
     path('', include('home.urls')),
     path('assistance/', include('assistance.urls', namespace="assistance")),

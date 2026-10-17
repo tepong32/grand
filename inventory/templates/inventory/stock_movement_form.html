@@ -1,0 +1,6 @@
+{% extends "inventory/base.html" %}
+{% block title %}{{ heading }}{% endblock %}
+{% block content %}
+<header class="hero"><div><p class="eyebrow">GSO workspace · {{ item.name }}</p><h1>{{ heading }}</h1><p>Current balance: {{ item.on_hand|floatformat:3 }} {{ item.unit }}. {% if item.use_fifo %}The oldest available lot will be used first for issues.{% else %}This item uses quantity-only tracking.{% endif %}</p></div></header>
+<section class="form-card"><form method="post" novalidate>{% csrf_token %}{% if form.non_field_errors %}<div role="alert">{{ form.non_field_errors }}</div>{% endif %}{% for hidden in form.hidden_fields %}{{ hidden }}{{ hidden.errors }}{% endfor %}<div class="form-grid">{% for field in form.visible_fields %}<div class="field {% if field.name == 'reason' %}full{% endif %}">{{ field.label_tag }}{{ field }}{% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}{% for error in field.errors %}<ul class="errorlist"><li>{{ error }}</li></ul>{% endfor %}</div>{% endfor %}</div><div class="actions"><button class="button primary" type="submit">Save movement</button><a class="button" href="{% url 'inventory:consumable-detail' item.pk %}">Cancel</a></div></form></section>
+{% endblock %}

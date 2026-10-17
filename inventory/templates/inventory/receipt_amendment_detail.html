@@ -1,0 +1,9 @@
+{% extends 'inventory/base.html' %}
+{% block content %}<h1>{{ row.reference }} · {{ row.get_status_display }}</h1>
+<a href="{% url 'inventory:receipt-amendments' row.line_id %}">Line amendment history</a>
+<section class="panel"><h2>Retained correction</h2><dl><dt>Original accepted unit cost</dt><dd>{{ row.basis.original_unit_cost|default_if_none:'Unknown' }}</dd><dt>Previous documented unit cost</dt><dd>{{ row.basis.effective_unit_cost|default_if_none:'Unknown' }}</dd><dt>Proposed corrected unit cost</dt><dd>{{ row.unit_cost|default_if_none:'Unknown' }}</dd><dt>Reason</dt><dd>{{ row.reason|linebreaksbr }}</dd><dt>Recorded by</dt><dd>{{ row.recorded_by }} · {{ row.recorded_at }}</dd><dt>Predecessor amendment</dt><dd>{{ row.basis.predecessor_uuid|default_if_none:'Original receipt' }}</dd></dl>
+<a href="{% url 'inventory:receipt-amendment-evidence' row.pk %}">Download correcting document · {{ row.original_filename }}</a>
+<p>Approval verifies a documentary fact. It does not revalue assets, alter stock quantities or costs, authorize payment, or post Accounting entries. Existing claim support may become stale and require explicit Finance review.</p></section>
+{% if form %}<section class="panel"><h2>Independent review</h2><form method="post">{% csrf_token %}{{ form.as_p }}<button class="button primary">Record decision</button></form></section>{% endif %}
+{% if row.reviewed_by %}<section class="panel"><h2>Decision</h2><p>{{ row.reviewed_by }} · {{ row.reviewed_at }}</p>{{ row.review_note|linebreaksbr }}</section>{% endif %}
+<section class="panel"><h2>History</h2>{% for event in row.events.all %}<p>{{ event.created_at }} · {{ event.actor }} · {{ event.action }} (version {{ event.snapshot.state_version }})</p>{% endfor %}</section>{% endblock %}

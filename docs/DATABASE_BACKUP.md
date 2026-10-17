@@ -140,3 +140,7 @@ Production readiness requires more than passing unit tests. Before cutover, the 
 - approved RPO/RTO and retained rehearsal evidence.
 
 Until those items exist, the truthful status is **backup creation implemented; production restore not yet proven**.
+
+## Integrated GSO evidence
+
+GSO tables live in default and are included by the existing whole-store database capture. DISPOSAL_PRIVATE_ROOT contains protected uploads and retained evidence packets; database dumps do not include these files. Include that root in the approved coordinated file backup and isolated restore rehearsal, retaining path/hash checks and inventory evidence-check commands. Do not put it under public media/static or claim database-only recovery restored the GSO evidence. The development carry-over does not migrate operator data or establish production recovery acceptance. See [integration](GSO_INTEGRATION.md) and [source recovery evidence](gso/security-and-recovery.md).

@@ -1,0 +1,20 @@
+{% extends "inventory/base.html" %}{% block title %}Property working register{% endblock %}{% block content %}
+<header class="hero"><div><p class="eyebrow">GSO · Property records</p><h1>Property working register</h1><p>Review supplied classifications, useful life and current custody across your office's assets.</p></div></header>
+<section class="panel"><p>This is a current working list, not an official SPC or a historical balance. Class and fund filters use the latest verified document's supplied labels, including records needing review. Labels do not establish native Finance identities or Accounting approval.</p><p>Retired assets remain visible. Unknown facts stay unknown; expiry does not release custody. Costs below are recorded register unit costs, not carrying values or amended receipt costs.</p></section>
+<nav class="quick-links"><a class="button" href="{% url 'inventory:par-preparation' %}">Prepare PAR with placeholders</a></nav>
+<form method="get" class="panel"><div class="filters">{{ form.as_p }}<button class="button" type="submit">Apply filters</button><a class="button" href="{% url 'inventory:property-register' %}">Clear</a></div></form>
+<p>{{ page.paginator.count }} matching asset records. Review warnings and source history before preparing a property card.</p>
+{% for row in rows %}<article class="panel">
+<h2><a href="{% url 'inventory:asset-detail' row.asset.pk %}">{{ row.asset.asset_name }}</a> · {{ row.asset.property_tag|default:"No tag" }}</h2>
+<dl class="detail-grid"><div><dt>Current custody</dt><dd>{{ row.asset.assigned_department_label|default:"Office not recorded" }} · {{ row.asset.assigned_office|default:"Custodian label not recorded" }}</dd></div>
+<div><dt>Current register status / quantity</dt><dd>{{ row.asset.get_status_display }} · {{ row.asset.quantity }}</dd></div>
+<div><dt>Register unit cost / purchase date</dt><dd>{{ row.asset.unit_cost|default_if_none:"Unknown" }} · {{ row.asset.purchase_date|date:"Y-m-d"|default:"Unknown" }}</dd></div>
+{% if row.record %}<div><dt>Latest verified supplied treatment</dt><dd>{{ row.record.get_treatment_display }} · <a href="{% url 'inventory:property-detail' row.record.pk %}">{{ row.record.reference }}</a> (source dated {{ row.record.source_date|date:"Y-m-d" }})</dd></div>
+<div><dt>Supplied class / fund label</dt><dd>{{ row.record.property_class|default:"Unknown" }} · {{ row.record.fund_label|default:"Unknown" }}</dd></div>
+<div><dt>Supplied acquisition source / date / receipt-item number</dt><dd>{{ row.record.acquisition_reference|default:"Unknown source" }} · {{ row.record.acquisition_date|date:"Y-m-d"|default:"Unknown date" }} · {{ row.record.receipt_item_number|default:"Unknown item number" }}</dd></div>
+<div><dt>Supplied useful life / expiry</dt><dd>{% if row.record.useful_life %}{{ row.record.useful_life }} {{ row.record.get_life_unit_display }} · {{ row.record.life_basis }}{% else %}Unknown useful life{% endif %} · {{ row.record.expires_on|date:"Y-m-d"|default:"Unknown expiry" }}</dd></div>{% endif %}</dl>
+{% if row.issues %}<h3>Review needed</h3><ul>{% for issue in row.issues %}<li>{{ issue }}</li>{% endfor %}</ul>{% else %}<p>No listed source gaps detected on this read. Official-form reconciliation and acceptance remain required.</p>{% endif %}
+<a class="button" href="{% url 'inventory:property-records' row.asset.pk %}">Review property documents</a>
+</article>{% empty %}<section class="panel"><p>No matching assets. Check filters; an empty list does not establish clearance or a zero property balance.</p></section>{% endfor %}
+<nav class="pagination" aria-label="Property register pages">{% if page.has_previous %}<a class="button" href="?{{ filter_query }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %}<span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>{% if page.has_next %}<a class="button" href="?{{ filter_query }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}</nav>
+{% endblock %}

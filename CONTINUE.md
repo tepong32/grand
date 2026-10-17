@@ -1,5 +1,22 @@
 # GRAND continuation handoff
 
+## GSO integration checkpoint — 2026-10-17
+
+Authoritative current integration state: [GSO_INTEGRATION.md](docs/GSO_INTEGRATION.md).
+Trial branch codex/gso-grand-v173-trial starts exactly at v0.7.173/a533482,
+including the latest paused Finance work. GSO source VM release a76a351 is pushed
+and integrated into its source master. Destination integration passed local review and native186/186 (zero skips),
+production startup3/3, CI-unit9/9, migration drift, dependency audit and browser
+login/dashboard/PAR/mobile/print checks. Preparing VM candidate v174; exact hosted
+security/verify/mysql and primary promotion remain pending at this commit.
+All owned preview/browser/MySQL processes are stopped; no operator data changed.
+The older Finance pre-promotion notes below are historical: v173 was committed
+and pushed, but its verify gate failed because three SQLite shards hit the
+20-minute limit. Security/mysql passed. Combined candidate must pass every gate.
+Preserve Finance's original remaining local forms/semantics and production NO-GO.
+After actual combined VM release/integration and handoff, pause as the user asked.
+
+
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.
 
 Last updated: 2026-10-17 (Asia/Singapore)

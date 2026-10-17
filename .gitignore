@@ -226,3 +226,6 @@ output/playwright/finance-completed-work/
 /output/playwright/finance-work-export/
 
 output/playwright/finance-setup-correction/
+
+# Protected GSO runtime evidence; never commit business uploads.
+/private_uploads/

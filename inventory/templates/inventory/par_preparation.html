@@ -1,0 +1,35 @@
+{% extends "inventory/base.html" %}
+{% block title %}PAR preparation sheet{% endblock %}
+{% block content %}
+<style>
+.par-sheet{background:white;color:#111;padding:24px;border:1px solid #aaa;margin-top:24px;overflow-wrap:anywhere;overflow-x:auto}
+.par-sheet table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px;min-width:650px}.par-sheet td,.par-sheet th{border:1px solid #555;padding:8px;white-space:normal;overflow-wrap:anywhere}.par-sheet td{height:55px}
+.par-sheet tbody tr:last-child td{border-bottom:1px solid #555}
+.par-signatures{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:35px}.par-blank{color:#555}.par-line{border-top:1px solid #ddd;padding-top:12px}
+@media print{.topbar,.footer,.par-editor,.par-navigation,.hero,.messages{display:none!important}main{width:100%;margin:0;padding:0}.par-sheet{border:0;padding:0;margin:0;box-shadow:none}.par-sheet{overflow:visible}.par-sheet table{min-width:0}.par-sheet tr,.par-signatures{break-inside:avoid}body{background:white}@page{size:A4 landscape;margin:12mm}}
+</style>
+<header class="hero"><div><h1>PAR preparation sheet</h1><p>Fill in known details now or leave placeholders for later.</p></div></header>
+<nav class="par-navigation"><a class="button" href="{% url 'inventory:property-register' %}">Back to property records</a></nav>
+<form method="post" class="panel par-editor">{% csrf_token %}
+<p>These entries are not saved. Preview, then use your browser’s Print / Save as PDF. Keep the draft in your approved office storage if you need to continue later.</p>
+<p>This preparation sheet does not assign a number, sign a receipt, transfer custody or post to Finance. Confirm local layout and instructions before official use.</p>
+<h2>Office and signatory placeholders</h2><div class="form-grid">{{ header.as_p }}</div>
+<h2>Property lines</h2><p>Enter supplied facts only. Blank costs and dates remain blank; no values are inferred from a price threshold.</p>
+{{ lines.management_form }}{{ lines.non_form_errors }}
+{% for line in lines %}<fieldset class="par-line"><legend>Property {{ forloop.counter }}</legend><div class="form-grid">{{ line.as_p }}</div></fieldset>{% endfor %}
+<button class="button primary" type="submit">Preview preparation sheet</button>
+</form>
+{% if ready %}
+<section class="par-sheet" aria-label="PAR draft preview">
+<p><strong>DRAFT — FOR COMPLETION AND REVIEW</strong></p><h2>Property Acknowledgment Receipt · preparation sheet</h2>
+<p>LGU: {{ details.lgu|default:"[LGU / municipality]" }} · Office: {{ details.office|default:"[Office]" }}</p>
+<p>Fund: {{ details.fund|default:"[Fund]" }} · PAR no.: {{ details.number|default:"[Number to be assigned under local rules]" }}</p>
+<p>Form reference / revision: {{ details.form_reference|default:"[Local form reference / revision]" }}</p>
+<p>Numbering instructions: {{ details.numbering|default:"[Confirm local numbering practice]" }}</p>
+<table><thead><tr><th>Quantity</th><th>Unit</th><th>Description</th><th>Property number</th><th>Acquisition date</th><th>Acquisition cost<br>(as supplied)</th></tr></thead><tbody>
+{% for line in print_lines %}<tr><td>{{ line.quantity|default_if_none:"" }}</td><td>{{ line.unit }}</td><td>{{ line.description|linebreaksbr }}</td><td>{{ line.property_number }}</td><td>{{ line.acquisition_date|date:"Y-m-d" }}</td><td>{{ line.acquisition_cost|default_if_none:"" }}</td></tr>{% endfor %}
+</tbody></table>
+<div class="par-signatures"><div><strong>Issuer (to be confirmed)</strong><p>{{ details.issuer|default:"[Name]" }}</p><p>{{ details.issuer_role|default:"[Designation / office]" }}</p><p>Signature: ___________________</p><p>Date: ___________________</p></div><div><strong>Recipient (to be confirmed)</strong><p>{{ details.recipient|default:"[Name]" }}</p><p>{{ details.recipient_role|default:"[Designation / office]" }}</p><p>Signature: ___________________</p><p>Date: ___________________</p></div></div>
+<p class="par-blank">Unsigned preparation only. Blank fields are unknown or awaiting completion. This draft does not establish acknowledgment, custody transfer or Accounting approval.</p>
+</section>{% endif %}
+{% endblock %}

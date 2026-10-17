@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title_ext %} · Receipt claim support{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <h1 class="h3">Receipt claim support</h1>
+  <p><a href="{% url 'inventory_finance:property-links' %}">Property Finance association requests</a></p>
+  <p>Link accepted deliveries to the amounts they support in a claim. Review does not authorize payment or establish acquisition cost.</p>
+  <div class="card"><div class="card-header"><h2 class="h5 mb-0">Recorded links</h2></div><div class="card-body">
+    <div class="table-responsive" tabindex="0" aria-label="Receipt claim links">
+      <table class="table"><thead><tr><th>Claim</th><th>Delivery</th><th>Amount</th><th>Status</th></tr></thead><tbody>
+      {% for row in page %}<tr><td><a href="{% url 'inventory_finance:detail' row.public_id %}">{{ row.case.reference_code }}</a></td><td>{{ row.receipt_line.receipt.delivery_reference }} · line {{ row.receipt_line.sequence }}</td><td>{{ row.amount }}</td><td>{{ row.get_status_display }}</td></tr>
+      {% empty %}<tr><td colspan="4">No links are available in your scope.</td></tr>{% endfor %}
+      </tbody></table>
+    </div>
+    <nav aria-label="Link pages">{% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">Previous</a>{% endif %} <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span> {% if page.has_next %}<a href="?page={{ page.next_page_number }}">Next</a>{% endif %}</nav>
+  </div></div>
+  {% if can_propose %}<div class="card"><div class="card-header"><h2 class="h5 mb-0">Propose a link</h2></div><div class="card-body">
+    <p>Select a claim you can access in Finance, then choose its line and an accepted receipt.</p>
+    <ul>{% for case in case_page %}<li><a href="{% url 'inventory_finance:propose' case.public_id %}">{{ case.reference_code }}</a> · {{ case.payee_name }}</li>{% empty %}<li>No accessible prepared claims.</li>{% endfor %}</ul>
+    <nav aria-label="Claim pages">{% if case_page.has_previous %}<a href="?case_page={{ case_page.previous_page_number }}">Previous claims</a>{% endif %} <span>Page {{ case_page.number }} of {{ case_page.paginator.num_pages }}</span> {% if case_page.has_next %}<a href="?case_page={{ case_page.next_page_number }}">Next claims</a>{% endif %}</nav>
+  </div></div>{% endif %}
+</div>
+{% endblock %}

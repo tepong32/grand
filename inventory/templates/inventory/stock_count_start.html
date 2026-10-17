@@ -1,0 +1,7 @@
+{% extends "inventory/base.html" %}{% block title %}Record supply count{% endblock %}
+{% block content %}
+<header class="hero"><div><p class="eyebrow">GSO · Physical count</p><h1>{{ item.name }}</h1><p>Record the quantity physically counted today. A different officer reviews the evidence and variance before any adjustment.</p></div></header>
+<nav class="quick-links"><a href="{% url 'inventory:consumable-detail' item.pk %}">Back to supply item</a><a href="{% url 'inventory:stock-count-list' %}">Count records</a></nav>
+<section class="panel"><h2>Ledger basis</h2><p>{{ basis.balance }} {{ basis.unit }} · {{ basis.movement_count }} recorded movements.</p><p>If stock moves while counting or before review, cancel and recount. This working record is not an official COA report or a financial valuation.</p></section>
+<section class="panel"><form method="post">{% csrf_token %}{{ form.as_p }}<button class="button primary" type="submit">Record count for independent review</button></form></section>
+{% endblock %}

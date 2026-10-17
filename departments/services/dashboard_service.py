@@ -193,6 +193,23 @@ def _workspace_sections(department: Department, user=None) -> list[dict]:
             item.update(status="Available" if allowed else "Restricted")
             if allowed:
                 item["url_name"] = destination
+    from inventory.templatetags.inventory_access import inventory_navigation
+    inventory_links = inventory_navigation(user)
+    for label, key, destination in (
+        ("Inventory register", "assets", "inventory:asset-list"),
+        ("Consumables", "stock", "inventory:consumable-list"),
+        ("Receiving", "receiving", "inventory:receiving-list"),
+        ("Property records", "property", "inventory:property-register"),
+    ):
+        item = next((row for row in result if row["title"] == label), None)
+        if inventory_links[key]:
+            if item is None:
+                item = {"title": label, "icon": "fa-boxes", "description": "Open authorized GSO records and working lists."}
+                result.append(item)
+            item.update(status="Available", url_name=destination)
+        elif item is not None:
+            item.update(status="Restricted")
+            item.pop("url_name", None)
     from accounting.access import can_view_accounting
     from budget.access import can_view as can_view_budget
     from vouchers.access import can_view_collections

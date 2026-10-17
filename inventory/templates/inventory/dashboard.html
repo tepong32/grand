@@ -1,0 +1,39 @@
+{% extends "inventory/base.html" %}
+{% block title %}GSO workspace{% endblock %}
+{% block content %}
+<header class="hero">
+  <div>
+    <p class="eyebrow">Your office · GRAND concept</p>
+    <h1>{{ department.name|default:"General Services Office" }}</h1>
+    {% if is_gso %}<p>Track equipment, vehicles, and supplies with clear department responsibility and history.</p>{% else %}<p>Review the assets and supply issues assigned to your office. GSO maintains the central records.</p>{% endif %}
+  </div>
+  <div class="person"><span>Welcome back</span><strong>{{ request.user.get_full_name|default:request.user.username }}</strong><span>Employee workspace</span></div>
+</header>
+<nav class="quick-links" aria-label="Everyday tasks">
+  <a href="{% url 'inventory:asset-list' %}">Open asset register</a>
+  {% if can_view_custody_review %}<a href="{% url 'inventory:custody-review' %}">Custody review</a><a href="{% url 'inventory:custody-return-list' %}">Witnessed returns</a>{% endif %}
+  {% if can_view_stock %}<a href="{% url 'inventory:consumable-list' %}">Open consumables</a>{% endif %}
+  {% if can_view_transfers %}<a href="{% url 'inventory:asset-transfer-list' %}">Asset handoffs{% if pending_transfer_count %} ({{ pending_transfer_count }} pending){% endif %}</a>{% endif %}
+  {% if can_view_disposals %}<a href="{% url 'inventory:asset-disposal-list' %}">Disposal requests{% if open_disposal_count %} ({{ open_disposal_count }} open){% endif %}</a>{% endif %}
+  {% if can_view_verifications %}<a href="{% url 'inventory:asset-verification-list' %}">Physical verification{% if open_verification_count %} ({{ open_verification_count }} open){% endif %}</a>{% endif %}
+  {% if can_add %}<a class="button primary" href="{% url 'inventory:asset-create' %}">Add an asset</a>{% endif %}
+</nav>
+<section class="metrics" aria-label="Asset overview">
+  <div class="metric"><strong>{{ total_assets }}</strong><span>Register entries</span></div>
+  <div class="metric"><strong>{{ in_service_count }}</strong><span>In service</span></div>
+  <div class="metric"><strong>{{ maintenance_count }}</strong><span>Under maintenance</span></div>
+  <div class="metric"><strong>{{ retired_count }}</strong><span>Retired · history kept</span></div>
+</section>
+<div class="section-head"><div><h2>Office workspace</h2><span class="muted">GSO records and day-to-day work</span></div></div>
+<section class="workspace-grid" aria-label="GSO workspaces">
+  {% if office_records_url %}<article class="module"><span class="pill available">Available</span><h3>General office records</h3><p>File correspondence, office documents and reports in your department's records registry. Review, confidentiality and retention follow the Records workspace.</p><a class="button primary" href="{{ office_records_url }}">Open office records</a></article>{% endif %}
+  <article class="module"><span class="pill available">Available</span><h3>Inventory register</h3><p>Search assets, review assigned office and custodian, and check acquisition and status details.</p><a class="button primary" href="{% url 'inventory:asset-list' %}">Open register</a></article>
+  {% if can_view_stock %}<article class="module"><span class="pill available">Available</span><h3>Consumable supplies</h3><p>Record stock received and issued by department. FIFO lot tracking is optional per item.</p><a class="button primary" href="{% url 'inventory:consumable-list' %}">Open consumables</a></article>{% endif %}
+  {% if can_view_transfers %}<article class="module"><span class="pill available">Available</span><h3>Asset handoffs</h3><p>Send an asset to another department and record its receipt.</p><a class="button primary" href="{% url 'inventory:asset-transfer-list' %}">Review handoffs{% if pending_transfer_count %} ({{ pending_transfer_count }} pending){% endif %}</a></article>{% endif %}
+  {% if can_view_disposals %}<article class="module"><span class="pill available">Available</span><h3>Disposal requests</h3><p>Send asset condition photos and a signed form to GSO for review.</p><a class="button primary" href="{% url 'inventory:asset-disposal-list' %}">Open requests{% if open_disposal_count %} ({{ open_disposal_count }} open){% endif %}</a></article>{% endif %}
+  {% if can_view_verifications %}<article class="module"><span class="pill available">Available</span><h3>Physical verification</h3><p>Check assets against the register and record location, condition, and discrepancies.</p><a class="button primary" href="{% url 'inventory:asset-verification-list' %}">Open verification{% if open_verification_count %} ({{ open_verification_count }} open){% endif %}</a></article>{% endif %}
+  <article class="module"><span class="pill">Planned</span><h3>Procurement and suppliers</h3><p>Follow purchase references, delivery details, and supplier information.</p><span class="muted">Planned workspace · not connected yet</span></article>
+  {% if can_view_maintenance %}<article class="module"><span class="pill">Asset care</span><h3>Maintenance history</h3><p>Record repair concerns, work, supporting documents and outcomes.</p><a class="button primary" href="{% url 'inventory:maintenance-list' %}">Open maintenance</a></article>{% endif %}
+</section>
+<section class="panel"><h2>Access and records</h2><p class="muted">Your assigned department sets the office scope. Separate view, add, change, and delete permissions control available actions. Retiring an asset retains the record and its change history.</p></section>
+{% endblock %}

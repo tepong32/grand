@@ -1,0 +1,11 @@
+{% extends "inventory/base.html" %}{% block title %}Property documents{% endblock %}{% block content %}
+<header class="hero"><div><p class="eyebrow">GSO · Property records</p><h1>Property documents</h1><p>{{ asset.asset_name }} · {{ asset.property_tag }}</p></div></header>
+<nav class="quick-links"><a href="{% url 'inventory:asset-detail' asset.pk %}">Asset record</a></nav>
+<section class="panel"><p>Retain supplied treatment and useful-life facts. A document check does not approve Accounting treatment, revalue property, release custody or create an official SPC, PAR or ICS.</p>
+{% if previous %}<p>Latest verified document: <a href="{% url 'inventory:property-detail' previous.pk %}">{{ previous.reference }}</a>. A successor retains this history.</p>{% else %}<p>No verified document recorded.</p>{% endif %}
+{% if source_error %}<p class="errorlist">{{ source_error }}</p>{% endif %}
+{% if pending %}<p>A record is awaiting a decision. Review or cancel it before entering another.</p>{% endif %}</section>
+{% if can_record and not pending and not source_error %}<form class="panel" method="post" enctype="multipart/form-data">{% csrf_token %}<h2>Record supplied determination</h2><p>Copy facts from the retained source. Leave unknown facts blank. Fund/class labels do not establish a Finance link.</p>{{ form.as_p }}<button type="submit">Retain for independent document check</button></form>{% else %}{{ form.non_field_errors }}{% endif %}
+<section class="panel"><h2>Retained history</h2>{% for row in page %}<p><a href="{% url 'inventory:property-detail' row.pk %}">{{ row.reference }}</a> · {{ row.get_status_display }} · {{ row.source_date }} · {{ row.get_treatment_display }}</p>{% empty %}<p>No property determination recorded.</p>{% endfor %}
+{% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">Previous</a>{% endif %} {% if page.has_next %}<a href="?page={{ page.next_page_number }}">Next</a>{% endif %}</section>
+{% endblock %}

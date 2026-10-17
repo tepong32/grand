@@ -1,0 +1,5 @@
+{% extends "inventory/base.html" %}
+{% block content %}<h1>Receiving and inspection</h1><p>Record delivery facts, retain inspection documents, and review accepted quantities before adding inventory.</p>
+{% if can_add %}<a class="button primary" href="{% url 'inventory:receiving-create' %}">Record delivery</a>{% endif %}
+<section class="panel">{% for receipt in page %}<p><a href="{% url 'inventory:receiving-detail' receipt.pk %}">{% if receipt.followup_source_id %}Follow-up {{ receipt.inspection_reference }} for {% endif %}{{ receipt.delivery_reference }} · {{ receipt.supplier }}</a> — {{ receipt.get_status_display }}</p>{% empty %}<p>No receiving records in your office.</p>{% endfor %}
+{% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">Previous</a>{% endif %} Page {{ page.number }} of {{ page.paginator.num_pages }} {% if page.has_next %}<a href="?page={{ page.next_page_number }}">Next</a>{% endif %}</section>{% endblock %}

@@ -53,6 +53,8 @@ INSTALLED_APPS = [
     'vouchers.apps.VouchersConfig',
     'accounting.apps.AccountingConfig',
     'budget.apps.BudgetConfig',
+    'inventory.apps.InventoryConfig',
+    'inventory_finance.apps.InventoryFinanceConfig',
 
     ### defaults
     'django.contrib.sites',  # allauth needs this
@@ -344,3 +346,6 @@ TRACEPOINT_UPLOAD_ALLOWED_CONTENT_TYPES = [
 ]
 
 TRACEPOINT_UPLOAD_MAX_SIZE_MB = int(os.environ.get("TRACEPOINT_UPLOAD_MAX_SIZE_MB", "5"))
+
+# GSO evidence is protected by scoped download views, never public media serving.
+DISPOSAL_PRIVATE_ROOT = Path(os.environ.get("DISPOSAL_PRIVATE_ROOT", BASE_DIR / "private_uploads"))

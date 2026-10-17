@@ -1,0 +1,7 @@
+{% extends "inventory/base.html" %}
+{% block title %}Disposal requests{% endblock %}
+{% block content %}
+<header class="hero"><div><p class="eyebrow">Inventory workspace</p><h1>Disposal requests</h1><p>{% if can_review %}Review requests, supporting documents, and recorded decisions.{% else %}Check the review status of asset requests sent by your department.{% endif %}</p></div></header>
+<nav class="quick-links"><a href="{% url 'inventory:dashboard' %}">Back to workspace</a><a href="{% url 'inventory:asset-list' %}">Asset register</a></nav>
+<section class="panel"><h2>Requests</h2>{% if cases %}<div class="table-wrap"><table><thead><tr><th>Asset</th><th>Requested by</th><th>Submitted</th><th>Reason</th><th>Status</th></tr></thead><tbody>{% for case in cases %}<tr><td><a href="{% url 'inventory:asset-disposal-detail' case.pk %}">{{ case.asset.asset_name }}</a>{% if case.asset.property_tag %}<br><span class="muted">{{ case.asset.property_tag }}</span>{% endif %}</td><td>{{ case.submitted_by|default:"Unknown" }}</td><td>{{ case.submitted_at|date:"M j, Y" }}</td><td>{{ case.reason }}</td><td>{{ case.get_status_display }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="muted">No disposal requests to show.</p>{% endif %}</section>
+{% endblock %}

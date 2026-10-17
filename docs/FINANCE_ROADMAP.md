@@ -953,3 +953,7 @@ No phase may be called complete merely because its screens exist. Completion req
 ## Current continuation overlay — 2026-09-07
 
 Preserve the delivery history above. Subsequent checkpoints implemented DV/custody, Accounting, Treasury, Reporting, bank, period-close and opening item adapters; [My Work](FINANCE_MY_WORK.md) now contains the explicit attention-domain inventory. Next audit legacy shared-case stage coverage, then implement governed cross-cycle views and separately permissioned task export. Functional completion precedes the mandatory operational scrutiny, populated traceability matrix, regulatory refresh and gap remediation. Production remains NO-GO until those and the independent LGU acceptance gates pass.
+
+## Shared GSO integration checkpoint — 2026-10-17
+
+User authorizes carrying GSO into a trial branch based on v173, preserving the latest Finance work; review and test combined code before VM release/master integration. Thereafter use parallel GSO/Finance branches of GRAND. See [current status and boundaries](GSO_INTEGRATION.md). Pause after that checkpoint. Existing Finance source/approval/production and local evidence gaps remain.

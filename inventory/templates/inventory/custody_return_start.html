@@ -1,0 +1,7 @@
+{% extends "inventory/base.html" %}{% block title %}Record witnessed return{% endblock %}
+{% block content %}
+<header class="hero"><div><p class="eyebrow">GSO · Physical receipt</p><h1>Record witnessed return</h1><p>{{ asset.asset_name }} · {{ asset.property_tag|default:"No property tag" }}</p></div></header>
+<nav class="quick-links"><a href="{% url 'inventory:asset-detail' asset.pk %}">Back to asset</a><a href="{% url 'inventory:custody-return-list' %}">Witnessed returns</a></nav>
+<section class="panel"><h2>Retained custody</h2><p>{{ asset.assigned_office|default:"Not recorded" }} · {{ asset.assigned_department_label|default:"Not recorded" }}</p><p>Record the equipment you witnessed being received at GSO. Add the signed receipt or supporting evidence next. Another authorized officer must confirm it before the recorded assignment changes. Condition notes do not change serviceability, valuation or employee clearance.</p></section>
+<section class="panel"><form method="post">{% csrf_token %}{{ form.as_p }}<button class="button primary" type="submit">Record receipt for independent review</button></form></section>
+{% endblock %}

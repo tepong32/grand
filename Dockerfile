@@ -9,7 +9,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PORT=10000 \
     GRAND_MEDIA_ROOT=/app/runtime/media \
     GRAND_EXPORT_ROOT=/app/runtime/exports \
-    GRAND_BACKUP_ROOT=/app/runtime/backups
+    GRAND_BACKUP_ROOT=/app/runtime/backups \
+    DISPOSAL_PRIVATE_ROOT=/app/runtime/gso-private
 
 WORKDIR /app
 
@@ -23,7 +24,7 @@ COPY requirements.txt /app/requirements.txt
 RUN python -m pip install --requirement /app/requirements.txt
 
 COPY --chown=grand:grand . /app
-RUN mkdir -p /app/runtime/media /app/runtime/exports /app/runtime/backups /app/staticfiles /app/logs \
+RUN mkdir -p /app/runtime/gso-private /app/runtime/media /app/runtime/exports /app/runtime/backups /app/staticfiles /app/logs \
     && chown -R grand:grand /app/runtime /app/staticfiles /app/logs
 
 USER grand

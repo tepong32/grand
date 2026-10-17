@@ -1,0 +1,19 @@
+{% extends "inventory/base.html" %}
+{% block title %}Maintenance · {{ case.asset.asset_name }}{% endblock %}
+{% block content %}
+<header class="hero"><div><p class="eyebrow">GSO · Maintenance case</p><h1>{{ case.asset.asset_name }}</h1><p>{{ case.get_status_display }} · Reported {{ case.reported_date }}</p></div></header>
+<nav class="quick-links"><a href="{% url 'inventory:asset-detail' case.asset_id %}">Asset record</a><a href="{% url 'inventory:maintenance-list' %}">Maintenance cases</a></nav>
+{{ version.errors }}
+<section class="panel"><h2>Work record</h2><dl class="detail-grid">
+<div><dt>Reported problem</dt><dd>{{ case.problem|linebreaksbr }}</dd></div><div><dt>Service provider</dt><dd>{{ case.provider|default:"Not recorded" }}</dd></div>
+<div><dt>Work performed</dt><dd>{{ case.work_performed|linebreaksbr|default:"Not recorded" }}</dd></div>
+<div><dt>Documented cost</dt><dd>{% if case.documented_cost is not None %}₱{{ case.documented_cost|floatformat:2 }}{% else %}Unknown{% endif %}</dd></div>
+<div><dt>Cost reference</dt><dd>{{ case.cost_reference|default:"Not recorded" }}</dd></div>
+{% if case.closed_at %}<div><dt>Finished</dt><dd>{{ case.finished_date }} · {{ case.closed_by }}</dd></div><div><dt>Resulting condition</dt><dd>{{ case.get_resulting_asset_status_display }}</dd></div><div><dt>Outcome / cancellation reason</dt><dd>{{ case.closure_note|linebreaksbr }}</dd></div>{% endif %}
+</dl><p class="muted">Documented costs do not change asset acquisition cost or confirm payment. Custody stays on the asset record.</p></section>
+{% if editable %}<section class="panel"><h2>Record or correct work details</h2><form method="post">{% csrf_token %}{{ version.expected_version }}<input type="hidden" name="operation" value="work">{{ work_form.as_p }}<button class="button primary" type="submit">Save work details</button></form></section>{% endif %}
+<section class="panel"><h2>Supporting documents</h2>{% for row in case.evidence.all %}<p><a href="{% url 'inventory:maintenance-evidence' row.pk %}">{{ row.original_filename }}</a> · {{ row.note }} · {{ row.uploaded_by }} · {{ row.uploaded_at }}</p>{% empty %}<p>No documents recorded.</p>{% endfor %}
+{% if editable %}<form method="post" enctype="multipart/form-data">{% csrf_token %}{{ version.expected_version }}<input type="hidden" name="operation" value="evidence">{{ evidence_form.as_p }}<button class="button" type="submit">Retain document</button></form>{% endif %}</section>
+{% if editable %}<section class="panel"><h2>Finish this case</h2><p>Save work details first. Completion records the result; further repairs can be recorded in a new case. Cancellation restores the asset's status from before this case. A positive cost needs a reference and supporting document.</p><form method="post">{% csrf_token %}{{ version.expected_version }}<input type="hidden" name="operation" value="close">{{ close_form.as_p }}<button class="button primary" type="submit">Record outcome</button></form></section>{% endif %}
+<section class="panel"><h2>Retained history</h2>{% for event in case.events.all %}<details><summary>{{ event.occurred_at }} · {{ event.actor }} · {{ event.action }} · version {{ event.snapshot.state_version }}</summary><dl><dt>Problem</dt><dd>{{ event.snapshot.problem|linebreaksbr }}</dd><dt>Provider</dt><dd>{{ event.snapshot.provider|default:"Not recorded" }}</dd><dt>Work</dt><dd>{{ event.snapshot.work_performed|linebreaksbr|default:"Not recorded" }}</dd><dt>Cost / reference</dt><dd>{{ event.snapshot.documented_cost|default_if_none:"Unknown" }} · {{ event.snapshot.cost_reference }}</dd><dt>Outcome</dt><dd>{{ event.snapshot.resulting_asset_status }} · {{ event.snapshot.closure_note|linebreaksbr }}</dd><dt>Evidence retained at this step</dt><dd>{% for row in event.snapshot.evidence %}{{ row.original_filename }} · {{ row.note }}<br>{% empty %}None{% endfor %}</dd></dl></details>{% endfor %}</section>
+{% endblock %}

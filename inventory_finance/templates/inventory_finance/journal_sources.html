@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title_ext %} · Recognition journal sources{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <a href="{% url 'inventory_finance:detail' row.public_id %}">Return to receipt support</a>
+  <h1 class="h3 mt-2">{{ row.case.reference_code }} · Recognition journal sources</h1>
+  <p>This live view shows the case's recognition requests and posted debit lines. No line is allocated to this receipt. A debit does not by itself establish inventory cost; Accounting must determine its treatment. Payment and liability lines are not receipt cost allocations.</p>
+  <p>Values may change during inspection. This view does not retain a review or certify reconciliation between stores.</p>
+  {% for observation in observations %}
+  <section class="card mb-3"><div class="card-body">
+    <h2 class="h5">Recognition version {{ observation.source.version }} · {{ observation.source.get_status_display }}</h2>
+    <p class="text-break">Request {{ observation.source.public_id }}</p>
+    {% if observation.issue %}<p class="alert alert-warning text-dark" role="status">{{ observation.issue }}</p>
+    {% else %}
+    <p class="text-break">Journal {{ observation.entry.reference }} · {{ observation.entry.entry_date }}<br>{{ observation.entry.public_id }}</p>
+    <p>Fund {{ observation.entry.fund.code }} · {{ observation.entry.fund.name }}<br>Posted {{ observation.entry.posted_at }}</p>
+    <div class="table-responsive"><table class="table"><caption>Observed debit lines; no receipt allocation recorded</caption>
+      <thead><tr><th scope="col">Sequence</th><th scope="col">Account</th><th scope="col">Type</th><th scope="col">Responsibility center</th><th scope="col">Debit</th></tr></thead>
+      <tbody>{% for line in observation.lines %}<tr><td>{{ line.sequence }}</td><td>{{ line.account.code }} · {{ line.account.title }}</td><td>{{ line.account.get_account_type_display }}</td><td>{% if line.responsibility_center %}{{ line.responsibility_center.code }} · {{ line.responsibility_center.name }}{% else %}None recorded{% endif %}</td><td>{{ line.debit }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+    {% endif %}
+  </div></section>
+  {% empty %}<p>No recognition posting requests are recorded for this case and ledger owner.</p>{% endfor %}
+  {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">Previous</a>{% endif %}
+  <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a href="?page={{ page.next_page_number }}">Next</a>{% endif %}
+</div>
+{% endblock %}

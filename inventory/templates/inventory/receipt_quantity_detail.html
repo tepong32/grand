@@ -1,0 +1,19 @@
+{% extends 'inventory/base.html' %}
+{% block content %}
+<h1>{{ row.reference }} · {{ row.get_status_display }}</h1>
+<a href="{% url 'inventory:receipt-quantity-corrections' row.line_id %}">Quantity correction history</a>
+{% if error %}<p role="alert">{{ error }}</p>{% endif %}
+<section class="panel"><h2>Retained clerical correction</h2><dl>
+<dt>Delivery and item</dt><dd>{{ row.basis.physical.header.delivery_reference }} · {{ row.basis.physical.line.description }}</dd>
+<dt>Original delivered / accepted</dt><dd>{{ row.basis.physical.line.delivered_quantity }} / {{ row.basis.physical.line.accepted_quantity }} {{ row.basis.physical.line.unit }}</dd>
+{% if row.basis.quantity_correction %}<dt>Effective delivered / accepted before this proposal</dt><dd>{{ row.basis.quantity_correction.effective_delivered }} / {{ row.basis.quantity_correction.effective_accepted }}</dd>{% endif %}
+<dt>Overstatement to subtract from both quantities</dt><dd>{{ row.quantity }} {{ row.basis.physical.line.unit }}</dd>
+<dt>Reason</dt><dd>{{ row.reason|linebreaksbr }}</dd><dt>Recorded by</dt><dd>{{ row.recorded_by }} · {{ row.recorded_at }}</dd>
+</dl><a href="{% url 'inventory:receipt-quantity-evidence' row.pk %}">Download correction packet · {{ row.original_filename }}</a>
+<p>Approval confirms a clerical overstatement before use. It is not a physical return, changed inspection decision, disposal, payment approval or Accounting reversal.</p>
+{% if row.adjustment_id %}<p>Retained stock adjustment: {{ row.adjustment.public_id }}</p>{% endif %}
+{% if row.asset_event_id %}<p>The erroneous asset entry is retained with its correction history.</p>{% endif %}</section>
+{% if form %}<section class="panel"><h2>Decision</h2><form method="post">{% csrf_token %}{{ form.as_p }}<button class="button primary">Record decision</button></form></section>{% endif %}
+{% if row.decided_by_id %}<section class="panel"><h2>Recorded decision</h2><p>{{ row.decided_by }} · {{ row.decided_at }}</p>{{ row.decision_note|linebreaksbr }}</section>{% endif %}
+<section class="panel"><h2>History</h2>{% for event in row.events.all %}<p>{{ event.occurred_at }} · {{ event.actor }} · {{ event.action }} (version {{ event.snapshot.version }})</p>{% endfor %}</section>
+{% endblock %}

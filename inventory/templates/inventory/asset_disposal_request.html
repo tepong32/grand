@@ -1,0 +1,8 @@
+{% extends "inventory/base.html" %}
+{% block title %}Request disposal review · {{ asset.asset_name }}{% endblock %}
+{% block content %}
+<header class="hero"><div><p class="eyebrow">GSO asset records</p><h1>Request disposal review</h1><p>{{ asset.asset_name }}{% if asset.property_tag %} · Asset no. {{ asset.property_tag }}{% endif %}</p></div></header>
+<nav class="quick-links"><a href="{% url 'inventory:asset-detail' asset.pk %}">Back to asset</a></nav>
+<section class="panel"><p>This sends a request to GSO. It does not retire or dispose of the asset. GSO will review the condition and supporting records.</p>
+<form method="post" enctype="multipart/form-data">{% csrf_token %}{{ form.non_field_errors }}{% for field in form %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{{ field.errors }}</div>{% endfor %}<div class="quick-links"><button class="button primary" type="submit">Send request to GSO</button><a href="{% url 'inventory:asset-detail' asset.pk %}">Cancel</a></div></form></section>
+{% endblock %}

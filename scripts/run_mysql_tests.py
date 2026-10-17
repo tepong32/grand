@@ -60,6 +60,7 @@ def main():
         }
         for alias in ("default", "finance")
     }
+    settings.DISPOSAL_PRIVATE_ROOT = runtime / "private-evidence"
     settings.MEDIA_ROOT = str(runtime / "media")
     settings.GRAND_EXPORT_ROOT = str(runtime / "exports")
     settings.GRAND_BACKUP_ROOT = str(runtime / "backups")

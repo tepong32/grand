@@ -1,0 +1,6 @@
+{% extends "inventory/base.html" %}{% block title %}Supply returns{% endblock %}{% block content %}
+<header class="hero"><div><p class="eyebrow">GSO · Supplies</p><h1>Supply returns</h1><p>Document returns against their original issues and review goods before adding them to usable stock.</p></div></header>
+<nav class="quick-links"><a href="{% url 'inventory:consumable-list' %}">Stock register</a></nav>
+<section class="panel"><p>Start a return from an original issue in the supply item's movement history.</p><form class="toolbar" method="get"><label for="q">Item or return reference</label><input id="q" name="q" value="{{ query }}"><button class="button">Search</button></form>
+{% for case in page %}<p><a href="{% url 'inventory:supply-return-detail' case.pk %}">{{ case.reference }}</a> · {{ case.issue.item.name }} · {{ case.quantity }} {{ case.issue.item.unit }} · {{ case.get_status_display }}</p>{% empty %}<p>No return records found.</p>{% endfor %}
+{% if page.has_previous %}<a href="?q={{ query|urlencode }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %} Page {{ page.number }} of {{ page.paginator.num_pages }} {% if page.has_next %}<a href="?q={{ query|urlencode }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}</section>{% endblock %}

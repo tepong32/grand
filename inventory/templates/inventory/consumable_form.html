@@ -1,0 +1,6 @@
+{% extends "inventory/base.html" %}
+{% block title %}Add supply item{% endblock %}
+{% block content %}
+<header class="hero"><div><p class="eyebrow">GSO workspace · Stock register</p><h1>{{ heading }}</h1><p>Choose quantity-only tracking for ordinary supplies. Enable FIFO only when staff need to keep receipt lots in order. FIFO cannot be changed once movements have been recorded.</p></div></header>
+<section class="form-card"><form method="post" novalidate>{% csrf_token %}{% if form.non_field_errors %}<div role="alert">{{ form.non_field_errors }}</div>{% endif %}<div class="form-grid">{% for field in form %}<div class="field {% if field.name == 'notes' %}full{% endif %}">{{ field.label_tag }}{{ field }}{% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}{% for error in field.errors %}<ul class="errorlist"><li>{{ error }}</li></ul>{% endfor %}</div>{% endfor %}</div><div class="actions"><button class="button primary" type="submit">Save item</button><a class="button" href="{% if item %}{% url 'inventory:consumable-detail' item.pk %}{% else %}{% url 'inventory:consumable-list' %}{% endif %}">Cancel</a></div></form></section>
+{% endblock %}

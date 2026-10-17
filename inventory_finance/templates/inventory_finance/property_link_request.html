@@ -1,0 +1,9 @@
+{% extends 'base.html' %}{% block title_ext %} · Request Finance association{% endblock %}{% block content %}
+<div class="container-fluid pb-4"><h1 class="h3">Request a Finance association</h1>
+<p><a href="{% url 'inventory:property-detail' record.pk %}">Return to property document</a> · <a href="{% url 'inventory_finance:property-links' %}">Association requests</a></p>
+<div class="card card-body"><h2 class="h5">Share {{ record.reference }}</h2><p>This request shares this property's retained facts and private source packet with explicitly authorized users in the selected Finance department. It does not share other property records or allow that office to edit custody.</p>
+<p>Asset: {{ record.asset.asset_name }} · document date: {{ record.source_date }} · authority: {{ record.source_authority }}. <a href="{% url 'inventory:property-evidence' record.pk %}">Inspect the packet before sharing</a>.</p>
+<p>Finance will select and independently review the native dimensions. The supplied fund label is not a native Fund identity.</p>
+{% if previous %}<p>Previous request: <a href="{% url 'inventory_finance:property-link-detail' previous.public_id %}">{{ previous.get_status_display }}</a>.</p>{% endif %}
+{% if issue %}<p class="alert alert-warning">{{ issue }}</p>{% endif %}
+<form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary" type="submit">Share this record and request association</button></form></div></div>{% endblock %}

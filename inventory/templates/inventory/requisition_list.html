@@ -1,0 +1,6 @@
+{% extends "inventory/base.html" %}{% block title %}Supplies requisitions{% endblock %}{% block content %}
+<header class="hero"><div><p class="eyebrow">GSO · Supplies</p><h1>Supplied requisitions</h1><p>Review supplied approved requests, then record physical issues and unavailable items.</p></div></header>
+<nav class="quick-links"><a href="{% url 'inventory:consumable-list' %}">Stock register</a>{% if can_record %}<a class="button primary" href="{% url 'inventory:requisition-create' %}">Record supplied requisition</a>{% endif %}</nav>
+<section class="panel"><form class="toolbar" method="get"><label for="q">Reference or requesting office</label><input id="q" name="q" value="{{ query }}"><button class="button">Search</button></form>
+{% for record in page %}<p><a href="{% url 'inventory:requisition-detail' record.pk %}">{{ record.reference }}</a> · {{ record.requesting_department_label }} · {{ record.requested_on }} · {{ record.get_status_display }}</p>{% empty %}<p>No requisitions found.</p>{% endfor %}
+{% if page.has_previous %}<a href="?q={{ query|urlencode }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %} Page {{ page.number }} of {{ page.paginator.num_pages }} {% if page.has_next %}<a href="?q={{ query|urlencode }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}</section>{% endblock %}

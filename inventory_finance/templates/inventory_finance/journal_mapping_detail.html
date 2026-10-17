@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title_ext %} · Recognition mapping review{% endblock %}
+{% block content %}<div class="container-fluid pb-4">
+<a href="{% url 'inventory_finance:journal-mappings' row.claim.public_id %}">Recognition mappings</a>
+<h1 class="h3 mt-2">{{ row.source_snapshot.reference }} · {{ row.get_status_display }}</h1>
+{% if issue %}<p class="alert alert-warning text-dark" role="status">{{ issue }} This historical decision must not be treated as current reconciliation.</p>{% endif %}
+<div class="card"><div class="card-body"><dl>
+<dt>Retained receipt</dt><dd>{{ row.claim_snapshot.facts.receipt.header.delivery_reference }} · line {{ row.claim_snapshot.facts.receipt.line.sequence }}</dd>
+<dt>Journal</dt><dd class="text-break">{{ row.journal_public_id }} · line {{ row.line_sequence }}</dd>
+<dt>Account</dt><dd>{{ row.source_snapshot.account.code }} · {{ row.source_snapshot.account.title }}</dd>
+<dt>Mapped amount</dt><dd>{{ row.amount }}</dd><dt>Basis</dt><dd>{{ row.basis|linebreaksbr }}</dd>
+<dt>Proposed by</dt><dd>{{ row.proposed_by }} · {{ row.proposed_at }}</dd>
+{% if row.reviewed_by %}<dt>Original review</dt><dd>{{ row.reviewed_by }} · {{ row.reviewed_at }}<br>{{ row.review_note|linebreaksbr }}</dd>{% endif %}
+</dl><p>Retained documentary recognition mapping. No asset valuation or journal posting is performed here.</p></div></div>
+{% if can_review %}<div class="card"><div class="card-body"><h2 class="h5">Independent decision</h2><form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary">Record decision</button></form></div></div>{% endif %}
+<h2 class="h5 mt-3">History</h2><ol>{% for event in events %}<li>{{ event.created_at }} · {{ event.action }} · {{ event.actor }}<p>{{ event.snapshot.note|linebreaksbr }}</p></li>{% endfor %}</ol>
+</div>{% endblock %}

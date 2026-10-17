@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title_ext %} · Propose receipt support{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <a href="{% url 'inventory_finance:workbench' %}">Receipt claim support</a>
+  <h1 class="h3 mt-2">Propose support for {{ case.reference_code }}</h1>
+  {% if preview %}
+  <div class="card"><div class="card-header"><h2 class="h5 mb-0">Review your proposal</h2></div><div class="card-body">
+    <dl><dt>Delivery</dt><dd>{{ preview.receipt_line.receipt.delivery_reference }} · line {{ preview.receipt_line.sequence }}: {{ preview.receipt_line.description }}</dd>
+    <dt>Accepted quantity and documented unit cost</dt><dd>{{ preview.receipt_line.accepted_quantity }} {{ preview.receipt_line.unit }} · unit cost {{ preview.receipt_line.unit_cost|default_if_none:'Unknown' }}</dd>
+    {% if preview.receipt_basis.documentary_amendment %}<dt>Reviewed documentary correction</dt><dd>{{ preview.receipt_basis.documentary_amendment.reference }} · effective unit cost {{ preview.receipt_basis.documentary_amendment.unit_cost|default_if_none:'Unknown' }}</dd>{% endif %}
+    {% if preview.receipt_basis.quantity_correction %}<dt>After reviewed clerical quantity corrections</dt><dd>Effective accepted {{ preview.receipt_basis.quantity_correction.effective_accepted }} {{ preview.receipt_line.unit }}; this quantity limits documentary support.</dd>{% endif %}
+    <dt>Voucher</dt><dd>{{ preview.source.voucher_number }} · {{ preview.source.voucher_date }}</dd>
+    <dt>Claim line</dt><dd>{{ preview.source.line_description }} · {{ preview.source.line_amount }}</dd>
+    <dt>Supported amount</dt><dd>{{ preview.amount }}</dd><dt>Basis</dt><dd>{{ preview.basis|linebreaksbr }}</dd></dl>
+    <p>A separate authorized Finance officer must review this proposal. This does not reserve Budget funds, change stock or post accounting entries.</p>
+    <form method="post">{% csrf_token %}{{ confirmation }}<input type="hidden" name="action" value="confirm"><button class="btn btn-primary" type="submit">Submit proposal for review</button> <a class="btn btn-outline-secondary" href="{% url 'inventory_finance:propose' case.public_id %}">Start over</a></form>
+  </div></div>
+  {% else %}
+  <div class="card"><div class="card-body"><form method="post">{% csrf_token %}{{ form.non_field_errors }}
+    {% for field in form %}<div class="form-group">{{ field.label_tag }}{{ field }}{{ field.errors }}{% if field.help_text %}<small class="form-text text-muted">{{ field.help_text }}</small>{% endif %}</div>{% endfor %}
+    <button class="btn btn-primary" type="submit" name="action" value="preview">Preview proposal</button>
+  </form></div></div>
+  {% endif %}
+</div>
+{% endblock %}

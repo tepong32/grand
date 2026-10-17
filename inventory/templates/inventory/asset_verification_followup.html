@@ -1,0 +1,8 @@
+{% extends "inventory/base.html" %}
+{% block title %}Resolve verification follow-up{% endblock %}
+{% block content %}
+<header class="hero"><div><p class="eyebrow">{{ record.verification_round.title }}</p><h1>Resolve follow-up</h1><p>{{ record.asset_name_snapshot }} · {{ record.get_result_display }}</p></div></header>
+<nav class="quick-links"><a href="{% url 'inventory:asset-verification-detail' record.verification_round_id %}">Back to round</a></nav>
+<section class="panel"><h2>Recorded difference</h2><p>{{ record.notes }}</p><p class="muted">Register assignment: {{ record.assigned_department_snapshot|default:"Unassigned" }} · {{ record.assigned_office_snapshot|default:"No custodian recorded" }}</p><p class="muted">Found at: {{ record.observed_department|default:"Not recorded" }} · {{ record.observed_office|default:"Not recorded" }}</p></section>
+<form method="post" class="form-card">{% csrf_token %}<input type="hidden" name="review_token" value="{{ review_token }}">{{ form.non_field_errors }}<h2>Record the review outcome</h2>{% for field in form %}<div class="field" style="margin-top:14px">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}<div class="actions"><button class="button primary" type="submit">Save follow-up</button><a class="button" href="{% url 'inventory:asset-verification-detail' record.verification_round_id %}">Cancel</a></div></form>
+{% endblock %}

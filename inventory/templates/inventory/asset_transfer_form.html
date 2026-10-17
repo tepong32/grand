@@ -1,0 +1,8 @@
+{% extends "inventory/base.html" %}
+{% block title %}Transfer {{ asset.asset_name }}{% endblock %}
+{% block content %}
+<header class="hero"><div><p class="eyebrow">Asset handoff</p><h1>Transfer / hand over</h1><p>{{ asset.asset_name }}{% if asset.property_tag %} · {{ asset.property_tag }}{% endif %}</p></div></header>
+{% if can_employee_handoff %}<nav class="quick-links"><a href="{% url 'inventory:employee-handoff' asset.pk %}">Select a named employee instead</a></nav>{% endif %}
+<section class="panel"><p>The current assignment stays in place until the receiving department acknowledges the handoff. Add a PAR, ICS, or other reference if you have one.</p>
+<form method="post">{% csrf_token %}{{ form.non_field_errors }}{% for field in form %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{{ field.errors }}</div>{% endfor %}<div class="quick-links"><button class="button primary" type="submit">Send handoff</button><a href="{% url 'inventory:asset-detail' asset.pk %}">Cancel</a></div></form></section>
+{% endblock %}

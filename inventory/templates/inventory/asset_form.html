@@ -1,0 +1,22 @@
+{% extends "inventory/base.html" %}
+{% block title %}{{ heading }}{% endblock %}
+{% block content %}
+<header class="hero"><div><p class="eyebrow">GSO workspace · Asset register</p><h1>{{ heading }}</h1><p>Record one tagged item per entry. Add the approved account mapping and purchase references when available; Accounting can confirm them later.</p></div></header>
+<section class="form-card"><form method="post" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="form-grid">{% for field in form %}<div class="field {% if field.name == 'notes' or field.name == 'coa_basis' %}full{% endif %}"{% if field.name == 'plate_number' or field.name == 'engine_number' or field.name == 'chassis_number' or field.name == 'registration_due' %} data-vehicle-fields{% endif %}>
+    {{ field.label_tag }}{{ field }}{% if field.help_text %}<span class="helptext">{{ field.help_text }}</span>{% endif %}{% for error in field.errors %}<ul class="errorlist"><li>{{ error }}</li></ul>{% endfor %}
+  </div>{% endfor %}</div>
+  <div class="actions"><button class="button primary" type="submit">Save asset</button><a class="button" href="{% if asset %}{% url 'inventory:asset-detail' asset.pk %}{% else %}{% url 'inventory:asset-list' %}{% endif %}">Cancel</a></div>
+</form></section>
+<script>
+  (() => {
+    const kind = document.getElementById("id_asset_kind");
+    const vehicleFields = document.querySelectorAll("[data-vehicle-fields]");
+    if (!kind || !vehicleFields.length) return;
+    const update = () => vehicleFields.forEach((field) => { field.hidden = kind.value !== "vehicle"; });
+    kind.addEventListener("change", update);
+    update();
+  })();
+</script>
+{% endblock %}

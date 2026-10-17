@@ -1,0 +1,6 @@
+{% extends 'base.html' %}{% block title_ext %} · Property Finance links{% endblock %}{% block content %}
+<div class="container-fluid pb-4"><h1 class="h3">Property Finance associations</h1>
+<p>Requests explicitly shared by GSO with a selected Finance office. Association does not authorize valuation, posting, payment or release of custody.</p>
+<div class="card card-body"><div class="table-responsive"><table class="table"><thead><tr><th>Property document</th><th>Finance owner</th><th>Status</th></tr></thead><tbody>
+{% for row in page %}<tr><td><a href="{% url 'inventory_finance:property-link-detail' row.public_id %}">{{ row.property_snapshot.reference }}</a></td><td>{{ row.owner_snapshot.name }}</td><td>{{ row.get_status_display }}</td></tr>{% empty %}<tr><td colspan="3">No requests in your scope. GSO starts a request from a verified property document.</td></tr>{% endfor %}
+</tbody></table></div><nav aria-label="Request pages">{% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">Previous</a>{% endif %} Page {{ page.number }} of {{ page.paginator.num_pages }} {% if page.has_next %}<a href="?page={{ page.next_page_number }}">Next</a>{% endif %}</nav></div></div>{% endblock %}

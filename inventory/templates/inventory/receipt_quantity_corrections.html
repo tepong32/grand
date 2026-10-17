@@ -1,0 +1,15 @@
+{% extends 'inventory/base.html' %}
+{% block content %}
+<h1>Clerical quantity corrections</h1>
+<p>{{ line.receipt.delivery_reference }} · line {{ line.sequence }} · {{ line.description }}</p>
+<a href="{% url 'inventory:receiving-detail' line.receipt_id %}">Back to receipt</a>
+<section class="panel"><h2>Quantity facts</h2>
+<p>Original delivered {{ line.delivered_quantity }} · accepted {{ line.accepted_quantity }} · rejected {{ line.rejected_quantity }} {{ line.unit }}</p>
+{% if quantities %}<p>Approved overstatement {{ quantities.corrected }} · effective delivered {{ quantities.delivered }} · effective accepted {{ quantities.accepted }} {{ line.unit }}</p>{% endif %}
+<p>Use this only for quantities entered too high before use or Finance support. Retain the original entry and correcting document for independent review. An approved supply correction reduces the original receipt's stock; a wholly mistaken asset entry remains in history.</p>
+{% if error %}<p role="alert">{{ error }}</p>{% endif %}</section>
+{% if form %}<section class="panel"><h2>Record for independent review</h2>
+<p>While a proposal is pending, operations on the affected supply item or asset are held. The recorder can cancel an incorrect proposal.</p>
+<form method="post" enctype="multipart/form-data">{% csrf_token %}{{ form.as_p }}<button class="button primary">Submit correction for review</button></form></section>{% endif %}
+<section class="panel"><h2>Correction history</h2>{% for row in rows %}<p><a href="{% url 'inventory:receipt-quantity-detail' row.pk %}">{{ row.reference }}</a> · {{ row.get_status_display }} · overstated {{ row.quantity }} {{ line.unit }} · {{ row.recorded_by }}</p>{% empty %}<p>No quantity corrections recorded.</p>{% endfor %}</section>
+{% endblock %}

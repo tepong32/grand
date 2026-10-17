@@ -1,0 +1,11 @@
+{% extends "inventory/base.html" %}{% block title %}Record supplied requisition{% endblock %}{% block content %}
+<header class="hero"><div><p class="eyebrow">GSO · Supplies</p><h1>Record supplied requisition</h1><p>Retain the approved document supplied by the requesting office. Entry does not reserve or issue stock.</p></div></header>
+<nav class="quick-links"><a href="{% url 'inventory:requisition-list' %}">Requisition records</a></nav>
+<form class="panel" method="post" enctype="multipart/form-data">{% csrf_token %}{{ form.as_p }}
+<h2>Requested supplies</h2><p>Enter quantities in the listed stock units. Leave unused rows blank. Combine repeated items.</p>
+{{ lines.management_form }}{{ lines.non_form_errors }}<div id="request-lines">{% for line in lines %}<fieldset class="panel"><legend>Supply line {{ forloop.counter }}</legend>{{ line.as_p }}</fieldset>{% endfor %}</div>
+<template id="empty-line"><fieldset class="panel"><legend>Additional supply line</legend>{{ lines.empty_form.as_p }}</fieldset></template>
+<button class="button" type="button" id="add-line">Add another line</button><p id="line-limit" role="status"></p>
+<p>A different GSO officer must check the document before issues can be recorded. Incorrect documents or quantities are closed and recorded anew; the original stays in history.</p><button class="button primary" type="submit">Retain requisition for review</button></form>
+<script>document.getElementById('add-line').addEventListener('click', function () { const total = document.getElementById('id_lines-TOTAL_FORMS'); const count = Number(total.value); if (count >= 50) { document.getElementById('line-limit').textContent = 'A requisition supports up to 50 lines.'; return; } const html = document.getElementById('empty-line').innerHTML.replaceAll('__prefix__', String(count)); document.getElementById('request-lines').insertAdjacentHTML('beforeend', html); total.value = count + 1; });</script>
+{% endblock %}

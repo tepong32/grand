@@ -1,0 +1,11 @@
+{% extends "inventory/base.html" %}
+{% block content %}
+<h1>Follow-up inspection</h1>
+<section class="panel">
+<p>Original delivery {{ source.receipt.delivery_reference }}, line {{ source.sequence }}: {{ source.description }}.</p>
+<p>Unresolved quantity: <strong>{{ remaining }} {{ source.unit }}</strong>. Record only quantities from this delivery that were neither accepted nor rejected. Later deliveries need separate receiving records.</p>
+<p>This draft adds no stock. Retain delivery and follow-up inspection documents, then submit for independent review.</p>
+<form method="post">{% csrf_token %}{{ form.as_p }}
+<button class="button primary">Save follow-up draft</button>
+<a href="{% url 'inventory:receiving-detail' source.receipt_id %}">Original delivery</a>
+</form></section>{% endblock %}

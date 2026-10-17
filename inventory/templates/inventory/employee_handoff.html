@@ -1,0 +1,19 @@
+{% extends "inventory/base.html" %}
+{% block title %}Employee handoff{% endblock %}
+{% block content %}
+<header class="hero"><div><p class="eyebrow">GSO · Named custody</p><h1>Hand over to an employee</h1><p>{{ asset.asset_name }} · {{ asset.property_tag|default:"No property tag" }}</p></div></header>
+<nav class="quick-links"><a href="{% url 'inventory:asset-detail' asset.pk %}">Back to asset</a><a href="{% url 'inventory:asset-transfer-list' %}">Handoffs</a></nav>
+{% if preview %}
+<section class="panel"><h2>Review the handoff</h2><dl class="detail-grid">
+<div><dt>Current custodian / office</dt><dd>{{ asset.assigned_office|default:"Unassigned" }} · {{ asset.assigned_department_label|default:"No recorded office" }}</dd></div>
+<div><dt>Receiving employee</dt><dd>{{ preview.source.display_name|default:preview.source.username }} ({{ preview.source.username }})</dd></div>
+<div><dt>Current employee department</dt><dd>{{ preview.source.department_label }}</dd></div>
+<div><dt>Handoff date</dt><dd>{{ preview.data.transfer_date }}</dd></div><div><dt>Reference</dt><dd>{{ preview.data.reference }}</dd></div><div><dt>Reason</dt><dd>{{ preview.data.reason }}</dd></div>
+</dl><p>The assignment changes only when this employee acknowledges receipt. You cannot acknowledge your own request. If their name or department changes, GSO must review a new handoff.</p>
+<form method="post">{% csrf_token %}{{ confirmation.as_p }}<button class="button primary" name="action" value="confirm">Send for employee acknowledgment</button></form></section>
+{% else %}
+{{ form.non_field_errors }}
+<section class="panel"><h2>Find the receiving employee</h2><form method="get"><label for="employee-query">Name or account username</label><input id="employee-query" name="q" value="{{ query }}" maxlength="100" required><button class="button" type="submit">Search employees</button></form><p class="muted">Up to 25 active employee accounts with a department. Refine your search if needed.</p></section>
+{% if employees %}<section class="panel"><h2>Record handoff details</h2><form method="post">{% csrf_token %}{{ form.as_p }}<button class="button primary" name="action" value="preview">Review selected employee</button></form></section>{% elif query %}<section class="panel"><p>No matching employee with an assigned department. Ask HR to verify the employee record.</p></section>{% endif %}
+{% endif %}
+{% endblock %}

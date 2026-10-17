@@ -1,0 +1,8 @@
+{% extends 'inventory/base.html' %}
+{% block content %}<h1>Documentary cost amendments</h1>
+<p>{{ line.receipt.delivery_reference }} · line {{ line.sequence }} · {{ line.description }}</p>
+<a href="{% url 'inventory:receiving-detail' line.receipt_id %}">Back to receipt</a>
+<p>Correct a documented cost with independent review. Original asset values, stock lots and Accounting entries remain unchanged. Quantity corrections require a separate workflow.</p>
+<section class="panel"><h2>Recorded cost facts</h2><p>Original accepted unit cost: {{ line.unit_cost|default_if_none:'Unknown' }}</p>{% if basis %}<p>Effective documented unit cost: {{ basis.effective_unit_cost|default_if_none:'Unknown' }}</p>{% endif %}{% if error %}<p role="alert">{{ error }}</p>{% endif %}</section>
+{% if form %}<section class="panel"><h2>Record a correction for review</h2><form method="post" enctype="multipart/form-data">{% csrf_token %}{{ form.as_p }}<button class="button primary">Submit documentary correction</button></form></section>{% endif %}
+<section class="panel"><h2>Amendment history</h2>{% for row in rows %}<p><a href="{% url 'inventory:receipt-amendment-detail' row.pk %}">{{ row.reference }}</a> · {{ row.get_status_display }} · {{ row.unit_cost|default_if_none:'Unknown' }} · {{ row.recorded_by }}</p>{% empty %}<p>No amendments recorded.</p>{% endfor %}</section>{% endblock %}

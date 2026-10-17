@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title_ext %} · Receipt support review{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+  <a href="{% url 'inventory_finance:workbench' %}">Receipt claim support</a>
+  <h1 class="h3 mt-2">{{ row.case.reference_code }} · {{ row.get_status_display }}</h1>
+  {% if can_inspect_journals %}<p><a href="{% url 'inventory_finance:journal-sources' row.public_id %}">Inspect recognition journal sources</a></p>{% endif %}
+  {% if can_inspect_journals %}<p><a href="{% url 'inventory_finance:journal-mappings' row.public_id %}">Reviewed recognition mappings</a></p>{% endif %}
+  {% if not source_current %}<div class="alert alert-warning text-dark" role="status">The claim source has changed or its line was replaced. This historical link needs review; it cannot be approved as current support.</div>{% endif %}
+  {% if not receipt_current %}<div class="alert alert-warning text-dark" role="status">The receipt basis changed or was not retained with this historical link. Review and withdraw or reject it before proposing current support.</div>{% endif %}
+  <div class="card"><div class="card-body"><dl>
+    {% if row.receipt_snapshot %}<dt>Recorded delivery</dt><dd>{{ row.receipt_snapshot.header.delivery_reference }} · line {{ row.receipt_snapshot.line.sequence }}: {{ row.receipt_snapshot.line.description }}</dd>
+    <dt>Recorded accepted quantity and unit cost</dt><dd>{{ row.receipt_snapshot.line.accepted_quantity }} {{ row.receipt_snapshot.line.unit }} · unit cost {{ row.receipt_snapshot.line.unit_cost|default_if_none:'Unknown' }}</dd>
+    {% if row.receipt_snapshot.quantity_correction %}<dt>Retained effective accepted quantity after clerical correction</dt><dd>{{ row.receipt_snapshot.quantity_correction.effective_accepted }} {{ row.receipt_snapshot.line.unit }}</dd>{% endif %}
+    {% else %}<dt>Original receipt basis</dt><dd>Not retained by this historical link. Current receipt values are not evidence of its original review.</dd>{% endif %}
+    {% if row.receipt_snapshot.documentary_amendment %}<dt>Retained documentary correction</dt><dd>{{ row.receipt_snapshot.documentary_amendment.reference }} · effective unit cost {{ row.receipt_snapshot.documentary_amendment.unit_cost|default_if_none:'Unknown' }} · {{ row.receipt_snapshot.documentary_amendment.uuid }}</dd>{% endif %}
+    <dt>Recorded claim line</dt><dd>{{ row.source_snapshot.voucher_number }} · {{ row.source_snapshot.line_description }} · {{ row.source_snapshot.line_amount }}</dd>
+    <dt>Supported amount</dt><dd>{{ row.amount }}</dd><dt>Basis</dt><dd>{{ row.basis|linebreaksbr }}</dd>
+    <dt>Proposed by</dt><dd>{{ row.proposed_by }} · {{ row.proposed_at }}</dd>
+    {% if row.reviewed_by %}<dt>Original review</dt><dd>{{ row.reviewed_by }} · {{ row.reviewed_at }}<br>{{ row.review_note|linebreaksbr }}</dd>{% endif %}
+  </dl><p>This link records claim support. It does not approve payment, establish acquisition cost or post accounting entries.</p></div></div>
+  {% if can_review %}<div class="card"><div class="card-header"><h2 class="h5 mb-0">Record a decision</h2></div><div class="card-body">
+    <form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary" type="submit">Record decision</button></form>
+  </div></div>{% endif %}
+  <div class="card"><div class="card-header"><h2 class="h5 mb-0">History</h2></div><div class="card-body"><ol>
+    {% for event in events %}<li>{{ event.created_at }} · {{ event.action }} · {{ event.actor }}{% if event.snapshot.note %}<p>{{ event.snapshot.note|linebreaksbr }}</p>{% endif %}</li>{% endfor %}
+  </ol></div></div>
+</div>
+{% endblock %}

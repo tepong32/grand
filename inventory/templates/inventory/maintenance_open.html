@@ -1,0 +1,7 @@
+{% extends "inventory/base.html" %}
+{% block title %}Record maintenance{% endblock %}
+{% block content %}
+<header class="hero"><div><p class="eyebrow">GSO · Maintenance</p><h1>Record a repair concern</h1><p>{{ asset.asset_name }} · {{ asset.property_tag|default:"No property tag" }}</p></div></header>
+<nav class="quick-links"><a href="{% url 'inventory:asset-detail' asset.pk %}">Back to asset</a></nav>
+<section class="panel"><p>Opening a case marks this asset under maintenance. Finish or cancel this case before editing the register, handing the asset over, or requesting disposal.</p><form method="post">{% csrf_token %}{{ form.as_p }}<button class="button primary" type="submit">Open maintenance case</button></form></section>
+{% endblock %}

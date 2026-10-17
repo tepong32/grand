@@ -6,6 +6,18 @@ Department-aware Django platform for municipal public services and internal oper
 
 ### Durable boundaries
 
+GSO integration follows [the carry-over record](docs/GSO_INTEGRATION.md). Inventory
+and its Finance adapter use default; Accounting/Budget remain in finance. Reuse
+native identities, explicit module grants, UAT denial and immutable source history.
+No automatic postings, inferred source matching, prototype credential imports or
+role auto-grants. Keep all transferred migration identities. Protected GSO uploads
+require DISPOSAL_PRIVATE_ROOT outside public media/static and separate coordinated
+file recovery; database dumps alone do not contain them. See [GSO data boundaries](docs/gso/grand-integration-design.md)
+and [recovery](docs/gso/security-and-recovery.md). Local form placeholders are
+authorized; draft outputs are not official form acceptance. New GSO/Finance work
+uses separate codex branches of GRAND after this integration checkpoint. User asks
+to pause after reviewed/tested integration and report actual outcomes in bullets.
+
 Signed Form 1 returns retain per-entity dates, original PDF bytes and declared
 physical custody separately from independent verification and immutable final
 issue archives. An upload/PDF parse does not establish signatures. Preserve

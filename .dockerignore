@@ -28,3 +28,7 @@ tmp
 .tmp
 Dockerfile*
 docker-compose*.yml
+
+# GSO private evidence must never enter a container image.
+private_uploads
+runtime

@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title_ext %} · Receipt recognition mappings{% endblock %}
+{% block content %}
+<div class="container-fluid pb-4">
+<a href="{% url 'inventory_finance:detail' claim.public_id %}">Return to receipt support</a>
+<h1 class="h3 mt-2">{{ claim.case.reference_code }} · Recognition mappings</h1>
+<p>Identify the portion of a posted recognition debit supported by this receipt claim. A mapping records an independently reviewed relationship; it does not post entries, change asset cost or allocate physical quantities.</p>
+<p><a href="{% url 'inventory_finance:journal-sources' claim.public_id %}">Inspect recognition requests and debit line sequences</a></p>
+<p>Listed statuses are retained decisions. Open a mapping to check whether its source is still current.</p>
+<ul>{% for row in rows %}<li><a href="{% url 'inventory_finance:mapping-detail' row.public_id %}">{{ row.source_snapshot.reference }} · line {{ row.line_sequence }} · {{ row.amount }} · {{ row.get_status_display }}</a></li>{% empty %}<li>No mappings visible under your permissions.</li>{% endfor %}</ul>
+{% if can_propose %}<div class="card"><div class="card-body">
+<h2 class="h5">Propose a mapping</h2><form method="post">{% csrf_token %}{{ form.as_p }}<button class="btn btn-primary" name="action" value="preview">Preview mapping</button></form>
+</div></div>{% endif %}
+{% if preview %}<div class="card mt-3"><div class="card-body"><h2 class="h5">Review before recording</h2>
+<dl><dt>Receipt support</dt><dd>{{ preview.evidence.claim.facts.receipt.header.delivery_reference }} · {{ preview.evidence.claim.facts.amount }}</dd>
+<dt>Journal and debit line</dt><dd>{{ preview.evidence.journal.reference }} · line {{ preview.evidence.journal.sequence }} · {{ preview.evidence.journal.account.code }} {{ preview.evidence.journal.account.title }}</dd>
+<dt>Available source debit before other mappings</dt><dd>{{ preview.evidence.journal.debit }}</dd><dt>Proposed amount</dt><dd>{{ preview.amount }}</dd><dt>Basis</dt><dd>{{ preview.basis|linebreaksbr }}</dd></dl>
+<form method="post">{% csrf_token %}{{ confirmation.as_p }}<button class="btn btn-primary" name="action" value="confirm">Record proposal for independent review</button></form></div></div>{% endif %}
+</div>{% endblock %}

@@ -71,7 +71,8 @@ By default, Render filesystems are ephemeral. GRAND currently writes three mater
 
 - `/app/runtime/media` — uploaded or generated application files;
 - `/app/runtime/exports` — user-requested TraceSync-ready report/transaction artifacts;
-- `/app/runtime/backups` — restricted database recovery sets.
+- `/app/runtime/backups` — restricted database recovery sets;
+- `/app/runtime/gso-private` — protected GSO evidence (`DISPOSAL_PRIVATE_ROOT`), never public media/static. Include it in approved coordinated file backup and restore checks.
 
 If filesystem storage is retained, mount an approved persistent disk at `/app/runtime` and set the three environment roots accordingly. Keep permissions and off-host handling different even though the directories share a mount. A disk is attached to one service instance, prevents horizontal scaling, and disables zero-downtime deploys; the deployment owner must accept that tradeoff or implement approved shared object storage before cutover.
 

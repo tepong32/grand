@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.174] - 2026-10-17
+### Added
+- feat(gso): integrate inventory with native GRAND authority and Finance boundaries
+
 ## [0.7.173] - 2026-10-17
 ### Added
 - feat(finance): retain reviewed Form 1 signing copies and clarify prior-payable validation

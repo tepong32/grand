@@ -1,0 +1,2 @@
+{% extends "inventory/base.html" %}
+{% block content %}<h1>{{ heading }}</h1><section class="panel"><form method="post">{% csrf_token %}{{ form.as_p }}<button class="button primary">Save draft</button> <a href="{% url 'inventory:receiving-list' %}">Cancel</a></form></section>{% endblock %}

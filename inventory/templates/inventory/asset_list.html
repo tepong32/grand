@@ -1,0 +1,31 @@
+{% extends "inventory/base.html" %}
+{% block title %}Asset register{% endblock %}
+{% block content %}
+<header class="hero"><div><p class="eyebrow">GSO workspace</p><h1>Asset register</h1><p>Review equipment, furniture, fixtures, and vehicles by class, office, and accounting references.</p></div><div class="person"><span>Showing</span><strong>{{ page.paginator.count }} records</strong><span>Up to 25 per page</span></div></header>
+<div class="toolbar">
+  <form class="filters" method="get" role="search">
+    <div><label for="id_q">Search assets</label><input id="id_q" type="search" name="q" value="{{ query }}" placeholder="Name, tag, OBR, serial"></div>
+    <div><label for="id_status">Status</label><select id="id_status" name="status"><option value="">All statuses</option>{% for value,label in statuses %}<option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div><label for="id_class">Inventory class</label><select id="id_class" name="class"><option value="">All classes</option>{% for value,label in inventory_classes %}<option value="{{ value }}" {% if selected_class == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <button class="button primary" type="submit">Apply filters</button>
+    {% if query or selected_status or selected_class %}<a class="button" href="{% url 'inventory:asset-list' %}">Clear</a>{% endif %}
+  </form>
+  {% if can_export %}<a class="button" href="{% url 'inventory:asset-export' %}">Export CSV</a>{% endif %}{% if can_add %}<a class="button primary" href="{% url 'inventory:asset-create' %}">Add an asset</a>{% endif %}
+</div>
+<div class="table-wrap"><table>
+  <thead><tr><th scope="col">Asset</th><th scope="col">Inventory class / item type</th><th scope="col">Tag / OBR</th><th scope="col">Assigned office</th><th scope="col">COA account</th><th scope="col">Status</th><th scope="col">Action</th></tr></thead>
+  <tbody>{% for asset in page %}<tr>
+    <td><strong>{{ asset.asset_name }}</strong><br><span class="muted">{{ asset.purchase_date|date:"M j, Y"|default:"Acquisition date not recorded" }}</span></td>
+    <td>{{ asset.get_inventory_class_display }}<br><span class="muted">{{ asset.get_item_type_display }}{% if asset.category %} · {{ asset.category }}{% endif %}</span>{% if asset.brand %}<br><span class="muted">{{ asset.brand }} {{ asset.model_number }}</span>{% endif %}</td>
+    <td>{{ asset.property_tag|default:asset.obr_reference|default:"—" }}{% if asset.serial_number %}<br><span class="muted">S/N {{ asset.serial_number }}</span>{% endif %}</td>
+    <td>{{ asset.assigned_department_label|default:"Unassigned" }}{% if asset.assigned_office %}<br><span class="muted">{{ asset.assigned_office }}</span>{% endif %}</td>
+    <td>{% if asset.coa_account_code %}{{ asset.coa_account_code }}{% else %}<span class="muted">Awaiting review</span>{% endif %}</td><td><span class="status">{{ asset.get_status_display }}</span></td>
+    <td><a href="{% url 'inventory:asset-detail' asset.pk %}">View record</a></td>
+  </tr>{% empty %}<tr><td colspan="7"><strong>No assets found.</strong><br><span class="muted">Try a different search or clear the filters. If this is a new register, add the first asset.</span></td></tr>{% endfor %}</tbody>
+</table></div>
+<nav class="pagination" aria-label="Register pages">
+  {% if page.has_previous %}<a class="button" href="?q={{ query|urlencode }}&status={{ selected_status|urlencode }}&class={{ selected_class|urlencode }}&page={{ page.previous_page_number }}">Previous</a>{% else %}<span></span>{% endif %}
+  <span class="muted">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a class="button" href="?q={{ query|urlencode }}&status={{ selected_status|urlencode }}&class={{ selected_class|urlencode }}&page={{ page.next_page_number }}">Next</a>{% else %}<span></span>{% endif %}
+</nav>
+{% endblock %}
