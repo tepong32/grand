@@ -4,6 +4,15 @@ This roadmap prioritizes practical controls for equipment, vehicles, and consuma
 
 ## Immediate sequence
 
+2026-10-18 autonomous resumption: the [working doctrine](../../AGENTS.md#working-doctrine--2026-10-18)
+permits coherent local feature batches on isolated GRAND branches. ICS/SPC working
+draft preparation is implemented locally beside PAR; see
+[scope and boundaries](property-record-design.md#working-draft-preparation--2026-10-18)
+and [current validation](../../CONTINUE.md). This does not authorize merging or
+publishing the batch, certify an official form or complete a class/fund SPC.
+The earlier integrate-then-pause instruction was fulfilled by v0.7.176 and is
+superseded for local development by the current mission.
+
 User direction2026-10-17: reviewed [integration readiness](grand-carryover-checkpoint.md),
 VM checkpoint, then actual carry-over and parallel GSO/Finance branches of GRAND.
 Do not keep developing two independent shells indefinitely. Preserve remaining

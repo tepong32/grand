@@ -1,0 +1,49 @@
+{% extends "inventory/base.html" %}
+{% block title %}{{ kind }} preparation sheet{% endblock %}
+{% block content %}
+<style>
+.property-draft{background:white;color:#111;padding:24px;border:1px solid #aaa;margin-top:24px;overflow-wrap:anywhere}
+.property-draft table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px;min-width:850px}
+.property-draft td,.property-draft th{border:1px solid #555;padding:7px;overflow-wrap:anywhere;white-space:normal}
+.property-draft td{height:50px}.draft-scroll{overflow-x:auto}.draft-signatures{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:30px}.draft-entry{border-top:1px solid #ddd;padding-top:12px}
+.property-draft tbody tr:last-child td{border-bottom:1px solid #555}.draft-navigation{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}.draft-editor summary{cursor:pointer;font-weight:650}.draft-editor summary:focus-visible,.draft-scroll:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+@media print{.topbar,.footer,.draft-editor,.draft-navigation,.hero,.messages{display:none!important}main{width:100%;margin:0;padding:0}.property-draft{border:0;padding:0;margin:0;box-shadow:none;font-size:12px;line-height:1.3}.property-draft p{margin:6px 0}.property-draft h2{font-size:18px;margin:10px 0}.draft-scroll{overflow:visible}.property-draft table{min-width:0;font-size:11px}.property-draft td,.property-draft th{padding:5px}.property-draft td{height:30px}.draft-signatures{margin-top:18px}.property-draft tr,.draft-signatures{break-inside:avoid}body{background:white}@page{size:A4 landscape;margin:12mm}}
+</style>
+<header class="hero"><div><h1>{{ kind }} preparation sheet</h1><p>{{ title }} · fill in known details and leave unknowns blank.</p></div></header>
+<nav class="draft-navigation quick-links" aria-label="Property drafts"><a class="button" href="{% url 'inventory:property-register' %}">Back to property records</a><a class="button" href="{% url 'inventory:ics-preparation' %}">New ICS draft</a><a class="button" href="{% url 'inventory:spc-preparation' %}">New SPC draft</a>{% if ready %}<button class="button primary" type="button" onclick="window.print()">Print / Save as PDF</button>{% endif %}</nav>
+{% if source_asset %}<aside class="panel draft-navigation"><p>Started from <a href="{% url 'inventory:asset-detail' source_asset.pk %}">{{ source_asset.asset_name }}</a> (register tag: {{ source_asset.property_tag|default:"not recorded" }}). Name, quantity and recorded unit cost are copied on entry. Check the source and edit the draft as needed; later changes here are not saved to the register. This does not confirm an ICS classification, value or actual issuance. Local inventory numbers, recipient and acknowledgment still need confirmation.</p></aside>{% endif %}
+<details class="panel draft-editor"{% if not ready %} open{% endif %}><summary>{% if ready %}Change draft details{% else %}Enter draft details{% endif %}</summary>
+<form method="post" id="draft-editor">{% csrf_token %}
+<p>These entries are not saved. Preview, then Print / Save as PDF. Store the draft in approved office storage if you need to continue later.</p>
+<p>This is an unsigned working draft. It does not assign numbers, acknowledge receipt, change custody or stock, or post to Finance. Confirm the local form and instructions before official use.</p>
+{% if invalid %}<p role="alert" class="errorlist">The draft could not be prepared. Correct the fields marked below, then preview again. Your entries remain here.</p>{% endif %}
+<h2>Office and form details</h2><div class="form-grid">{{ header.as_p }}</div>
+<h2>{% if kind == 'ICS' %}Items{% else %}Source entries{% endif %}</h2>
+<p>Copy supplied facts only. Blank costs and quantities remain unknown; zero remains zero. Amounts and balances are copied from your sources, not calculated or reconciled by this sheet.</p>
+{{ lines.management_form }}{{ lines.non_form_errors }}
+{% for line in lines %}<fieldset class="draft-entry"><legend>{% if kind == 'ICS' %}Item{% else %}Entry{% endif %} {{ forloop.counter }}</legend><div class="form-grid">{{ line.as_p }}</div></fieldset>{% endfor %}
+<button class="button primary" type="submit">Preview {{ kind }} draft</button>
+</form></details>
+{% if ready %}<section class="property-draft" aria-label="{{ kind }} draft preview" id="draft-preview" tabindex="-1">
+<p><strong>DRAFT — FOR COMPLETION AND REVIEW</strong></p><h2>{{ title }} · preparation sheet</h2>
+<p>LGU: {{ details.lgu|default:"[LGU / municipality]" }} · Fund: {{ details.fund|default:"[Fund]" }}</p>
+<p>Form reference / revision: {{ details.form_reference|default:"[Local form reference / revision]" }}</p>
+{% if source_asset %}<p>Preparation started from register item: {{ source_asset.asset_name }} · tag {{ source_asset.property_tag|default:"not recorded" }}. Draft values require source review; this is not an issued inventory record.</p>{% endif %}
+{% if kind == 'ICS' %}
+<p>Office: {{ details.office|default:"[Office]" }} · ICS no.: {{ details.number|default:"[Number to be assigned under local rules]" }}</p>
+<p>Numbering instructions: {{ details.numbering|default:"[Confirm local numbering practice]" }}</p>
+<div class="draft-scroll" role="region" aria-label="ICS item details" tabindex="0"><table><thead><tr><th>Quantity</th><th>Unit</th><th>Unit cost<br>(as supplied)</th><th>Total cost<br>(as supplied)</th><th>Description</th><th>Inventory item number</th><th>Estimated useful life</th></tr></thead><tbody>
+{% for line in print_lines %}<tr><td>{{ line.quantity|default_if_none:"" }}</td><td>{{ line.unit }}</td><td>{{ line.unit_cost|default_if_none:"" }}</td><td>{{ line.total_cost|default_if_none:"" }}</td><td>{{ line.description|linebreaksbr }}</td><td>{{ line.inventory_number }}</td><td>{{ line.useful_life }}</td></tr>{% endfor %}
+</tbody></table></div>
+<div class="draft-signatures"><div><strong>Issuer (to be confirmed)</strong><p>{{ details.issuer|default:"[Name]" }}</p><p>{{ details.issuer_role|default:"[Designation / office]" }}</p><p>Signature: ___________________</p><p>Date: ___________________</p></div><div><strong>Recipient (to be confirmed)</strong><p>{{ details.recipient|default:"[Name]" }}</p><p>{{ details.recipient_role|default:"[Designation / office]" }}</p><p>Signature: ___________________</p><p>Date: ___________________</p></div></div>
+{% else %}
+<p>Property class: {{ details.property_class|default:"[Property class]" }} · Property number: {{ details.property_number|default:"[Property number]" }}</p>
+<p>Description: {{ details.description|default:"[Item description]"|linebreaksbr }} · Estimated useful life: {{ details.useful_life|default:"[Useful life as supplied]" }}</p>
+<div class="draft-scroll" role="region" aria-label="SPC source entries" tabindex="0"><table><thead><tr><th>Date</th><th>Source / item reference</th><th>Quantity received</th><th>Receipt unit cost</th><th>Receipt total cost</th><th>Quantity issued / transferred / disposed</th><th>Office / officer</th><th>Balance<br>(from source)</th><th>Remarks</th></tr></thead><tbody>
+{% for line in print_lines %}<tr><td>{{ line.date|date:"Y-m-d" }}</td><td>{{ line.reference }}</td><td>{{ line.received|default_if_none:"" }}</td><td>{{ line.unit_cost|default_if_none:"" }}</td><td>{{ line.total_cost|default_if_none:"" }}</td><td>{{ line.issued|default_if_none:"" }}</td><td>{{ line.office_officer }}</td><td>{{ line.balance|default_if_none:"" }}</td><td>{{ line.remarks|linebreaksbr }}</td></tr>{% endfor %}
+</tbody></table></div>
+<p>Supplied entries only. This sheet is not a reconstructed or certified class/fund balance. Reconcile source documents and reviewed openings before relying on stock quantities.</p>
+{% endif %}
+<p>Unsigned preparation only. Blank fields are unknown or awaiting completion. This draft does not establish acknowledgment, custody transfer, stock reconciliation or Accounting approval.</p>
+</section>{% endif %}
+{% endblock %}

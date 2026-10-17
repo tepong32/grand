@@ -11,7 +11,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods
 from . import property_determinations as service
-from .access import gso_department_for_user
+from .property_card_views import can_prepare as can_prepare_source_card
+from .access import can as can_asset, gso_department_for_user
 from .models import Asset, PropertyDetermination
 from .property_forms import PropertyForm, PropertyDecisionForm, PropertyVersionForm
 
@@ -93,7 +94,9 @@ def property_register(request):
     query = request.GET.copy()
     query.pop("page", None)
     return render(request, "inventory/property_register.html", {"form": form, "page": page,
-        "rows": rows, "filter_query": query.urlencode()})
+        "rows": rows, "filter_query": query.urlencode(),
+        "can_copy_to_draft": can_asset(request.user, "export"),
+        "can_prepare_source_card": can_prepare_source_card(request.user)})
 
 
 def display_value(model, name, raw):

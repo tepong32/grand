@@ -1,5 +1,60 @@
 # GRAND - repository guide
 
+## Working doctrine — 2026-10-18
+
+Deliver complete, useful LGU workflows in coherent batches. Choose the next task
+from the current roadmap, source and handoff by user value, correctness, risk and
+dependencies; reassess after each slice and continue independent safe work. Do not
+substitute repeated audits, documentation, commit counts or test counts for
+development. Reuse established decisions instead of rediscovering them.
+
+Apply this judgment order: actual employee need → correctness and trust → simplest
+adequate design → maintainability → flexibility justified by a real near-term need.
+Prefer existing project patterns; avoid speculative abstractions, dependencies,
+configuration and frameworks. Simplicity never removes authorization, audit,
+financial integrity, recovery controls, error handling or accessibility.
+
+Non-technical usability is part of implementation: familiar LGU language, clear
+next actions and statuses, sensible defaults, guided entry, actionable errors,
+keyboard access and readable mobile layouts. Reduce repeated entry and ordinary
+users' exposure to technical details. Validate relevant actual browser journeys.
+Do not invent official terminology, local policy, accounting rules or forms.
+
+Use risk-based verification: group related edits, use focused checks at coherent
+checkpoints, and defer low-value intermediate/broad repeats. Reuse successful
+evidence only for the relevant unchanged code/environment. Do not launch duplicate
+or overlapping test processes. Never defer critical verification for Finance
+calculations/source-to-ledger links, authorization, private evidence, quantities,
+retirement/destruction, migrations, routing, transactions, concurrency or recovery.
+Native Finance persistence validation and required candidate/published-revision CI
+gates remain mandatory. Report passed, failed, deferred, skipped and unavailable
+checks accurately with reasons; investigate failures without weakening gates.
+Propose costly CI-policy duplication separately, with evidence, not inside a feature.
+
+Make routine implementation decisions independently. Consolidate owner decisions in
+the existing [decision log](docs/IMPLEMENTATION_DECISIONS.md), using stable
+`DECISION-FIN/GSO/UX/OPS-NNN` identifiers. Each open entry records the question,
+importance, evidence/unknowns, alternatives, recommendation, safe provisional work
+and precise blocking boundary. Ask once in a batch when needed. Keep uncertain
+values at replaceable form/template/mapping boundaries; unknown stays unknown.
+Drafts are not official forms, signatures, approvals, numbering or authority.
+Fail safely wherever an unresolved critical rule affects correctness.
+
+Persistent memory has distinct owners: this file holds durable rules; roadmaps
+hold objectives/priorities/acceptance; CONTINUE.md holds current state, evidence,
+blockers and the next action; specialized designs hold contracts; the decision log
+holds material choices. Cross-link rather than duplicate. Update the handoff at
+milestones and session end. Keep VERSION/CHANGELOG under the Version Manager.
+
+Work on isolated `codex/` feature branches; preserve unrelated work and protected
+stores. The 2026-10-18 mission resumes development after v0.7.176, superseding
+earlier completed-checkpoint pauses, but does not authorize master integration,
+release publication, deployment or production operations. Use the documented VM
+workflow when authorized; never force-push, rewrite shared history or infer release
+authority from overnight autonomy. Finance stays NO-GO and GSO operational/LGU
+acceptance remains separate. Continue safe independent tasks when one is blocked;
+stop at an actual authority/safety/dependency boundary with a factual handoff.
+
 ## Project context and documentation map
 
 Department-aware Django platform for municipal public services and internal operations. Core domains include assistance, identity/departments, reporting, records, physical custody, Finance setup, Accounting, Budget and vouchers.

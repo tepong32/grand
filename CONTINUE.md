@@ -1,5 +1,139 @@
 # GRAND continuation handoff
 
+## Autonomous development mission — 2026-10-18
+
+Active goal: persist the [working doctrine](AGENTS.md#working-doctrine--2026-10-18)
+and apply it to useful unfinished GRAND workflows. The user explicitly resumed
+development and created an interface-pauseable goal. This supersedes earlier
+completed-checkpoint pauses for local work only. Master integration, release
+publication, deployment and production operations are not authorized.
+
+Start: verified remote master/tag **v0.7.176** at
+`6e1a04ab861c213001d1e80fd054ba3eb428ffea`. New isolated branch
+`codex/grand-autonomous-workflows` began clean at that exact SHA. The older operator
+checkout remains dirty on its original Finance branch; it is not the development
+workspace. Preserve its databases, handoff, unfinished test and screenshots.
+
+The prior F1/F2 release is published and verified: candidate
+[39039317841](https://github.com/tepong32/grand/actions/runs/39039317841) and master
+[39043448511](https://github.com/tepong32/grand/actions/runs/39043448511) each passed
+19 jobs, complete 2,738-test discovery per backend, SQLite 224 skips and native zero
+skips. That evidence applies to the release, not the new unpublished source.
+Do not reopen F1/F2 or repeat those completed release checks without new evidence.
+
+Persistent instructions now distinguish durable doctrine, roadmap direction,
+immediate handoff and material decisions. The existing
+[decision log](docs/IMPLEMENTATION_DECISIONS.md#consolidated-owner-decisions--2026-10-18)
+consolidates FIN-001/002, GSO-001/002 and OPS-001/002: local numerical semantics,
+property allocation, official forms, imports, operational installation/recovery
+and an optional separate CI-efficiency review (no gate changes).
+Each names safe independent work and its precise blocking boundary. Routine
+implementation choices do not require repeated owner input.
+
+Selected engineering slice: complete the GSO roadmap's authorized ICS/SPC working
+draft preparation beside PAR, because the next Finance numerical/form/operational
+steps depend on retained external facts. Blank drafts reuse existing native view
+grants without prefilled source data or Finance reads/writes; no numbers/signatures/custody/stock
+events are created, and unknowns remain blank. Fully supplied costs are checked
+with exact decimals. Preview collapses the editor; errors retain entries; print
+keeps draft wording. See [contract and source limits](docs/gso/property-record-design.md#working-draft-preparation--2026-10-18).
+
+Initial validation: first focused nine-method run had one test-fixture failure
+(the supposed outside-office fixture was named General Services and correctly
+qualified for blank drafts); the other eight passed. The corrected fixture uses
+Engineering. Corrected related GSO regression passed **175 discovered / 153 passed /
+22 native-only skips**, 31.698s. This predates print-spacing and source-copy follow-ups.
+
+Second completed slice: the property register's asset-specific ICS shortcut copies
+only name, quantity and recorded unit cost. It additionally requires the existing
+asset export grant and fresh owner scope on GET/POST. Register tags are provenance,
+not invented local inventory numbers. Recipient, total, fund, classification and
+acknowledgment remain unknown. Edited drafts never update the source asset.
+Final focused draft/property/authority regression passed **26/26**, zero skips,
+3.734s, including all fourteen new methods. One invocation with a nonexistent test
+module name was stopped before test execution, then corrected; it is not a pass.
+
+Checks: system checks, migration drift (none), changed-file parsing and whitespace
+pass. Complete discovery/eight class partitions: **2,752 tests, including 180 GSO**.
+Browser checks pass on actual synthetic authenticated GET/POST: invalid-total entry
+retention/recovery, copied-source editing, zero/unknown preservation, keyboard
+details toggling and 1440px/390px layouts with no page overflow. Print review found
+and corrected a two-page ICS sample; final ICS, SPC and source-copy samples each
+fit one A4 landscape page, with draft/source disclaimers and signatures where
+applicable. Final PDFs were rendered and visually checked. A favicon 404 was the
+only initial browser console error; final journey console had no errors/warnings.
+Owned preview/browser are stopped; the synthetic Finance file hash was unchanged.
+
+Exact local commands use Python 3.11 / Django 5.2.18 through ignored
+`.tmp/run_isolated.py`, which redirects both SQLite aliases, private/media/export/
+backup storage and logs to disposable paths:
+
+```text
+python -B .tmp/run_isolated.py test gso_integration_tests.test_property_drafts --noinput --verbosity 1
+python -B .tmp/run_isolated.py test gso_integration_tests --testrunner preview_runner.CheckpointRunner --noinput --verbosity 1
+python -B .tmp/run_isolated.py test gso_integration_tests.test_property_drafts gso_integration_tests.test_grand_asset_authority gso_integration_tests.test_grand_property --noinput --verbosity 1
+python -B .tmp/run_isolated.py check
+python -B .tmp/run_isolated.py makemigrations --check --dry-run
+python -B .tmp/run_isolated.py discover
+git diff --check
+```
+
+The checkpoint runner retains only synthetic test-schema copies for the browser,
+then performs normal test teardown; no operator database is reused. UI receipts
+are untracked `output/playwright/property-drafts/`; ignored `.tmp` contains logs,
+synthetic stores and session state. Exclude runtime/session artifacts from commits.
+Full-project/hosted repeats are deferred: no financial service, quantity ledger,
+schema, router or transaction contract changed, and publication is not authorized.
+Required native/security/complete-discovery publication gates remain intact and
+must run against any eventual candidate; earlier release CI is not its pass.
+
+Third completed slice: a class/fund SPC source worksheet reuses the existing
+reviewed per-asset movement projection unchanged. It preserves current source/
+file/history checks, hides all usable quantities for unresolved entries and never
+adds a group quantity or valuation. Current supplied class/fund labels must match
+the retained opening; MySQL collation cannot merge distinct supplied labels.
+Separate document/movement read and asset-export grants remain required. The
+source worksheet includes every matching item, explicitly excludes missing
+verified labels, and is not official SPC parity or an atomic retained group report.
+
+Focused source/draft/movement SQLite checkpoint: **24/24**, zero skips, 5.112s,
+before the final collation/zero-cost methods were added. Final complete GSO native
+MySQL 8.4.11: **190/190**, zero skips, 76.787s, exit 0, covering final runtime/test
+source and all 24 new methods. The 23 models.W036 warnings exactly match the prior
+verified native release's list; unsupported conditional uniqueness is not claimed
+as enforced. Both native test schemas were independently confirmed absent before
+graceful owned-fixture shutdown. Browser and preview are stopped; ports closed.
+
+Additional commands: `python -B .tmp/run_isolated.py test gso_integration_tests.test_spc_source_worksheet gso_integration_tests.test_grand_property_movements gso_integration_tests.test_property_drafts --noinput --verbosity 1`;
+`python -B .tmp/native_spc.py gso_integration_tests --verbosity 1` (wraps the unchanged
+fresh two-store MySQL runner after refusing existing test schemas). Discovery now
+accounts for **2,762 unique tests, including 190 GSO**, across eight complete class
+partitions. Pre-checkpoint CI-runner unit checks **9/9** and Telegram **5/5** pass;
+system checks/migration drift pass, pip consistency and requirement audit pass.
+The audit emitted only a Windows temporary-path alias warning; no known dependency
+vulnerabilities were found. No gates were silenced or weakened.
+
+Actual desktop/mobile/A4 source-worksheet checks show reviewed stock 1 beside an
+unresolved missing opening with no usable quantity. The source table scrolls within
+a 390px page and prints valid/unresolved states together. A synthetic preview seed
+initially retained a stale reviewer-profile cache and was correctly denied; refreshing
+the fixture user completed the normal independent service review without app changes.
+No real evidence, municipal decision or operational acceptance was manufactured.
+
+Local checkpoint: the documented installed Version Manager is being used for a
+reviewed **v0.7.177 local-only commit/tag**, with automatic edits restricted to
+VERSION/CHANGELOG and an explicit sixteen-file source/docs manifest. Confirm actual
+HEAD/tag and the ignored preview/release receipts before resuming; no new remote
+branch, tag, master integration or publication is authorized or claimed.
+Finance remains **NO-GO**;
+formal GSO acceptance, official forms, imports and real operational recovery remain
+separate. The original checkout's status and every protected/untracked source/
+artifact hash match the preservation baseline; no unrelated work was included.
+Next reassess the finite roadmap gaps against the consolidated owner decisions
+and this completed property-output slice. Official outputs, valuation, imports,
+loss/relief and production operations still need their documented evidence. Do not
+invent numerical rules or start conditional fleet/procurement modules to fill time.
+
 ## F1/F2 evidence and retirement checkpoint — 2026-10-17
 
 Scope: receiving/maintenance evidence-download integrity and disposal-only asset

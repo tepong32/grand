@@ -1,5 +1,82 @@
 # Property records and Finance relationships
 
+## Working draft preparation — 2026-10-18
+
+The autonomous mission's local branch `codex/grand-autonomous-workflows` adds ICS
+and SPC preparation beside the existing PAR draft in Property records. Current
+test/preview evidence and publication status belong to [GRAND's handoff](../../CONTINUE.md).
+This is the roadmap's explicitly authorized placeholder slice, not official-form
+acceptance or a completed class/fund SPC projection.
+
+Both routes reuse existing native property-document view authority. UAT viewers
+may prepare a blank draft because the operation reads no asset/source rows and writes
+no operational or Finance records. Unauthenticated/ungranted/non-GSO access is
+denied under the existing identity contract. User-entered HTML is escaped,
+responses are private/no-store, formsets are bounded to five entries and normal
+CSRF protection remains. No permission, model, migration or routing policy changes.
+
+Known values are supplied per sheet; unknown fields stay blank, and explicit zero
+stays zero. Numbers/signatory labels remain supplied placeholders. Exact decimal
+arithmetic checks a fully supplied quantity × unit cost against its supplied total;
+it never invents a missing cost or total. SPC balances are supplied facts, not
+calculated or certified quantities. No threshold-based classification, Finance
+mapping, signature, document number, custody event or stock movement is created.
+
+The asset-specific ICS entry additionally requires the existing asset-register
+export grant and a fresh owning-office lookup on GET and POST. It copies only
+register name, quantity and recorded unit cost into editable draft fields. Register
+tags are shown as provenance, never relabelled as local inventory item numbers.
+No recipient, unit, total, fund, useful life or acknowledgment is inferred. Blank
+cost remains unknown and zero remains zero; copied values do not establish reviewed
+classification or financial valuation. This reduces repeated entry while preserving
+separate export authority, including for UAT viewers. Other-office ownership stays
+hidden even when the asset's current custody is assigned to the requesting office.
+
+The sheet is not saved: edit → preview → Print / Save as PDF, then retain locally
+in approved office storage. A successful preview collapses the editor; invalid
+input remains expanded with a correction message and previous entries. Native
+details/summary controls support keyboard editing; wide tables scroll inside a
+labelled region on small screens and print in landscape with draft wording intact.
+
+Field references: existing PAR preparation and the previously reviewed SPC Annex
+A.2 recorded in [the source matrix](coa-requirements.md). The
+[DSWD-hosted 2022-004 copy](https://car.dswd.gov.ph/wp-content/uploads/2023/02/COA-CIRCULAR-NO.-2022-004-May-31-2022.pdf)
+is available as an ICS reference, and [ONAR's LGU companion record](https://naro.law.upd.edu.ph/issuances/3842)
+was rechecked on 2026-10-18. This session does not claim a new complete annex,
+effectivity/amendment or local-form review. These working fields are not asserted
+to reproduce an accepted municipal template. Resolve
+[DECISION-GSO-001](../IMPLEMENTATION_DECISIONS.md#consolidated-owner-decisions--2026-10-18)
+before official output/issuance. Retained movement-source projection, native Finance
+links and eventual class/fund reconciliation keep their separate contracts below.
+
+### Reviewed SPC source worksheet
+
+The separate source worksheet selects supplied class/fund labels from the owning
+office's latest verified semi-expendable determinations. It requires existing
+property-document, property-movement and asset-export read authority. Unknown
+class/fund records are excluded explicitly; no empty result certifies zero stock.
+Exact Python label comparisons preserve distinct supplied values even under MySQL
+case/accent-insensitive collations. Labels never substitute for approved native
+Finance identities.
+
+For every matching item, reuse `property_movements.project` unchanged, including
+its asset lock, opening checks, retained-history/file verification, current physical
+sources, pending-correction checks and running-quantity rules. An unresolved item
+exposes no opening, movement quantities or usable balance to the output context.
+The selected current class/fund must also match the reviewed opening's original
+determination; a successor label cannot silently relabel earlier quantities.
+
+Print the source references, documented opening/stock changes, per-item running
+quantities, supplied unit costs and source office/officer. Do not calculate a
+group quantity, receipt cost, valuation or journal. Each item is checked when read;
+this is not a retained atomic group snapshot or historical-knowledge report.
+The worksheet uses every matching item without a silent retrieval cap, includes
+unresolved items, repeats its draft/source table header when printing and links
+back to existing correction workflows. It is a practical source-preparation aid,
+not completion of official SPC parity or a certified class/fund balance. Native
+and focused integrity/authorization verification must pass before this checkpoint
+is treated as complete; CONTINUE.md owns the actual evidence.
+
 Design decision, 2026-10-17. The supplied-document workflow below is implemented;
 native Finance links are implemented separately in the optional adapter; SPC
 output and Accounting treatment approval remain separate requirements.

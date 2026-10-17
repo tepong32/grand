@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.177] - 2026-10-18
+### Added
+- feat(gso): prepare property drafts and reviewed SPC sources
+
 ## [0.7.176] - 2026-10-17
 ### Fixed
 - fix(gso): verify private evidence downloads and require disposal retirement

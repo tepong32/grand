@@ -10,6 +10,74 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ## Review queue
 
+### Consolidated owner decisions — 2026-10-18
+
+These stable entries index existing unresolved dependencies; they are not a new
+runtime approval register. The existing Finance discovery workflow still owns
+actual LGU confirmations. Resolve each question once with its sources, then update
+the linked contracts and all affected placeholders together. Routine technical
+choices remain the developer's responsibility.
+
+**DECISION-FIN-001 — Local quarterly/earmark semantics (open).** What confirmed
+local basis, coverage and numerical treatment should the remaining planning and
+earmark/certificate operations use? Wrong assumptions would invent cash or
+certification authority. The [foundation gate](FINANCE_FOUNDATION_GATE.md) and
+[source contract](FINANCE_FORM1_SOURCE_CONTRACT.md) retain established facts and
+unknown overlap/coverage. Alternatives: adopt supplied reviewed evidence, or keep
+affected quantities unknown; guessing from labels is unsafe. Recommend the former
+when the owner supplies the actual basis and review. Independent drafts and other
+work continue; affected numerical/certification operations block at that boundary.
+
+**DECISION-FIN-002 — Physical property cost allocation (open).** Which documented
+allocation basis and representative receipt/claim/component cases should Accounting
+approve? Documentary costs do not establish valuation. The
+[GSO completion audit](gso/completion-audit.md) records the existing amount-link
+controls and missing basis. Alternatives: a reviewed explicit per-component mapping
+or retained unknown allocations; automatic pro-rata allocation would invent a rule.
+Recommend explicit reviewed mappings after real cases are supplied. Physical custody
+and supplied-fact drafts continue; valuation/financial recognition integration blocks.
+
+**DECISION-GSO-001 — Official property output acceptance (open).** Which municipal
+PAR/ICS/SPC layouts, revisions, numbering and sign-off instructions are accepted?
+The [source matrix](gso/coa-requirements.md) separates reviewed annexes from unknown
+local applicability. Alternatives: supply accepted blank/redacted examples for exact
+mapping, or continue clearly marked working drafts. Recommend examples plus named
+property/Accounting review. PAR/ICS/SPC placeholders remain safe for preparation;
+official issuance, numbering, signed acknowledgment and compliance claims block.
+
+**DECISION-GSO-002 — Historical import scope (open).** Which source export, owners,
+identity mappings and discrepancy decisions should an eventual import retain?
+The [completion audit](gso/completion-audit.md) identifies the evidence needed.
+Alternatives: reviewed explicit maps and restored-copy rehearsal, or preserve
+unreconciled legacy records outside the active register. Recommend explicit maps;
+never match numeric IDs/names automatically. New operational work continues; an
+actual import or historical-opening certification blocks without that evidence.
+
+**DECISION-OPS-001 — Operational installation/recovery (open).** What authorized
+target, named operator roles, protected storage and recovery objectives/evidence
+apply? Current [recovery boundaries](gso/security-and-recovery.md) and
+[Finance scrutiny](FINANCE_OPERATIONAL_SCRUTINY.md) do not establish production
+readiness. Alternatives: an approved staged rehearsal, or keep development local.
+Recommend a separately authorized rehearsal with real restore reconciliation.
+Disposable local development continues; deployment, production operations and
+operational acceptance block. This mission supplies no such authorization.
+
+**DECISION-OPS-002 — Separate CI-efficiency review (optional, deferred).** Should a
+future dedicated CI-policy change reuse verified exact-commit regression evidence
+after a fast-forward, while independently checking publication/provenance? For
+`6e1a04a`, [candidate CI](https://github.com/tepong32/grand/actions/runs/39039317841)
+ran 56m56s (2026-10-17 22:06:11–23:03:07 Asia/Singapore), then
+[master CI](https://github.com/tepong32/grand/actions/runs/39043448511) ran 51m22s
+(23:04:23–23:55:45 Asia/Singapore), both on the identical SHA, with all 19 jobs and complete
+2,738-test coverage per backend. These are observed run-envelope times, not CPU
+measurements. Alternatives: retain both full runs, or separately design/review
+artifact provenance, exact-tree/environment matching and fail-closed publication
+verification. Recommend retaining current gates until that dedicated review is
+authorized and validated. Feature development continues; no existing CI gate is
+changed, waived or treated as passed by this proposal.
+
+### Established implementation decisions
+
 - **AUTH-001 (2026-10-14):** public registration is a verified citizen identity;
   employee provisioning is an HR/admin action with explicit office assignment
   and separate permissions. Self-selected employment/department fields would

@@ -1,5 +1,15 @@
 # GRAND product roadmap
 
+2026-10-18 development mission: apply the durable [working doctrine](../AGENTS.md#working-doctrine--2026-10-18)
+and complete useful workflow slices with proportional verification and non-technical
+usability built in. Finance dependencies remain indexed in the consolidated
+[decision log](IMPLEMENTATION_DECISIONS.md#consolidated-owner-decisions--2026-10-18).
+The next independent authorized output slice is GSO ICS/SPC working preparation,
+following its existing [placeholder direction](gso/inventory-roadmap.md#placeholder-output-direction--2026-10-17).
+Local drafts do not establish official forms, signatures, ledger authority or
+operational acceptance. CONTINUE.md owns actual implementation/checkpoint results.
+Master integration, publication and deployment are outside this mission's authority.
+
 The user's 2026-09-18 [Finance foundation gate](FINANCE_FOUNDATION_GATE.md) supersedes
 the older sequence below: retrieval, Budget context, verified planning/certificate
 semantics, ordinary continuity, outputs and usability before broader scenarios.
