@@ -1,5 +1,15 @@
 # GSO integration into GRAND
 
+## Completed publication
+
+VM v0.7.174 / f3521775ac6e407f0fc957d7c694b1d74d627d7f is integrated and pushed
+to GRAND master. Candidate CI38997287270 passed all 19 jobs, including complete
+SQLite/MySQL coverage and zero native skips. All 2,724 discovered cases per backend
+are accounted for. Original Finance v173 history is included and preserved.
+This final handoff changes documentation/version metadata only. Inspect the latest
+master Actions result for its own exact revision. After final master verification,
+pause until the user resumes parallel GSO/Finance feature work.
+
 ## Authorized scope and base
 
 2026-10-17: user requests reviewed GSO checkpoint, trial integration based on
@@ -10,7 +20,7 @@ No deployment, operator migration, prototype account import or grant change.
 Base: a53348207b924ef995adf2533642c0ae54ffaa6c (latest paused Finance work).
 GSO source: a76a351f106b25828f1573d1641b2217e12cf13d (reviewed VM checkpoint).
 Source native147/147 PASS, zero skips,64.560s; source featureCI38996343497 PASS.
-Source primary CI38996500321 PASS. Trial local review/test gate is complete; VM candidate publication follows.
+Source primary CI38996500321 PASS. Trial local and hosted gates passed; master promotion verified.
 
 ## Transfer and review
 
@@ -70,8 +80,9 @@ destination cases), partitioned exactly once across all8 whole-class shards.
   departments.test_dashboard_presets home.tests_backup --verbosity1;
   disposable loopback33317, final log .tmp/gso-combined-native-final.log.186/186, zero skips,66.331s, exit0.
   Both schemas destroyed and owned MySQL33317 stopped normally.
-- Pending: VM candidate release, exact combined hosted security/verify/mysql,
-  primary integration/ref/CI verification and final publication handoff.
+- PASS: installed-VM candidate release, exact hosted security/verify/mysql,
+  primary fast-forward/push and remote-ref verification. This documentation-only
+  handoff follows the user's proportional documentation publication workflow.
   No separate human/independent review, production deployment or Docker build pass claimed.
 
 Finance functional completion, confirmed municipal forms/semantics, physical
@@ -81,3 +92,6 @@ Review:179 transferred product files match source bytes; only apps.py (storage
 validation) and base template (native navigation/title) differ, plus checks.py.
 Container/env example configure protected runtime directory, excluded from image
 build context and Git. Original Finance source files remain unchanged.
+
+Source continuity: GSOv2 v0.26.2 / 579052f is merged/pushed with feature38997322210
+and master38997520254 PASS. Its current handoff points to GRAND.

@@ -957,3 +957,9 @@ Preserve the delivery history above. Subsequent checkpoints implemented DV/custo
 ## Shared GSO integration checkpoint — 2026-10-17
 
 User authorizes carrying GSO into a trial branch based on v173, preserving the latest Finance work; review and test combined code before VM release/master integration. Thereafter use parallel GSO/Finance branches of GRAND. See [current status and boundaries](GSO_INTEGRATION.md). Pause after that checkpoint. Existing Finance source/approval/production and local evidence gaps remain.
+
+Completed integration: GRAND master includes v173 Finance and v174 GSO at f352177.
+Candidate CI38997287270 passed security, all SQLite/MySQL shards and both coverage
+gates. CONTINUE.md records the verified checkpoint and user-directed pause.
+Future work uses separate branches here; existing Finance functional, local-output
+and operational acceptance gaps remain unfinished.

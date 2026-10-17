@@ -1,20 +1,48 @@
 # GRAND continuation handoff
 
-## GSO integration checkpoint — 2026-10-17
+## Completed GSO integration checkpoint — 2026-10-17
 
-Authoritative current integration state: [GSO_INTEGRATION.md](docs/GSO_INTEGRATION.md).
-Trial branch codex/gso-grand-v173-trial starts exactly at v0.7.173/a533482,
-including the latest paused Finance work. GSO source VM release a76a351 is pushed
-and integrated into its source master. Destination integration passed local review and native186/186 (zero skips),
-production startup3/3, CI-unit9/9, migration drift, dependency audit and browser
-login/dashboard/PAR/mobile/print checks. Preparing VM candidate v174; exact hosted
-security/verify/mysql and primary promotion remain pending at this commit.
-All owned preview/browser/MySQL processes are stopped; no operator data changed.
-The older Finance pre-promotion notes below are historical: v173 was committed
-and pushed, but its verify gate failed because three SQLite shards hit the
-20-minute limit. Security/mysql passed. Combined candidate must pass every gate.
-Preserve Finance's original remaining local forms/semantics and production NO-GO.
-After actual combined VM release/integration and handoff, pause as the user asked.
+GSO and the latest paused Finance work are integrated into GRAND master at
+`f3521775ac6e407f0fc957d7c694b1d74d627d7f` (VM release **v0.7.174**). The trial
+started exactly at Finance **v0.7.173 / a533482**. Remote master was verified after
+the fast-forward and push. The original Finance branch and unrelated work remain
+preserved. This follow-up changes documentation/version metadata only.
+
+Candidate [CI38997287270](https://github.com/tepong32/grand/actions/runs/38997287270)
+passed all 19 jobs: security, eight SQLite shards, eight MySQL shards, verify and
+mysql. Complete discovery accounts for **2,724 tests per backend**; the native gate
+requires zero skips. Local native regression passed **186/186**, zero skips,
+66.331s. Production-storage/startup 3/3, CI-runner unit 9/9, migration drift,
+dependency consistency/audit and native login/dashboard/PAR/mobile/print checks
+passed. See [scope, review, repairs and evidence](docs/GSO_INTEGRATION.md).
+Check the latest master revision/result in
+[Actions](https://github.com/tepong32/grand/actions/workflows/security.yml) when
+resuming, rather than repeating completed checks.
+
+**Stopping instruction:** after final master verification, pause. Do not start more
+features automatically. On user resumption, create separate GSO and Finance feature
+branches from current GRAND master. GSOv2 preserves source/history and standalone
+tests; its handoff release **v0.26.2 / 579052f** is merged, pushed and green
+(feature38997322210, master38997520254).
+
+Inventory and its adapter stay in default; Accounting/Budget stay in finance.
+Preserve native identities, explicit grants, UAT mutation denial and correction
+lineage. No prototype accounts, operator data, privileges or business history were
+imported or migrated. Protected evidence requires DISPOSAL_PRIVATE_ROOT and
+coordinated file recovery alongside database backups. Retain migration identities
+and explicit future data mappings.
+
+All owned local preview/browser/MySQL processes are stopped. Docker's engine was
+unavailable, so no image-build pass is claimed; production startup was tested
+separately. Production/LGU acceptance, deployment and operational restore readiness
+remain incomplete. GSO form placeholders remain unsigned drafts. Finance's local
+semantics, required forms and office-scenario dependencies remain; scanned paid
+voucher packets are an expected source for the next forms work, not evidence
+already received or accepted.
+
+Earlier Finance entries below are retained history. Their pre-promotion statements
+are superseded by this integration; unresolved business/operational constraints
+still apply.
 
 
 Mandatory gate added 2026-09-07: [post-Finance operational scrutiny](docs/FINANCE_OPERATIONAL_SCRUTINY.md). **Finance production gate: NO-GO** pending functional completion, scrutiny, critical-gap verification and LGU acceptance. Run the full scrutiny only after the current functional phase; existing tests/container work do not satisfy it. Preserve all historical and deferred roadmap items.

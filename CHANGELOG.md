@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.175] - 2026-10-17
+### Documentation
+- docs: record verified GSO integration and paused continuation
+
 ## [0.7.174] - 2026-10-17
 ### Added
 - feat(gso): integrate inventory with native GRAND authority and Finance boundaries
