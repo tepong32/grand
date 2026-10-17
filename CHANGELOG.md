@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.181] - 2026-10-18
+### Added
+- feat(gso): audit CSV archives and enforce portable evidence paths
+
 ## [0.7.180] - 2026-10-18
 ### Fixed
 - fix(gso): secure retained packet and snapshot downloads

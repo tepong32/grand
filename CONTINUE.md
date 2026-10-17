@@ -1,6 +1,102 @@
 # GRAND continuation handoff
 
-## Current local slice — retained packets and source boundaries, 2026-10-18
+## Current local slice — retained-source recovery checks, 2026-10-18
+
+New isolated `codex/gso-accounting-source-recovery` began clean at local VM v0.7.180 /
+`6bd835ccbd2d92ff54c63e4c87f204a75916759d`. Remote master stays at published
+v0.7.176 / `6e1a04ab861c213001d1e80fd054ba3eb428ffea`; all overnight commits remain
+local. Preserve original/primary checkouts and protected databases.
+
+Finite-roadmap reassessment found a concrete independent data-integrity gap:
+the fourteen existing private-evidence checkers do not inspect
+`AssetAccountingImport.source_file/source_sha256` or `inventory/reconciliation`.
+The new read-only command checks retained physical-count Accounting CSV
+hashes and verification-round paths, report missing/changed/unsafe/unknown/
+unretained/unreferenced/unreadable evidence, and never repairs,
+rehashes, relinks or deletes anything. A valid empty history does not require an
+archive directory; empty metadata must not hide actual orphan archives.
+
+Tests cover unchanged metadata/files, no Finance queries or database writes,
+same-size corruption, lost bytes, unknown hashes, pre-retention snapshots,
+namespace mismatch, orphans, denied reads/enumeration and restored file copies.
+The restored-copy scenario is not a paired database restore or operational/RPO/RTO
+acceptance. The original positive command test failed before implementation with
+`Unknown command: 'check_accounting_source_evidence'` (one method, 0.204s, exit 1).
+The new command provides JSON diagnostics and strict nonzero findings.
+
+Two further regressions reproduced a shared-checker mismatch: absolute metadata
+inside the private root and Windows backslashes were accepted by the old receiving
+checker although downloads reject them. Both tests failed as intended (0.014s,
+exit 1, no fixture errors). A small guard now requires portable relative forward-
+slash references across its inheriting checkers, retaining existing hash/size and
+explicit legacy unknown-hash diagnostics. Two positive tests preserve valid bytes
+and unknown-versus-changed reporting. This is not a new historical repair policy.
+
+The CSV command reuses the v0.7.180 checked opener for retained hash/namespace
+validation, without inventing a missing size. `unretained` means a blank archive
+reference, not proof of why it is blank. No models, migrations, grants, routing,
+ledger or UI changes. Finance remains **NO-GO**; no publication/deployment authorized.
+
+Focused current-source SQLite checks pass **22/22, zero skips, 0.439s**, exit 0:
+12 new recovery cases plus five existing CSV-download and five checked-file
+contract cases. The same fresh two-store native scope passes **22/22, zero skips,
+0.754s**, exit 0. Those two Python files remain unchanged. Because the subsequent
+guard affects shared recovery commands, final validation expands to complete GSO
+on both SQLite and fresh native stores, sequentially. Native passes **298/298,
+zero skips, 86.153s**, exit 0. Four Python source/test hashes remain unchanged.
+The 23 MySQL W036 warnings exactly match the preceding checkpoint. Both native
+test schemas are absent; the verified owned server shut down normally after
+confirming there were no other clients. Protected source-store guards match.
+
+Actual commands use the documented Python 3.11 environment and the retained
+ignored `.tmp/run_isolated.py` / `.tmp/native_source_recovery.py` wrappers. They
+redirect SQLite databases/private files/logs and verify fresh disposable native
+schemas; they do not run against either protected operator database.
+
+```text
+python -B .tmp/run_isolated.py test gso_integration_tests.test_accounting_source_recovery.AccountingSourceRecoveryTests.test_valid_retained_source_is_checked_without_database_or_file_changes --noinput --verbosity 1
+python -B .tmp/run_isolated.py test gso_integration_tests.test_recovery_path_contract.RecoveryPathContractTests.test_absolute_pointer_inside_the_root_is_not_portable_safe_metadata gso_integration_tests.test_recovery_path_contract.RecoveryPathContractTests.test_windows_backslashes_are_not_normalized_into_accepted_metadata --noinput --verbosity 1
+python -B .tmp/run_isolated.py test gso_integration_tests.test_accounting_source_recovery gso_integration_tests.test_packet_download_handles.AccountingCSVDownloadTests gso_integration_tests.test_packet_download_handles.CheckedFileContractTests --noinput --verbosity 1
+python -B .tmp/native_source_recovery.py gso_integration_tests.test_accounting_source_recovery gso_integration_tests.test_packet_download_handles.AccountingCSVDownloadTests gso_integration_tests.test_packet_download_handles.CheckedFileContractTests --verbosity 1
+python -B .tmp/run_isolated.py test gso_integration_tests --noinput --verbosity 1
+python -B .tmp/native_source_recovery.py gso_integration_tests --verbosity 1
+python -B .tmp/run_isolated.py check
+python -B .tmp/run_isolated.py makemigrations --check --dry-run
+python -B .tmp/run_isolated.py discover
+git diff --check
+```
+
+The first two commands are intentional original-defect failures; the next two
+pass as recorded above. Combined SQLite passes **274 passed / 24 native-only
+skips, 298 discovered, 39.375s**, exit 0. Complete discovery now finds **2,870
+unique tests / 298 GSO**, with every identity in exactly one of eight class
+partitions. System check, no migration drift and whitespace pass. Full unrelated
+Finance suites, browser (no UI change), dependency audits (no dependency change)
+and hosted CI are **NOT RUN — OUT OF SCOPE** for this local recovery checkpoint;
+required review/current-candidate CI remain gates before authorized publication.
+
+The local VM checkpoint uses the established historical-document adapter with
+the installed Version Manager: v0.7.180 → v0.7.181, message
+`Release v0.7.181: feat(gso): audit CSV archives and enforce portable evidence paths`.
+The bounded manifest is this handoff, the recovery document, the new CSV command,
+the shared receiving checker and the two new test modules, plus VM-owned VERSION
+and CHANGELOG. Preview/execute receipts stay in ignored `.tmp/`; historical
+release evidence must remain intact. No `--push`, primary integration, hosted
+CI, release artifact, deployment or production action is authorized. The actual
+commit identity is available from this branch's Git log and local v0.7.181 tag.
+
+Next resume from the consolidated decisions at the top of
+[IMPLEMENTATION_DECISIONS](docs/IMPLEMENTATION_DECISIONS.md), not historical
+already-completed roadmap snapshots. Safe preparation, correction notices and
+retained-file recovery gaps found during this mission are implemented. Remaining
+official layouts, valuation/allocation basis, actual import maps, authoritative
+maintenance corrections and operational targets require the evidence/authority
+already specified there. Do not invent municipal rules, official signatures,
+new modules or a second ledger to keep the autonomous goal active. Finance stays
+**NO-GO**; formal GSO acceptance is outstanding. Review the complete local chain
+before separately authorized integration and exact-revision hosted CI.
+
+## Prior local checkpoint — retained packets and source boundaries, 2026-10-18
 
 Clean isolated branch `codex/gso-retained-packet-downloads` starts at local VM
 v0.7.179 / `ab67230f697acc63890f87d9cefcc565e335381e`. Remote master is still

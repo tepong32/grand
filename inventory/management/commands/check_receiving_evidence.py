@@ -2,7 +2,7 @@
 import hashlib
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 from django.core.management.base import BaseCommand, CommandError
 
@@ -33,7 +33,9 @@ class Command(BaseCommand):
             path = root / name
             try:
                 path.resolve().relative_to(namespace)
-                if ".." in Path(name).parts or path.resolve() != path:
+                relative = Path(name)
+                if (not name or relative.is_absolute() or PureWindowsPath(name).is_absolute()
+                        or "\\" in name or ".." in relative.parts or path.resolve() != path):
                     raise ValueError
             except ValueError:
                 report["unsafe"].append({"id": record.pk, "path": name})

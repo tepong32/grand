@@ -3,6 +3,36 @@
 This shell is for controlled development. A release is not permission to expose it
 to the internet or an assertion that LGU operational acceptance has passed.
 
+## Physical-count Accounting CSV archive check
+
+Run `python manage.py check_accounting_source_evidence` alongside the existing
+private-evidence checks on a stopped/restored copy or during a coordinated
+maintenance window. It checks `AssetAccountingImport` source SHA-256 and owning
+verification-round paths under `inventory/reconciliation`, then enumerates that
+namespace for unsafe or unreferenced files. No retained size exists for these
+CSV archives; the command does not invent one.
+
+The JSON `checked` count means archived references examined, not successful
+certifications. Nonempty missing, changed, unsafe, unknown, unretained,
+unreferenced or unreadable findings produce a nonzero exit. `unretained` means
+there is no archive reference, including historical pre-retention snapshots; it
+does not establish why the reference is blank. This is distinct from a named file
+that is now missing. Both remain visible without rehashing, relinking, deletion or
+manufactured source evidence. Empty metadata plus an absent namespace is a valid
+empty check, but an empty database never hides actual orphan files.
+
+The existing receiving-based evidence checkers also require relative forward-slash
+metadata, matching protected downloads. Absolute pointers and Windows backslashes
+are unsafe even if they currently resolve inside the private root: such references
+are not portable to a restored root. Their existing size/hash and explicit legacy
+unknown-hash reporting remain unchanged.
+
+A live upload can produce a transient file/database mismatch, so this is not an
+atomic live backup or two-store restore acceptance. Investigate findings against
+original sources and the approved recovery plan. Do not make the report pass by
+deleting orphans or replacing retained checksums. Tests of restored private-file
+copies do not establish an operator database restore, RPO/RTO or Finance readiness.
+
 ## Retained packets and metadata limits — local development, 2026-10-18
 
 The follow-up after local v0.7.179 covers HR-reference custody, property/movement,
