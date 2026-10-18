@@ -1,5 +1,100 @@
 # GRAND continuation handoff
 
+## Supply movement-history preparation — 2026-10-18
+
+The wider goal remains ACTIVE. Isolated `codex/gso-stock-movement-history` starts
+from local v0.7.191 / `b594c172f9bbdcd9ee46adcedeaa6d62445b15c9`.
+v0.7.188–191 remain local. Published master remains v0.7.187 /
+`a116691a100ed9230b578f73692ed12add84205e`; the two verified hosted CI receipts
+below belong to that published revision, not the new local work.
+
+Source review found per-item history and an all-movement CSV but no cross-item
+period/type review screen. The bounded employee slice adds Movement history from
+Consumable supplies, optional recorded-from/through dates and movement type,
+50-row pages, source identities and a matching complete CSV. It reuses stock
+read/export grants and office/item scope; ordinary department readers see only
+their own movements and retain no export authority. UAT read/export remains
+separate from mutation denial. Invalid filters return400 without falling back to
+an unfiltered download. Existing CSV columns, unknown/zero costs and spreadsheet
+cell escaping remain. Responses are private/no-store; no new source, evidence,
+permission, model, migration, quantity, custody or Finance write is introduced.
+
+Dates mean GRAND recording dates in its configured local timezone, not inferred
+physical-event or requisition dates. This is working source preparation, not an
+official RSMI or approved valuation. Official forms/acceptance, historical imports,
+valuation policy and production/recovery qualification remain open. No deployment;
+Finance stays NO-GO. See [the stock contract](docs/gso/stock-counts.md).
+
+Seven new authenticated tests cover owner/department scope, UAT and explicit grants,
+inclusive local-date boundaries, invalid selections, pagination/complete CSV parity,
+unknown versus zero cost, formula-cell escaping, private responses and empty-state
+navigation. They borrow fixture setup without inheriting duplicate tests.
+
+Original-runtime probe: `python -B .tmp/run_isolated.py test
+gso_integration_tests.test_stock_movement_history.StockMovementHistoryTests.test_recorded_date_filters_include_both_local_boundaries
+gso_integration_tests.test_stock_movement_history.StockMovementHistoryTests.test_invalid_selection_fails_closed_on_screen_and_export
+--noinput --verbosity 1` ran2 tests in0.132s with four expected missing-route errors.
+This is a new retrieval capability, not a claim that the old export granted an
+ordinary department reader access. The loaded initial test variant was subsequently
+tightened to check invalid CSV status directly and use an ordinary office fixture.
+
+PASS12/12 in5.244s, zero skips: `python -B .tmp/run_isolated.py test
+gso_integration_tests.test_stock_movement_history
+gso_integration_tests.test_grand_stock_authority
+gso_integration_tests.test_grand_supply_returns --noinput --verbosity 1`.
+Afterward only the new template's stock-only navigation, live-history wording and
+collapsed source references changed; backend/filter/export/test code stayed fixed.
+
+PASS16/16 in4.184s, zero skips, on the final code/template: `python -B
+.tmp/native_history_validation.py` invokes the committed fresh two-store runner
+`python -B scripts/run_mysql_tests.py
+gso_integration_tests.test_stock_movement_history
+gso_integration_tests.test_grand_stock_authority
+gso_integration_tests.test_grand_supply_returns
+gso_integration_tests.test_grand_requisitions
+gso_integration_tests.test_grand_stock_counts --verbosity 1`.
+MySQL8.4.11 strict/ONLY_FULL_GROUP_BY and timezone preflight verified. The exclusive
+clone used a stopped system-only test template, never an operator store. Both fresh
+test stores and the owned server were shut down normally; source-template hashes
+and all six feature/test file hashes stayed unchanged. Timings exclude schema setup.
+
+PASS: actual browser clerk entry → date/type selection → page2, correct filter and
+export destinations, ordinary-office52 versus GSO53 issued rows, UAT empty-history
+read/export without mutation controls, invalid range400/no rows or export, and
+ungranted403. At390px the page is390px, with the760px table inside a316px scrolling
+region. Optional Source ID expands; the new brand returns to Supplies200 without
+asset access. Desktop and mobile screenshots were visually inspected; final mobile
+supersedes the earlier always-visible UUID version. Only a fixture favicon404 was
+observed beyond expected400/403 responses. Both owned servers and browser stopped.
+`python -B .tmp/verify_browser.py` then passed all four role/HTTP checks, exact six
+domain/audit snapshots, Finance-copy hash and original synthetic-pair hashes.
+
+PASS: `python -B .tmp/run_isolated.py check`; `python -B .tmp/run_isolated.py
+makemigrations --check --dry-run` (no changes); `python -B .tmp/run_isolated.py
+discover` (2953 unique /381 GSO, all eight partitions complete); `python -m pip check`;
+`python -m unittest scripts.test_ci_test_runner -v` (9/9); source/helper syntax and
+`git diff --check`. Published187 proof was rechecked using
+its retained receipts: remote master/five183–187 tags, both19-job/2932-per-backend
+receipts and seven protected checkout/status/file baselines still match. That is
+preserved publication evidence, not new hosted CI for this slice.
+
+NOT RUN — OUT OF SCOPE: repeated full Finance/regression CI and production/official
+form/recovery acceptance. No Finance logic/persistence, grants or schema changed;
+the focused native checks cover the new read/auth/date queries and related stock
+workflows. Any later publication still requires exact-candidate/master release
+gates. No check was weakened or bypassed.
+
+Checkpoint scope is the local installed-VM patch v0.7.191 → v0.7.192; resolve
+local tag `v0.7.192` for its exact commit. No push or integration of v0.7.188 onward
+is authorized. Its preview includes precisely
+the six source/test files, these four continuity/contract documents and managed
+VERSION/CHANGELOG, preserving historical evidence and four untracked synthetic
+screenshots. Continue the wider goal after this checkpoint: review applicable
+official supplies-output source requirements before choosing the next usable draft
+slice, reusing this history rather than inferring valuation, physical-event dates,
+certification or signatures. Existing valuation, historical-import, Finance
+foundation/certificate and operational/LGU acceptance boundaries remain open.
+
 ## Maintenance access messaging follow-up — 2026-10-18
 
 The wider goal remains ACTIVE. `codex/gso-maintenance-access-state` starts from

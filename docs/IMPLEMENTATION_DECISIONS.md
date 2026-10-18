@@ -60,6 +60,11 @@ local applicability. Alternatives: supply accepted blank/redacted examples for e
 mapping, or continue clearly marked working drafts. Recommend examples plus named
 property/Accounting review. PAR/ICS/SPC placeholders remain safe for preparation;
 official issuance, numbering, signed acknowledgment and compliance claims block.
+The separate supplies movement-history preparation reuses recorded stock sources
+and existing export authority. Filtering those facts does not establish official
+RSMI layout, financial recognition, historical event dates or Accounting approval;
+keep those output/source-policy questions open. See
+[the retrieval contract](gso/stock-counts.md#movement-history-preparation).
 
 **DECISION-GSO-002 — Real historical imports (deferred by owner).** Which source export, owners,
 identity mappings and discrepancy decisions should an eventual import retain?

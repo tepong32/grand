@@ -13,6 +13,22 @@ from .models import (
 MAX_DISPOSAL_FILE_BYTES = 15 * 1024 * 1024
 
 
+class StockHistoryFilterForm(forms.Form):
+    from_date = forms.DateField(label="Recorded from", required=False,
+        widget=forms.DateInput(attrs={"type": "date"}))
+    to_date = forms.DateField(label="Recorded through", required=False,
+        widget=forms.DateInput(attrs={"type": "date"}))
+    kind = forms.ChoiceField(label="Movement", required=False,
+        choices=(("", "All movements"),) + StockMovement.KIND_CHOICES)
+
+    def clean(self):
+        data = super().clean()
+        start, end = data.get("from_date"), data.get("to_date")
+        if start and end and start > end:
+            self.add_error("to_date", "Choose an end date on or after the start date.")
+        return data
+
+
 class MultiFileInput(forms.ClearableFileInput):
     allow_multiple_selected = True
 

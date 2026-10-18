@@ -68,6 +68,27 @@ with both GRAND stores in recovery, then run `check_stock_count_evidence`. The c
 reports missing/changed/unsafe/orphan files without repairs or deletion. Filesystem
 writes do not roll back with database transactions; investigate any orphan finding.
 
+## Movement-history preparation
+
+The bounded retrieval slice joins existing retained movement rows across
+supply items, with optional recorded-date and movement-type filters. Reuse the
+current stock read/export grants and item ownership; department readers see only
+their own movements of otherwise visible items. CSV selection must match the
+screen selection across all pages, while export continues to require its separate
+existing GSO grant. Invalid filters must not silently produce an unfiltered export.
+Selections read current history, not an immutable group snapshot; newly recorded
+movements may appear on refresh/export. The history page's brand and Supplies links
+return to the authorized stock list rather than require unrelated asset access.
+
+Dates describe GRAND's recording timestamp in its configured local timezone, not
+a supplied requisition, delivery or historical physical-event date. Keep quantities
+per item and unit, original references and public source identities; do not sum
+unlike units or turn optional recorded costs into an Accounting valuation. Returns
+and adjustments remain distinct rows rather than silently netting original issues.
+This working history does not generate an official RSMI, financial recognition,
+signatures, numbering, custody changes or any new stock movement. Current
+implementation and actual validation belong to the root handoff.
+
 ## Limits and remaining work
 
 The adjusting workflow accepts today's count against the current ledger basis.

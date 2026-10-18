@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.192] - 2026-10-18
+### Added
+- feat(gso): review and export selected supply movement history
+
 ## [0.7.191] - 2026-10-18
 ### Fixed
 - fix(gso): explain restricted maintenance access without changing authority

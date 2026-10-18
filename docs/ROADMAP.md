@@ -21,6 +21,11 @@ The locally implemented correction-workflow slice makes existing maintenance his
 pending closed-case corrections discoverable from authorized employee home, without
 adding asset access or changing review/evidence rules. It uses the existing case
 list and details; validation/publication belongs to CONTINUE.md.
+The local supplies retrieval slice adds recorded-date/type selection across items
+and a matching complete movement CSV through existing read/export grants. It is
+source preparation, not an official RSMI, valuation or new stock operation. See
+[the stock record boundary](gso/stock-counts.md#movement-history-preparation) and
+CONTINUE.md for actual checks and local checkpoint status.
 Local drafts do not establish official forms, signatures, ledger authority or
 operational acceptance. CONTINUE.md owns actual implementation/checkpoint results.
 The owner's subsequent 2026-10-18 decision authorizes gated VM publication of the

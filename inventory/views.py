@@ -1,4 +1,5 @@
 import csv
+from urllib.parse import urlencode
 from uuid import uuid4
 
 from .employee_sources import can_manage_employee_custody
@@ -28,6 +29,7 @@ from .forms import (
     AssetDisposalRequestForm, AssetDisposalResponseForm, AssetDisposalReviewForm,
     AssetForm, AssetTransferForm, ConsumableItemForm, StockAdjustmentForm,
     StockIssueForm, StockReceiptForm, TransferCancellationForm,
+    StockHistoryFilterForm,
     AssetVerificationRoundForm, AssetVerificationRecordForm, AssetVerificationFollowUpForm,
     AssetVerificationFindingForm, AssetVerificationFindingReviewForm, AssetAccountingImportForm,
 )
@@ -849,18 +851,58 @@ def consumable_list(request):
     })
 
 
+def _stock_history_selection(request):
+    """One scoped selection for both paged review and complete CSV retrieval."""
+    form = StockHistoryFilterForm(request.GET)
+    movements = StockMovement.objects.filter(item__in=_stock_items(request.user))
+    department = department_for_user(request.user)
+    if not (request.user.is_superuser or _is_gso_department(department)):
+        movements = movements.filter(department_id=department.pk)
+    if not form.is_valid():
+        return form, movements.none(), ""
+    data = form.cleaned_data
+    if data.get("from_date"):
+        movements = movements.filter(occurred_at__date__gte=data["from_date"])
+    if data.get("to_date"):
+        movements = movements.filter(occurred_at__date__lte=data["to_date"])
+    if data.get("kind"):
+        movements = movements.filter(kind=data["kind"])
+    query = urlencode({key: value for key, value in data.items() if value})
+    return form, movements.select_related("item", "actor"), query
+
+
+@never_cache
+@stock_access_required()
+@require_http_methods(["GET"])
+def stock_history(request):
+    form, movements, query = _stock_history_selection(request)
+    page = Paginator(movements.order_by("-occurred_at", "-pk"), 50).get_page(request.GET.get("page"))
+    response = render(request, "inventory/stock_history.html", {
+        "form": form, "page": page, "query_string": query,
+        "can_export": can_stock(request.user, "export"),
+    }, status=200 if form.is_valid() else 400)
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@never_cache
 @stock_access_required("export")
+@require_http_methods(["GET"])
 def stock_export(request):
+    form, movements, _ = _stock_history_selection(request)
+    if not form.is_valid():
+        return HttpResponse("Invalid movement filters. Check the dates and movement type in Movement history.",
+                            status=400, content_type="text/plain")
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = 'attachment; filename="gso-consumable-movements.csv"'
+    response["X-Content-Type-Options"] = "nosniff"
     response.write("\ufeff")
     writer = csv.writer(response)
     writer.writerow((
         "Supply item", "Category", "Unit", "Movement", "Date", "Quantity", "Signed quantity",
         "Department", "Recipient", "Reference", "Reason", "Unit cost", "Recorded by", "Supply UUID", "Movement UUID",
     ))
-    movements = StockMovement.objects.filter(item__in=_stock_items(request.user)).select_related("item", "actor").order_by("occurred_at", "pk")
-    for movement in movements:
+    for movement in movements.order_by("occurred_at", "pk").iterator():
         writer.writerow(_csv_cell(value) for value in (
             movement.item.name, movement.item.category, movement.item.unit, movement.get_kind_display(),
             movement.occurred_at.isoformat(), movement.quantity, movement.signed_quantity,
