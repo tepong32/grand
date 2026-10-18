@@ -36,6 +36,11 @@ reference; it is not adopted as the target municipality's form or approval polic
 CONTINUE.md for actual checks and local checkpoint status.
 Local drafts do not establish official forms, signatures, ledger authority or
 operational acceptance. CONTINUE.md owns actual implementation/checkpoint results.
+Count records now also provide a complete selected printable working copy using
+existing owning-office read/export checks and pinned observation facts. Repeat,
+pending and cancelled observations remain distinct; the copy does not establish a
+common-date inventory, RPCI certification or valuation. See
+[the count-copy contract](gso/stock-counts.md#complete-count-record-working-copy).
 The owner's subsequent 2026-10-18 decision authorizes gated VM publication of the
 preserved overnight chain and decisions, followed by safe independent development.
 Prioritize research-led Finance foundation work and explicit reviewed cost-allocation

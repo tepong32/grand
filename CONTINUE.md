@@ -1,5 +1,106 @@
 # GRAND continuation handoff
 
+## Pause checkpoint: complete count-record working copies — 2026-10-18
+
+Owner instruction: finish the in-flight focused checkpoint through Version Manager,
+merge only if applicable/necessary, clean safe local/remote branches, then PAUSE
+progress. Do not start another development slice until the owner resumes. The
+mission is unfinished; this is an owner-requested pause, not a blocked/completed goal.
+
+Isolated `codex/gso-count-working-copy` starts from local v0.7.194 /
+`68fe4883401a58ff3d5944612ee772e985b95d01`. Resolve local tag `v0.7.195` for
+the exact checkpoint commit after the documented VM operation. Published master
+remains v0.7.187 / `a116691a100ed9230b578f73692ed12add84205e`. Local v0.7.188
+onward remains unpublished. Integration is unnecessary for preserving this pause
+checkpoint and has not passed new exact-candidate/published-master CI; no merge,
+push or new hosted-CI pass is claimed. No deployment/production operations.
+Finance remains NO-GO; real imports, official forms/valuation, operational storage/
+recovery qualification and formal LGU/Accounting/GSO acceptance remain open.
+
+Implemented: Supply counts → Open printable copy carries the existing item/reference
+search and Pending/Reviewed/Cancelled/All selection across every page. Both existing
+stock read and export grants plus fresh owning-GSO scope are required. Each separate
+observation retains its date, reference, pinned name/unit/balance, observed quantity,
+difference, recorder, decision/version and linked adjustment identity. No totals,
+common-date inventory, valuation or signatures are inferred. Unknown status now
+returns400 on both list and copy rather than silently broadening the selection.
+Stock-only list/detail navigation returns to GRAND home without asset-dashboard
+permission. No models, migrations, permissions, stock services or Finance writes.
+See the [working-copy contract](docs/gso/stock-counts.md#complete-count-record-working-copy).
+
+Regression evidence: authenticated original route returned404 and failed the
+expected200 assertion on an exclusively cloned synthetic pair. Corrected/final
+probes include all27 reviewed observations across two list pages, five roles,
+foreign ownership and invalid status; seven domain/audit snapshots, Finance-copy
+bytes and both original synthetic-source files stayed unchanged. Initial fixture
+setup failed on a missing test-helper import; its runtime remains preserved and a
+fresh v2 clone passed. An initial probe incorrectly expected another authorized
+GSO office to receive403; source review confirmed its own-office200 is correct.
+The assertion was corrected to require its own observation and exclude this office's
+observations, preserving the existing scope policy. Neither was an application fix.
+
+PASS focused SQLite: `python -B .tmp/run_isolated.py test
+ gso_integration_tests.test_count_working_copy
+ gso_integration_tests.test_grand_stock_counts
+ gso_integration_tests.test_grand_stock_authority
+ gso_integration_tests.test_stock_working_copy --noinput --verbosity 1`:
+16/16 in2.694s, zero skips. Six new methods cover complete uncollapsed selection,
+independent grants/fresh ownership, UAT/read-only/Finance isolation, invalid filters,
+pinned/zero/cancelled/escaped facts and an explicitly non-certifying empty result.
+
+PASS native: `python -B .tmp/native_count_validation.py` invokes committed
+`scripts/run_mysql_tests.py` for the same four modules on an exclusively owned,
+fresh two-store strict MySQL8.4.11 clone with ONLY_FULL_GROUP_BY:16/16 in4.784s,
+zero skips. Both test schemas were destroyed and the owned server stopped normally;
+six frozen app/test hashes and original stopped-template hashes remained unchanged.
+Timings exclude schema preparation. No duplicate native run was launched.
+
+PASS actual browser: minimal clerk list page2 → complete27-row copy; UAT27 rows
+with no mutation form; missing export/ungranted403; another GSO office sees only its
+own observation. At390px, page width390 and table950 inside312px scrolling region.
+Four-page A4-landscape PDF retains all27 exact count UUIDs and repeated working-copy
+headings; all four pages and desktop/mobile screenshots were rendered/inspected.
+Original QC RPCI reference was retrieved, hashed and visually checked separately;
+it is not adopted locally. Poppler reported readable source-font warnings. Fixture
+favicon404 remains a preview limitation. Owned browser and loopback server stopped.
+Printing neither includes nor rechecks original evidence; this live copy is not a
+complete/certified inventory, accepted RPCI or immutable issued archive.
+
+PASS `python -B .tmp/run_isolated.py check` (no issues/zero silenced),
+`python -B .tmp/run_isolated.py makemigrations --check --dry-run` (no changes),
+`python -B .tmp/run_isolated.py discover` (2971 unique/399 GSO/eight complete
+partitions), `python -m pip check`, `python -m unittest
+scripts.test_ci_test_runner -v` (9/9 in0.006s), syntax/frozen hashes and
+`git diff --check`. Full Finance/release CI NOT RUN — OUT OF SCOPE for this bounded
+read/export checkpoint and owner pause; publication still requires its full gates.
+
+Authorized cleanup: removed189 local and172 remote `codex/` branches only after
+proving every tip is an ancestor of published187, excluding all32 attached-worktree
+branches,52 open-PR heads, master and the187 publication-evidence branch. Remote
+deletions were atomic; no force/history rewrite, tags or unmerged work deleted.
+Before/after ref manifests and commands remain in `.tmp/branch-cleanup-*` and
+`.tmp/cleanup_branches.py`. Original/dirty worktrees and evidence remain preserved.
+Removed only the five verified stopped, synthetic, system-schema-only MySQL clone
+`data` directories after all validation was terminal:1,344,056,865 logical bytes
+(about1.25 GiB). Literal resolved targets were checked inside the known task
+worktrees, with no reparse points, active MySQL processes or application/test schemas.
+Retained server logs, original-fixture hashes, receipts, browser artifacts, all
+worktrees and protected databases. Exact paths/measurements are in
+`.tmp/test-clone-cleanup-{plan,receipt}.json`; the guarded PowerShell command is
+`.tmp/cleanup_owned_test_clones.ps1`. No Git history garbage collection/pruning.
+
+The reviewed local VM manifest contains six implementation/test files and this
+handoff, roadmap, decision register and two stock/source contracts; only VERSION/
+CHANGELOG are automatically managed. Three synthetic browser/PDF artifacts remain
+untracked. Local checkpoint/publication/cleanup receipts are in `.tmp/`. Existing
+187 publication receipts below still belong to187: both19/19 jobs,2932 tests per
+backend per run, SQLite233 skips/native zero skips. They are not195 CI.
+
+On resume, read this handoff, roadmap and consolidated decisions, verify actual
+refs/worktree state, then select the next concrete documented workflow. Do not
+repeat completed source-copy work or infer official rules to bypass the remaining
+source, valuation, operational and formal-acceptance boundaries.
+
 ## PAR preparation from the asset register — 2026-10-18
 
 The wider goal remains ACTIVE. Isolated `codex/gso-par-source-preparation` starts

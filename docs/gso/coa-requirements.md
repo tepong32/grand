@@ -1,5 +1,26 @@
 # COA sources and GSO workflow coverage
 
+## Count output example reviewed — 2026-10-18
+
+The [official QC GSD index](https://quezoncity.gov.ph/departments/city-general-services-department/)
+links an [RPCI blank example](https://quezoncity.gov.ph/wp-content/uploads/2022/07/02-REPORT-ON-THE-PHYSICAL-COUNT-OF-INVENTORIES-FORM-RPCI.pdf).
+Retrieved269,499 bytes; SHA256
+`503c30939e8a50de9c9fcd2d1553929aa78444d0ef1e647fa2e3b81cfd494e2b`.
+Its single page was rendered and visually reviewed; Poppler reported Symbol/
+ArialUnicode display-font warnings, with the form still readable. The page is
+labelled Annex48 and includes an inventory type/as-of date, accountable officer/
+designation/LGU/assumption date, article/description/stock number/unit, unit value,
+card and observed quantities, shortage/overage quantity/value and approval roles.
+
+This is a locality-hosted reference, not evidence of the target municipality's
+adoption, current issuance/amendment applicability, accepted template or signatories.
+It illustrates why independently dated count records must not automatically become
+a complete common-date inventory, why optional costs are not an approved valuation,
+and why printing must not create signatures or official report/stock identities.
+GRAND's [count working copy](stock-counts.md#complete-count-record-working-copy)
+prepares retained observations only. It does not generate this form or close the
+official RPCI acceptance boundary.
+
 Research checkpoint: 2026-10-16. This is a traceable implementation backlog, not a
 certification of compliance or an exhaustive legal opinion. Issuance numbers alone
 are ambiguous: distinguish COA circulars, COA memoranda, joint circulars and other

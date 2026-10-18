@@ -58,6 +58,7 @@ urlpatterns = [
     path("receiving/quantity-corrections/<int:pk>/", receipt_quantity_views.detail, name="receipt-quantity-detail"),
     path("receiving/quantity-corrections/<int:pk>/evidence/", receipt_quantity_views.evidence, name="receipt-quantity-evidence"),
     path("stock-counts/", stock_count_views.count_list, name="stock-count-list"),
+    path("stock-counts/working-copy/", stock_count_views.count_working_copy, name="stock-count-working-copy"),
     path("consumables/<int:pk>/count/", stock_count_views.count_start, name="stock-count-start"),
     path("stock-counts/<int:pk>/", stock_count_views.count_detail, name="stock-count-detail"),
     path("stock-counts/evidence/<int:pk>/", stock_count_views.count_evidence, name="stock-count-evidence"),

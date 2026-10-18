@@ -111,6 +111,33 @@ group snapshot. Store a saved copy only in approved office storage. Empty output
 does not certify zero stock or zero physical issues. Current checks and local
 checkpoint state belong to the root handoff; official acceptance remains open.
 
+## Complete count-record working copy
+
+Supply counts now offers Open printable copy for the existing current-item-name/
+count-sheet search and status selection, including every selected page. Both the
+owning-GSO stock-read grant and the separate stock-export grant are required;
+UAT readers keep those read/export abilities. Fresh item ownership still scopes
+each request. The list and copy reject an unknown status with400 rather than
+silently broaden the selection. List/detail navigation returns stock-only staff
+to GRAND home without requiring asset-dashboard access.
+
+The copy retains each observation's count date, reference, source identity,
+pinned item name/unit/ledger balance, observed quantity and difference. It also
+shows the recorder, current decision/version and actual linked adjustment identity.
+Repeated observations remain separate rows; pending/cancelled counts are explicit.
+Do not sum these rows or represent them as a common-date complete inventory.
+Count-sheet references are not invented official stock/report numbers. Values,
+accountable-officer certifications and signatures are not inferred.
+
+This private/no-store output is a live working copy, not an issued archive or
+official RPCI. GRAND does not save the rendered bytes; later requests may reflect
+new records/decisions. Printing does not include or reverify evidence files. Use
+the linked count record and its governed evidence/review workflow before official
+use. Empty selections do not certify zero stock or completed counting. The
+[QC example](coa-requirements.md#count-output-example-reviewed--2026-10-18) does
+not establish this municipality's form, inventory date, valuation or approval
+policy. Actual validation and checkpoint state belong to the root handoff.
+
 ## Limits and remaining work
 
 The adjusting workflow accepts today's count against the current ledger basis.

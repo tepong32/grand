@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.195] - 2026-10-18
+### Added
+- feat(gso): print complete scoped count records
+
 ## [0.7.194] - 2026-10-18
 ### Added
 - feat(gso): prepare PAR drafts from scoped register facts

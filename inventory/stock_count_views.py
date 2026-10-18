@@ -10,6 +10,8 @@ from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods
+from django.utils import timezone
+from urllib.parse import urlencode
 
 from .access import can_stock, gso_department_for_user, in_gso_scope
 from .models import ConsumableItem, StockCount, StockCountEvidence
@@ -31,10 +33,7 @@ def scoped_counts(actor):
     return StockCount.objects.filter(item__in=scoped_items(actor)).select_related("item", "recorded_by", "decided_by", "adjustment")
 
 
-@never_cache
-@login_required
-@require_GET
-def count_list(request):
+def _count_selection(request):
     rows = scoped_counts(request.user)
     query = request.GET.get("q", "").strip()[:100]
     if query:
@@ -42,9 +41,39 @@ def count_list(request):
     status = request.GET.get("status", "pending")
     if status in ("pending", "approved", "cancelled"):
         rows = rows.filter(status=status)
-    else:
-        status = "all"
-    return render(request, "inventory/stock_count_list.html", {"page": Paginator(rows, 25).get_page(request.GET.get("page")), "status": status, "query": query})
+    elif status != "all":
+        raise ValidationError("Choose Pending, Reviewed, Cancelled or All counts before opening a copy.")
+    return rows, {"status": status, "query": query, "query_string": urlencode({"status": status, "q": query})}
+
+
+@never_cache
+@login_required
+@require_GET
+def count_list(request):
+    try:
+        rows, context = _count_selection(request)
+    except ValidationError as error:
+        return render(request, "inventory/stock_count_list.html", {"selection_error": " ".join(error.messages)}, status=400)
+    return render(request, "inventory/stock_count_list.html", {**context,
+        "page": Paginator(rows, 25).get_page(request.GET.get("page")), "can_export": can_stock(request.user, "export")})
+
+
+@never_cache
+@login_required
+@require_GET
+def count_working_copy(request):
+    if not can_stock(request.user, "export"):
+        raise PermissionDenied
+    try:
+        rows, context = _count_selection(request)
+    except ValidationError as error:
+        return render(request, "inventory/stock_count_list.html", {"selection_error": " ".join(error.messages)}, status=400)
+    counts = list(rows)
+    for count in counts:
+        count.difference = count.quantity - Decimal(count.basis["balance"])
+    return render(request, "inventory/stock_count_working_copy.html", {**context, "counts": counts,
+        "status_label": {"pending": "Pending", "approved": "Reviewed", "cancelled": "Cancelled", "all": "All counts"}[context["status"]],
+        "generated_at": timezone.now()})
 
 
 @never_cache

@@ -1,4 +1,6 @@
 {% extends "inventory/base.html" %}{% block title %}Supply count · {{ count.basis.name }}{% endblock %}
+{% block brand_link %}<a class="brand" href="{% url 'department_dashboard' %}">GRAND</a>{% endblock %}
+{% block workspace_link %}{% endblock %}
 {% block content %}
 <header class="hero"><div><p class="eyebrow">GSO · Physical count</p><h1>{{ count.basis.name }}</h1><p>{{ count.get_status_display }} · {{ count.reference }}</p></div></header>
 <nav class="quick-links"><a href="{% url 'inventory:stock-count-list' %}">Count records</a><a href="{% url 'inventory:consumable-detail' count.item_id %}">Current supply record</a></nav>{{ version.errors }}

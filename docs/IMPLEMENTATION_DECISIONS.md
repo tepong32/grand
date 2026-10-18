@@ -71,6 +71,11 @@ official RSMI/SSMI applicability, form, signatory or Accounting-treatment questi
 Asset-started PAR preparation similarly retains supplied acquisition facts and
 official identities; copying register name/quantity does not approve classification,
 valuation, a property number, custody or the local PAR form.
+The count-record working copy similarly preserves separate pinned observations
+and current review decisions under existing read/export scope. It cannot certify
+a common inventory date, completeness, valuation or official RPCI. The separately
+reviewed QC example does not resolve target-municipality adoption or sign-off;
+those acceptance questions remain open, without blocking safe source preparation.
 
 **DECISION-GSO-002 — Real historical imports (deferred by owner).** Which source export, owners,
 identity mappings and discrepancy decisions should an eventual import retain?
@@ -150,6 +155,11 @@ allocation and source/navigation checkpoints were still local; that receipt did 
 authority or establish formal acceptance, Finance readiness or production recovery.
 
 **DECISION-OPS-004 — Existing local batch publication and mission resumption (verified 2026-10-18).**
+Later owner instruction: finish the in-flight focused VM checkpoint, integrate only
+if applicable/necessary, clean safely merged branches, then pause development until
+resumed. Preserve unpublished history, dirty work, evidence and release tags; no
+new operational or Finance acceptance is implied. CONTINUE owns the final checkpoint,
+cleanup receipts and exact pause state.
 The owner's subsequent 2026-10-18 instruction authorizes complete review, required
 exact-candidate CI, VM integration, explicit tags and exact-master CI for existing
 local v0.7.183–v0.7.185, plus accurate continuity/version documentation. Expected
