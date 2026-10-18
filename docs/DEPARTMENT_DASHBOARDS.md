@@ -25,6 +25,13 @@ without acquiring mutation rights. Actors without the separate module grant reta
 their other authorized workspaces. See [the worksheet contract](gso/asset-cost-allocations.md)
 and CONTINUE.md for current validation and publication state.
 
+The local maintenance entry similarly reuses existing case-read/office scope,
+including minimal reviewers without asset-register access. It opens all history
+so closed cases remain discoverable; scoped counts describe open/completed cases
+and distinct cases with proposed corrections. Pending is not approval eligibility.
+The existing maintenance list/details own filtering, retained sources and independent
+review. See [the correction contract](gso/maintenance-corrections.md) and CONTINUE.md.
+
 Accounting, Budget, collection, reporting, record, custody, Finance setup and
 voucher links reuse their existing access helpers. HR leave administration links
 to the actual management screen only when authorized. Everyday employee links

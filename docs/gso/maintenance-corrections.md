@@ -40,3 +40,18 @@ originals, stale predecessors/versions, zero/unknown costs, native competing
 decisions and shared-budget races, additive default-only migration and ordinary
 desktop/mobile staff journey. Implemented state and actual results belong to
 CONTINUE.md. Finance remains NO-GO; no production migration/deployment authorized.
+
+## Finding proposed corrections
+
+The local employee-home entry uses existing maintenance read authority and current
+GSO office scope, including reviewers without asset-register access. Its counts
+describe cases and distinct cases containing proposed corrections; they do not
+establish current source integrity, approval eligibility or corrected facts.
+
+Maintenance history retains its original open-case default. The explicit Proposed
+corrections link selects all case statuses and narrows to cases with pending
+proposals. Each case appears once even with multiple proposals, and pagination
+retains the chosen case/review filters. Open the original case to compare retained
+proposals, then use its existing independent review route. A pending proposal can
+be stale or otherwise ineligible; detail/service checks remain authoritative.
+UAT reads do not acquire mutation rights. Actual validation is in CONTINUE.md.

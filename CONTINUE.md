@@ -1,5 +1,75 @@
 # GRAND continuation handoff
 
+## Local maintenance review discovery — 2026-10-18
+
+The wider goal stays ACTIVE. The reviewed v0.7.187 publication candidate remains
+frozen at `a116691a100ed9230b578f73692ed12add84205e` with exact hosted CI pending;
+master is still v0.7.182 until its gates pass. The separate worksheet-entry slice
+is now a local installed-VM v0.7.188 checkpoint,
+`9c90e1a8faf0b35f040d90852dd4bebb036de5ca`, on `codex/gso-allocation-review-queue`.
+Its branch/tag remain unpublished. Its453-test result and browser evidence below
+retain their scope. New development is excluded from v0.7.187 publication.
+
+Independent `codex/gso-maintenance-review-queue` starts from exact local v0.7.188.
+The concrete gap: a minimal independent reviewer can use a known correction URL,
+but employee home still calls maintenance Planned and history offers no pending
+correction view. Reviewers should discover closed cases without separate asset
+register rights or knowledge of record IDs. This completes the accepted correction
+workflow's ordinary entry/review step, not a general dashboard redesign.
+
+The local implementation links the existing maintenance card to all history using
+the existing case-read/office predicate. Counts are scoped case counts, including
+distinct cases with proposed corrections, rather than approval eligibility or
+verified factual totals. The existing history offers a Proposed corrections view,
+shows pending counts, preserves case-status/review filters across pages and retains
+the original open-case default. Original/correction details still own integrity,
+currentness, independent authority and decisions. No new grant, model, migration,
+write service, evidence rule, custody or financial behavior is introduced.
+
+FAIL — original defects reproduced: two authenticated regressions failed in0.625s
+against frozen original v0.7.188 (missing employee-home link and unfiltered closed
+cases). Actual command set `GRAND_TEST_SOURCE_ROOT` to the unchanged
+`grand-allocation-review-queue` checkout, then ran documented Python3.11
+`-B .tmp/run_isolated.py test gso_integration_tests.test_maintenance_work_queue
+--noinput --verbosity 1`. That initial module contained only the two reproduction
+methods. No original application/template source changed during that run.
+The final seven tests also cover scoped/deduplicated counts, read-only UAT and missing
+grants,26-case pagination, status intersection, unchanged records and invalid input.
+FAIL — CAUSED BY CURRENT WORK: the serial506-test SQLite run executed in176.405s:
+501 passed, four native-only skips and one new-fixture error. The foreign-office
+fixture passed `department` to GRAND's integer-identity Asset model, which requires
+`department_id`. Correct that new fixture input only; assertions and all three
+runtime/template files remain unchanged. The run covered all seven plus maintenance/
+correction/notice/navigation, allocation/navigation/queue and the dashboard guide's
+dependent scope; its four source hashes stayed frozen. No complete506-test pass is
+claimed. Corrected focused validation PASS42/42 in9.793s, zero skips: documented
+Python3.11 `-B .tmp/run_isolated.py test gso_integration_tests.test_maintenance_work_queue
+gso_integration_tests.test_maintenance_review_navigation departments --noinput
+--verbosity 1`. This covers every new case, the affected dashboard domain and
+the previously repaired minimal-reviewer routes. All four final source hashes
+stay frozen; the three runtime/template files are identical to the broad run.
+Reuse its501 passing assertions only for their unchanged scope, not as a complete
+506-test pass. Local native/full-current CI is NOT RUN — OUT OF SCOPE for this
+read-only local checkpoint with no persistence/schema change; native aggregation
+and all hosted gates remain required before any future publication of this slice.
+
+PASS: fresh synthetic desktop/mobile browser journeys follow employee home → all
+maintenance → proposed corrections → original case → pending decision. One case
+with two pending proposals appears once; unrelated open/cancelled and foreign cases
+are excluded. The authorized reviewer has its existing decision form, UAT has no
+decision controls, the other GSO office sees only its own case and an ungranted
+actor gets no maintenance link. At390px the page remains390px wide; the760px table
+scrolls inside its316px container. Desktop and mobile screenshots were inspected.
+Read-only verification reproduces exact Asset/AssetAuditEvent, maintenance case/
+event and correction/event snapshots, verifies retained files, unchanged Finance
+bytes and the four frozen source hashes. Synthetic fixture logo/avatar/favicon404s
+remain fixture limitations. Only the named browser and owned loopback server stopped.
+
+PASS: isolated `check`, `makemigrations --check --dry-run` (no changes), `discover`
+(2946 unique /374 GSO, eight complete partitions) and `git diff --check`.
+Keep this slice local. Continue the independent v0.7.187 candidate/master gates;
+Finance remains NO-GO and no deployment/production operations are authorized.
+
 ## Local employee worksheet entry and review triage — 2026-10-18
 
 The wider goal is ACTIVE. The first publication attempt safely stopped on the

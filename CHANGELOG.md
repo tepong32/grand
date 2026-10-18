@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.189] - 2026-10-18
+### Added
+- feat(gso): make pending maintenance corrections discoverable to reviewers
+
 ## [0.7.188] - 2026-10-18
 ### Added
 - feat(gso): connect shared worksheets to employee home and review filters

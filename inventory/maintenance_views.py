@@ -1,7 +1,8 @@
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
-from django.http import FileResponse, Http404
+from django.db.models import Count, Q
+from django.http import FileResponse, Http404, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
@@ -35,13 +36,21 @@ def scoped_assets(actor):
 @require_http_methods(["GET"])
 def maintenance_list(request):
     rows = AssetMaintenanceCase.objects.filter(asset__in=scoped_assets(request.user)).select_related("asset")
+    review = request.GET.get('review', '')
+    if review not in ('', 'proposed'):
+        return HttpResponseBadRequest('Choose a valid maintenance correction view.')
     status = request.GET.get("status", "open")
     if status in dict(AssetMaintenanceCase.STATUS_CHOICES):
         rows = rows.filter(status=status)
     else:
         status = "all"
+    rows = rows.annotate(pending_corrections=Count('reviewed_corrections',
+        filter=Q(reviewed_corrections__status='proposed'), distinct=True)).order_by('-opened_at', '-pk')
+    if review:
+        rows = rows.filter(pending_corrections__gt=0)
     return render(request, "inventory/maintenance_list.html", {
         "page": Paginator(rows, 25).get_page(request.GET.get("page")), "status": status,
+        "review": review,
         "can_view_asset": can_asset(request.user, "view")})
 
 

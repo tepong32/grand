@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 
 from django.db.models import Q, QuerySet
+from django.urls import reverse
 
 from profiles.models import EmployeeProfile
 from leave_mgt.models import LeaveRequest
@@ -210,6 +211,22 @@ def _workspace_sections(department: Department, user=None) -> list[dict]:
         elif item is not None:
             item.update(status="Restricted")
             item.pop("url_name", None)
+    from inventory.maintenance_views import can_view_maintenance, scoped_assets
+    if can_view_maintenance(user):
+        from inventory.models import AssetMaintenanceCase
+        cases = AssetMaintenanceCase.objects.filter(asset__in=scoped_assets(user))
+        item = next((row for row in result if row['title'] == 'Maintenance requests'), None)
+        if item is None:
+            item = {'title': 'Maintenance requests', 'icon': 'fa-tools'}
+            result.append(item)
+        item.update(status='Available', url=reverse('inventory:maintenance-list') + '?status=all',
+            description='Follow repair cases, original work and proposed documentary corrections.',
+            action_label='Open maintenance history', summary_items=(
+                {'label': 'Open cases', 'value': cases.filter(status='open').count()},
+                {'label': 'Completed cases', 'value': cases.filter(status='completed').count()},
+                {'label': 'Cases with proposed corrections', 'value': cases.filter(
+                    reviewed_corrections__status='proposed').distinct().count()},
+            ))
     from accounting.access import can_view_accounting
     from inventory_finance import asset_cost_allocations
     if asset_cost_allocations.can_view_workbench(user):
