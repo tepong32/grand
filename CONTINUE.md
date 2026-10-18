@@ -1,5 +1,94 @@
 # GRAND continuation handoff
 
+## Local reviewed maintenance-correction development — 2026-10-18
+
+Separate `codex/gso-reviewed-maintenance-corrections` began clean at publication
+candidate v0.7.182 / `4e60e996f64c7c16fc39a4b5966e62b6b8e2cebf`. This new workflow is
+outside the preserved overnight publication payload. Candidate CI39096814827 runs
+separately against that fixed SHA; do not mix these local changes into it.
+
+DECISION-GSO-003 is implemented locally: documentary proposals,
+retained original/source/predecessor and evidence, explicit independent review,
+immutable content/decision history, optimistic versions and original-case locking.
+Migration0031 adds two default-only tables and one explicit review permission,
+with no automatic grants. Existing managers propose; scoped readers with the
+review permission independently decide. UAT mutation denial remains. Corrections
+do not change original closure, asset status/custody, Accounting or journal entries.
+Case/notice/correction files share the existing20-file/100MB budget under the same
+locks; per-file limit remains15MB. A checked download and read-only recovery
+command accompany the staff forms/history. See docs/gso/maintenance-corrections.md.
+
+The first focused SQLite run executed18 methods in1.954s and failed with10 direct-
+service authorization errors. The new test reviewer retained a profile cached
+during user creation before its explicit GSO assignment; refreshing that fixture
+actor fixes the stale test identity without relaxing production checks. The actual
+authenticated proposal/independent-review journey passed in that first run.
+The next complete GSO SQLite run passed320 discovered /293 passed /27 native-only
+skips in55.184s, exit0. Review then reproduced a current-code integrity gap: changing
+an approved row's status could hide it before history verification (one genuine
+regression failed in0.082s, no fixture errors). The basis now verifies every
+decision chain before selecting approvals, so status drift cannot silently restore
+old documentary facts. Added current-source checks also cover changed approved
+files, cancelled-case successors and genuine token expiry. After that repair,
+complete GSO SQLite passed324 discovered /297 passed /27 native-only skips in
+55.840s; fresh two-store MySQL passed all324 in116.146s, zero skips. This includes
+three new native races and the additive upgrade test. The prior notice upgrade
+test now restores the actual migration graph leaves rather than leaving schema0030
+behind after0031; its assertions remain. All23 inherited MySQL W036 warnings match
+v0.7.181; no conditional constraint was added. Initial fixture startup failed on a
+Windows-denied bind; a verified unused OS-selected loopback port succeeded without
+OS/firewall changes. No source database or operator data was used.
+
+Actual synthetic clerk proposal, independent approval, second-proposal rejection
+and UAT read journeys passed at desktop/mobile390px, with no horizontal overflow.
+Original provider/cost remain visible beside the first approved correction after
+the second is rejected. Browser observation prompted clear original/current labels,
+an actionable Cost reference error, retained-text/file-reselection guidance and
+an explicit blank review choice. Browser validity blocks a missing choice; no
+implicit approval occurs. Authenticated evidence HTTP200/508bytes was observed;
+an OS-saved browser download was not verified. Pre-authentication preview static/
+media404s and an authenticated favicon404 are preview limitations, not a production
+login claim. Focused final-source SQLite passed24 in3.196s; fresh native passed
+the same24 in5.335s, zero skips. The324-case suites predate only these bounded UX edits
+and two additional form/HTTP tests; no broad326-case execution is claimed.
+
+Stopped synthetic paired SQLite/private-file recovery passed the three maintenance
+checkers with two retained correction files (approved/rejected); changed, missing
+and unreferenced correction files were rejected. Original fixture bytes, including
+the Finance copy, stayed unchanged. An initial copy correctly failed because its
+unused original/notice namespaces were absent; a separate new copy explicitly
+provisioned those empty fixture directories and passed. No checker was relaxed.
+This is not online native/production recovery or RPO/RTO qualification. Final system
+check, no migration drift and complete discovery/8 class partitions pass:2898 unique
+tests /326 GSO. No broad326-case execution is claimed. Both native test schemas
+were dropped and the exact owned MySQL process was stopped gracefully after checking
+there were no other clients. Browser and owned loopback preview are stopped.
+
+Commands used the established Python3.11 environment; ignored wrappers redirect
+both stores, private files and runtime paths away from protected databases:
+
+```text
+python -B .tmp/run_isolated.py test gso_integration_tests --noinput --verbosity 1
+python -B .tmp/native_corrections.py gso_integration_tests --verbosity 1
+python -B .tmp/run_isolated.py test gso_integration_tests.test_maintenance_corrections --noinput --verbosity 1
+python -B .tmp/native_corrections.py gso_integration_tests.test_maintenance_corrections --verbosity 1
+python -B .tmp/rehearse_correction_recovery.py
+python -B .tmp/stop_native_corrections.py
+python -B .tmp/run_isolated.py check
+python -B .tmp/run_isolated.py makemigrations --check --dry-run
+python -B .tmp/run_isolated.py discover
+git diff --check
+```
+
+The native wrapper delegates to committed `scripts/run_mysql_tests.py` with fresh
+default/finance schemas, never keepdb. Recovery results above distinguish the first
+failed copy from the subsequent provisioned copy; logs are retained. No dependency
+audit repeat or unrelated full Finance run was necessary for this default-only
+feature; candidate/master full hosted regression applies only to v0.7.182. Final
+diff/source-hash verification and a local-only VM checkpoint follow; new feature
+publication requires its own separately authorized exact-revision gates.
+Finance stays **NO-GO**; no deployment or publication of this new workflow is claimed.
+
 ## Owner decisions and overnight publication candidate — 2026-10-18
 
 The owner accepted research-led Finance development, explicit documented asset-cost

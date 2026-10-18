@@ -21,11 +21,12 @@ class MaintenanceNoticeUpgradeTests(TransactionTestCase):
         fixtures.MaintenanceNoticeTests.setUp(self)
         before = fixtures.service.case_basis(self.case)
         connection = connections['default']
+        leaves = MigrationExecutor(connection).loader.graph.leaf_nodes()
         try:
             MigrationExecutor(connection).migrate([('inventory', '0029_receipt_quantity_corrections')])
             self.assertNotIn(Notice._meta.db_table, connection.introspection.table_names())
         finally:
-            MigrationExecutor(connection).migrate([('inventory', '0030_maintenance_correction_notices')])
+            MigrationExecutor(connection).migrate(leaves)
         self.case.refresh_from_db()
         self.assertEqual(fixtures.service.case_basis(self.case), before)
         self.assertIn(Notice._meta.db_table, connection.introspection.table_names())

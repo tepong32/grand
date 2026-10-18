@@ -1,0 +1,7 @@
+{% extends "inventory/base.html" %}{% block title %}Propose a maintenance correction{% endblock %}{% block content %}
+<header class="hero"><div><h1>Propose a maintenance correction</h1><p>{{ case.asset.asset_name }} · {{ case.get_status_display }} work record</p></div></header>
+<nav class="quick-links"><a href="{% url 'inventory:maintenance-detail' case.pk %}">Back to original work record</a></nav>
+<section class="panel"><p>Check the complete documented information, change the mistaken entries, and attach the source supporting your correction. A different authorized reviewer must approve it before it is displayed as the current documentary correction.</p>
+<p>The original record and documents remain intact. This does not reopen maintenance, change custody or asset condition, approve payment, establish an accounting value or post a journal entry.</p>
+{% if source_error %}<p class="errorlist" role="alert">{{ source_error }}</p>{% else %}{% if form.errors %}<p role="alert">Your text is kept. Correct the reported fields and select the supporting file again before resubmitting.</p>{% endif %}<form method="post" enctype="multipart/form-data">{% csrf_token %}{{ form.as_p }}<button class="button primary" type="submit">Submit for independent review</button></form>{% endif %}</section>
+{% endblock %}

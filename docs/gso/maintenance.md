@@ -9,6 +9,12 @@ notices are not backfilled approvals. Corrections must not silently alter custod
 Accounting records or historical facts. Formal LGU acceptance is separate; see
 the [decision register](../IMPLEMENTATION_DECISIONS.md) and current handoff.
 
+The separate local implementation is now under validation in
+[reviewed maintenance corrections](maintenance-corrections.md). It retains complete
+documentary successor proposals, explicit independent review, source/predecessor
+bindings and protected files beside the unchanged original. No published capability
+or acceptance is claimed until the current handoff records its actual gates.
+
 ## Closed-record correction notices — local development, 2026-10-18
 
 `codex/gso-maintenance-notices` starts at local VM v0.7.177 / `04f6200`; it is

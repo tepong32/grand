@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.183] - 2026-10-18
+### Added
+- feat(gso): retain independently reviewed maintenance corrections
+
 ## [0.7.182] - 2026-10-18
 ### Documentation
 - docs(grand): record approved development and publication decisions

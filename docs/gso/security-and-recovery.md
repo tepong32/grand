@@ -3,6 +3,25 @@
 This shell is for controlled development. A release is not permission to expose it
 to the internet or an assertion that LGU operational acceptance has passed.
 
+## Reviewed maintenance corrections — local development
+
+Migration0031 adds default-store correction proposals and decision events. Include
+`inventory/maintenance_corrections/<case UUID>/` and its metadata/history with the
+existing original-maintenance and notice files in coordinated recovery. Run
+`check_maintenance_corrections`, `check_maintenance_notices` and
+`check_maintenance_evidence` on stopped/restored copies. Corrections must reproduce
+their content, independent decisions, original case basis and approved predecessor
+chain; missing/changed files or altered records require investigation, never repair
+or checksum replacement. The new checker also reports orphan files.
+
+The explicit `review_maintenance_correction` permission confers no automatic role
+membership or original maintenance-management grant. A scoped reader needs it to
+decide another person's proposal; Finance UAT membership still denies mutation.
+Retain original cases and evidence unchanged. An approved documentary correction
+is not a custody, payment, ledger, official valuation or employment decision. See
+[the workflow contract](maintenance-corrections.md) and current handoff for actual
+validation/publication. No operator migration or recovery acceptance is implied.
+
 ## Physical-count Accounting CSV archive check
 
 Run `python manage.py check_accounting_source_evidence` alongside the existing

@@ -99,6 +99,14 @@ Keep them visible to future consumers; never infer authoritative corrected value
 or Finance adjustments from a notice. See [the notice boundary](docs/gso/maintenance.md)
 and DECISION-GSO-003 in the existing decision register.
 
+Reviewed maintenance corrections are separate documentary successors: retain the
+original case and immutable proposal/decision evidence, require a distinct reviewer
+with explicit scoped review permission, and reject stale approved predecessors.
+Keep notice/correction files under the original case's shared budget. Only a verified
+approved successor supplies the current documentary display; it cannot change
+custody, asset outcome, Accounting, payment or ledger authority. See
+docs/gso/maintenance-corrections.md; implementation/validation state belongs to the handoff.
+
 Signed Form 1 returns retain per-entity dates, original PDF bytes and declared
 physical custody separately from independent verification and immutable final
 issue archives. An upload/PDF parse does not establish signatures. Preserve

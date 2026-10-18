@@ -105,9 +105,12 @@ def record_notice(*, actor, case, request_id, expected_source, explanation, sour
         return previous
     if upload:
         notices = case.correction_notices
-        if case.evidence.count() + notices.exclude(file='').count() >= 20:
+        corrections = case.reviewed_corrections
+        if case.evidence.count() + notices.exclude(file='').count() + corrections.count() >= 20:
             raise ValidationError('This case already retains 20 documents. You can record a reference-only notice; arrange evidence storage review separately.')
-        total = (case.evidence.aggregate(total=Sum('size'))['total'] or 0) + (notices.aggregate(total=Sum('size'))['total'] or 0)
+        total = ((case.evidence.aggregate(total=Sum('size'))['total'] or 0)
+            + (notices.aggregate(total=Sum('size'))['total'] or 0)
+            + (corrections.aggregate(total=Sum('size'))['total'] or 0))
         if total + size > 100 * 1024 * 1024:
             raise ValidationError('Case documents cannot exceed 100 MB. Record a reference-only notice or arrange storage review.')
     row = Notice(public_id=identity, case=case, recorded_by=actor, explanation=explanation,

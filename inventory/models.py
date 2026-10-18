@@ -1281,6 +1281,83 @@ class MaintenanceCorrectionNotice(models.Model):
         raise ValidationError("Correction notices are retained with the original work record.")
 
 
+def maintenance_correction_path(instance, filename):
+    extension = filename.rsplit(".", 1)[-1].lower()
+    return f"inventory/maintenance_corrections/{instance.case.public_id}/{instance.public_id.hex}.{extension}"
+
+
+class MaintenanceCorrection(models.Model):
+    """Reviewed documentary successor; the original case remains unchanged."""
+    public_id = models.UUIDField(default=uuid4, unique=True, editable=False)
+    case = models.ForeignKey(AssetMaintenanceCase, on_delete=models.PROTECT, related_name="reviewed_corrections")
+    revision = models.PositiveIntegerField()
+    predecessor = models.ForeignKey("self", on_delete=models.PROTECT, null=True, blank=True, related_name="successors")
+    proposed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+                                    related_name="gso_maintenance_corrections")
+    proposed_at = models.DateTimeField(default=timezone.now, editable=False)
+    source_snapshot = models.JSONField()
+    corrected_values = models.JSONField()
+    reason = models.TextField(max_length=4000)
+    source_reference = models.CharField(max_length=240)
+    file = models.FileField(upload_to=maintenance_correction_path, storage=disposal_private_storage, max_length=500)
+    original_filename = models.CharField(max_length=255)
+    sha256 = models.CharField(max_length=64)
+    size = models.PositiveBigIntegerField()
+    content_checksum = models.CharField(max_length=64)
+    status = models.CharField(max_length=12, default="proposed",
+        choices=(("proposed", "Awaiting independent review"), ("approved", "Approved documentary correction"),
+                 ("rejected", "Rejected")))
+    state_version = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ("revision", "pk")
+        default_permissions = ()
+        permissions = (("review_maintenance_correction", "Can independently review maintenance corrections"),)
+        constraints = (
+            models.UniqueConstraint(fields=("case", "revision"), name="gso_maintenance_correction_revision"),
+            models.CheckConstraint(condition=models.Q(size__gt=0), name="gso_maintenance_correction_file"),
+        )
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            original = type(self).objects.get(pk=self.pk)
+            names = ("public_id", "case_id", "revision", "predecessor_id", "proposed_by_id", "proposed_at",
+                "source_snapshot", "corrected_values", "reason", "source_reference", "file",
+                "original_filename", "sha256", "size", "content_checksum")
+            if any(getattr(original, name) != getattr(self, name) for name in names):
+                raise ValidationError("Correction content is retained. Propose a new correction instead.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Maintenance correction history is retained.")
+
+
+class MaintenanceCorrectionEvent(models.Model):
+    correction = models.ForeignKey(MaintenanceCorrection, on_delete=models.PROTECT, related_name="events")
+    version = models.PositiveIntegerField()
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+                              related_name="gso_maintenance_correction_events")
+    occurred_at = models.DateTimeField(default=timezone.now, editable=False)
+    action = models.CharField(max_length=12)
+    note = models.TextField(max_length=4000)
+    snapshot = models.JSONField()
+    checksum = models.CharField(max_length=64)
+
+    class Meta:
+        ordering = ("version", "pk")
+        default_permissions = ()
+        constraints = (models.UniqueConstraint(fields=("correction", "version"),
+                                               name="gso_maintenance_correction_event"),)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Correction decisions cannot be replaced.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("Correction decisions are retained.")
+
+
 class AssetReturnEvent(models.Model):
     transfer = models.ForeignKey(AssetTransfer, on_delete=models.PROTECT, related_name="return_events")
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="gso_return_events")

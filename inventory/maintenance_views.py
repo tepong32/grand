@@ -112,10 +112,22 @@ def maintenance_detail(request, pk):
         except ValidationError as problem:
             error = ' '.join(problem.messages)
         notices.append({'record': row, 'error': error})
+    from . import maintenance_corrections
+    from .maintenance_correction_forms import CorrectionValuesForm
+    approved, correction_error = None, ''
+    if case.status != case.OPEN:
+        try:
+            _, approved = maintenance_corrections.basis(case)
+        except ValidationError as problem:
+            correction_error = ' '.join(problem.messages)
+    correction_page = Paginator(case.reviewed_corrections.select_related('proposed_by').order_by('-revision'), 25).get_page(request.GET.get('correction_page'))
+    approved_fields = [(field.label, field.value()) for field in CorrectionValuesForm(initial=approved.corrected_values)] if approved else []
     return render(request, "inventory/maintenance_detail.html", dict(
         case=case, work_form=work, evidence_form=evidence, close_form=close, version=version, editable=editable,
         notices=notices, notice_page=notice_page,
-        can_notice=can_manage_maintenance(request.user, case.asset) and case.status != case.OPEN))
+        can_notice=can_manage_maintenance(request.user, case.asset) and case.status != case.OPEN,
+        correction_page=correction_page, approved_correction=approved,
+        approved_fields=approved_fields, correction_error=correction_error))
 
 
 @never_cache
