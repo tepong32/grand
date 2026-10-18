@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.194] - 2026-10-18
+### Added
+- feat(gso): prepare PAR drafts from scoped register facts
+
 ## [0.7.193] - 2026-10-18
 ### Added
 - feat(gso): print complete scoped supply movement working copies

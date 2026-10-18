@@ -37,21 +37,37 @@ class PARLineForm(forms.Form):
 PARLines = formset_factory(PARLineForm, extra=5, max_num=5, validate_max=True, absolute_max=5)
 
 
-@never_cache
-@login_required
-@require_http_methods(['GET', 'POST'])
-def par_preparation(request):
+def _par_preparation(request, source_asset=None):
     if not can_act(request.user, 'view'):
         raise PermissionDenied
     data = request.POST if request.method == 'POST' else None
     header = PARHeaderForm(data, prefix='header')
-    lines = PARLines(data, prefix='lines')
+    initial = [{'description': source_asset.asset_name, 'quantity': source_asset.quantity}] if source_asset else None
+    lines = PARLines(data, prefix='lines', initial=initial)
     ready = request.method == 'POST' and header.is_valid() and lines.is_valid()
     return render(request, 'inventory/par_preparation.html', {
-        'header':header, 'lines':lines, 'ready':ready,
+        'header':header, 'lines':lines, 'ready':ready, 'source_asset':source_asset,
+        'invalid': request.method == 'POST' and not ready,
         'details': header.cleaned_data if ready else {},
         'print_lines': [form.cleaned_data for form in lines] if ready else [],
     })
+
+
+@never_cache
+@login_required
+@require_http_methods(['GET', 'POST'])
+def par_preparation(request):
+    return _par_preparation(request)
+
+
+@never_cache
+@login_required
+@require_http_methods(['GET', 'POST'])
+def par_asset_preparation(request, pk):
+    if not can_act(request.user, 'view') or not can_asset(request.user, 'export'):
+        raise PermissionDenied
+    asset = get_object_or_404(Asset, pk=pk, department_id=gso_department_for_user(request.user).pk)
+    return _par_preparation(request, source_asset=asset)
 
 
 class ICSHeaderForm(PARHeaderForm):

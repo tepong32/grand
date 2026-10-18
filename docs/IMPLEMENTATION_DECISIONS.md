@@ -68,6 +68,9 @@ keep those output/source-policy questions open. See
 The [QC example review](gso/coa-requirements.md#supplies-output-example-reviewed--2026-10-18)
 supports source-copy preparation only. The printable stock history does not close
 official RSMI/SSMI applicability, form, signatory or Accounting-treatment questions.
+Asset-started PAR preparation similarly retains supplied acquisition facts and
+official identities; copying register name/quantity does not approve classification,
+valuation, a property number, custody or the local PAR form.
 
 **DECISION-GSO-002 — Real historical imports (deferred by owner).** Which source export, owners,
 identity mappings and discrepancy decisions should an eventual import retain?

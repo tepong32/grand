@@ -1,5 +1,117 @@
 # GRAND continuation handoff
 
+## PAR preparation from the asset register — 2026-10-18
+
+The wider goal remains ACTIVE. Isolated `codex/gso-par-source-preparation` starts
+from local v0.7.193 / `6ca4c541c7f7db177e70e1ae426a0ae80be1960f`.
+Published master remains v0.7.187 / `a116691a100ed9230b578f73692ed12add84205e`;
+new work from v0.7.188 remains unpublished. No deployment or production operation.
+Finance stays NO-GO. Existing publication receipts below belong to187 only.
+
+Source review found the existing blank PAR draft had no register-start route,
+although ICS already did, and its editor stayed long/open above the preview with
+no Print control. Property working register now links to asset-started PAR under
+the same property-document read, asset-export and fresh owning-office checks as
+ICS. Copy only name and quantity. Unit, acquisition date/cost, official property
+number, fund and signatories remain supplied fields. A register unit cost, purchase
+date or tag does not silently become a different PAR fact. Both GET and POST
+recheck grants and current ownership; current custody in this office cannot expose
+an asset owned elsewhere. Blank PAR retains its existing read-only authority.
+
+The nonpersistent flow is entry → edit → preview → Print / Save as PDF. A valid
+preview collapses the editor; invalid entries stay visible with errors. Source
+tag is screen provenance; source UUID/review wording remains in the printed draft.
+The normal five-row A4 preparation now keeps its blank signature areas and
+unsigned/source-review warnings together. No official form/classification/value,
+signature, number, custody or Accounting approval is created. No model, migration,
+permission, stock service or Finance code changes. See
+[the draft contract](docs/gso/property-record-design.md#working-draft-preparation--2026-10-18).
+
+Seven new authenticated tests cover selective copy/unknowns, editable zero/unknown
+amounts, no source/Finance writes, minimal explicit grants, UAT read/export,
+foreign ownership despite local custody, fresh POST grants/owner, input retention,
+five-form bounds, methods and CSRF. They borrow fixture setup without inheriting
+duplicate tests. No permission, assertion or gate is weakened.
+
+Expected original reproduction: `python -B .tmp/probe_par.py` returned404 for the
+authenticated source route on unchanged v0.7.193, then proved seven unchanged
+domain/audit snapshots, Finance-copy bytes and original synthetic-pair hashes.
+Corrected/final read-only probes pass source GET, edited zero-cost POST, four
+roles, blank-draft access, foreign-source404 and retained invalid entries, with
+those exact integrity guards. The exclusive cloned pair has the same schema;
+no operator store, migration or real historical import was used.
+
+FAIL — CAUSED BY CURRENT WORK (new test fixture): initial `python -B
+.tmp/run_isolated.py test gso_integration_tests.test_par_source_preparation
+gso_integration_tests.test_property_drafts
+gso_integration_tests.test_spc_source_worksheet --noinput --verbosity 1` ran31 in
+8.517s:30 passed and one KeyError. An entirely empty optional form has empty
+cleaned data; the new test intended a named row with unknown acquisition cost.
+Added only that row's description, keeping its strict None assertion. Application
+code stayed unchanged. All24 existing dependent cases passed and are retained for
+that unchanged code/environment; no full corrected31-case SQLite run is claimed.
+
+PASS7/7 in1.835s, zero skips: corrected `python -B .tmp/run_isolated.py test
+gso_integration_tests.test_par_source_preparation --noinput --verbosity 1`.
+Together with the24 unchanged dependent passes, this validates the selected
+SQLite contracts across those two runs; it is not a single31-case green run.
+
+PASS31/31 in13.083s, zero skips, on final frozen code/test/template: `python -B
+.tmp/native_par_validation.py` invokes committed `python -B scripts/run_mysql_tests.py
+gso_integration_tests.test_par_source_preparation
+gso_integration_tests.test_property_drafts
+gso_integration_tests.test_spc_source_worksheet --verbosity 1`. Exclusive MySQL8.4.11
+strict/ONLY_FULL_GROUP_BY used two fresh test stores from a stopped system-only
+test template, never an operator server. Both schemas were destroyed, the owned
+clone stopped normally, and all five source/test hashes plus original test-template
+hashes stayed unchanged. Timings exclude schema preparation. This final run
+includes the corrected unknown-cost row and all24 dependent cases.
+
+PASS actual browser: minimal three-grant clerk Property register → Start PAR →
+name/quantity2 copied with cost/date/unit/property number blank → edit quantity3
+and supplied0.00 → collapsed preview/Print. UAT source GET works; missing export
+denies source403 while blank PAR stays200; ungranted403 and foreign owner404 even
+with current custody here. At390px the page is390px and the650px table scrolls
+inside312px. Desktop/mobile screenshots were inspected. The initial short draft
+put blank signature areas on page2; final print spacing produces one A4-landscape
+page with all five rows, explicit0.00, unsigned role placeholders and source UUID/
+review warning. Final PDF was rendered/viewed and text checked. Longer supplied
+content can need additional pages; local-form/printer acceptance is unperformed.
+
+The first fixture seed failed on a duplicated synthetic email; failed runtime and
+settings were retained, and a fresh v2 clone with unique role-prefixed emails
+passed. Initial browser navigation used the wrong loopback port and failed;
+reading the live owned-server receipt corrected the address on the same server.
+An intentional owned server restart later reloaded the print CSS. Both owned
+servers and the named browser are stopped. Fixture favicon404 remains a limitation.
+Two PDFs (before/final) and two screenshots remain untracked synthetic artifacts.
+
+PASS: isolated `python -B .tmp/run_isolated.py check`; `python -B
+.tmp/run_isolated.py makemigrations --check --dry-run` (no changes); `python -B
+.tmp/run_isolated.py discover` (2965 unique /393 GSO, all eight partitions complete);
+`python -m pip check`; `python -m unittest scripts.test_ci_test_runner -v` (9/9);
+source/helper syntax and `git diff --check`. Four application-file hashes remain
+unchanged across the fixture correction. Final read-only probe again confirms
+the four roles, blank drafts, foreign/invalid source handling and seven unchanged
+domain/audit snapshots, Finance bytes and original synthetic-pair hashes.
+
+The installed-VM local checkpoint target is v0.7.193 → v0.7.194; resolve local
+tag `v0.7.194` for its exact commit after the operation. Its reviewed manifest is
+five implementation/test files plus CONTINUE, roadmap, decision register and the
+property contract, with only VERSION/CHANGELOG managed automatically. Preserve
+historical evidence, four synthetic artifacts, original checkout and other work.
+No integration/push of v0.7.188 onward is authorized.
+
+NOT RUN — OUT OF SCOPE: repeated full Finance/hosted release CI, real municipal
+PAR issuance/signature/printer acceptance, production storage/recovery and LGU/
+Accounting acceptance. No Financial calculation/persistence, stock mutation,
+model, migration, permission or service changed. Future publication still needs
+all exact-candidate/master gates. The accepted local-form placeholders remain
+drafts; unknown valuation, historical-import, Finance certificate and operational
+requirements remain open. Continue the wider mission from the actual roadmap and
+source evidence; do not infer statutory/local rules or invent a feature to avoid
+an external acceptance boundary. Finance remains NO-GO; no deployment.
+
 ## Complete stock-history working copy — 2026-10-18
 
 The wider goal remains ACTIVE. Isolated `codex/gso-stock-working-copy` starts at

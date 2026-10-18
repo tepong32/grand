@@ -46,6 +46,25 @@ classification or financial valuation. This reduces repeated entry while preserv
 separate export authority, including for UAT viewers. Other-office ownership stays
 hidden even when the asset's current custody is assigned to the requesting office.
 
+The asset-specific PAR entry uses the same existing property-document read,
+asset-register export and owning-office checks, freshly on GET and POST. It copies
+only register name and quantity into the existing editable PAR draft. Unit,
+acquisition date/cost, property number, fund, issuer and recipient remain supplied
+entries. Register unit cost, purchase date and tag are not silently relabelled as
+PAR acquisition facts or an official property number. This also preserves unknown
+versus zero: an explicit zero entered in the draft stays zero; no register amount
+or grouped-quantity total is inferred. Register tag is screen provenance and the
+source UUID remains on the printed draft beside the source-review warning.
+
+Blank PAR preparation retains its existing read authority without an export grant;
+only starting from actual register data requires that additional grant. The PAR
+editor now follows the same edit → preview → Print / Save as PDF flow as the other
+drafts. Valid previews collapse the editor; invalid input stays expanded with its
+values and errors. The labelled table scrolls within the mobile page. Print spacing
+keeps the normal short five-row preparation and blank signature placeholders
+together. Longer entries can require more pages; local-form and printer acceptance
+remain separate.
+
 The sheet is not saved: edit → preview → Print / Save as PDF, then retain locally
 in approved office storage. A successful preview collapses the editor; invalid
 input remains expanded with a correction message and previous entries. Native

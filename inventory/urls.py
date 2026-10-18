@@ -27,6 +27,7 @@ urlpatterns = [
     path('maintenance/corrections/<int:pk>/evidence/', maintenance_correction_views.correction_evidence, name='maintenance-correction-evidence'),
     path("property-records/spc-sources/", property_card_views.spc_source_worksheet, name="spc-source-worksheet"),
     path("assets/<int:pk>/prepare-ics/", property_output_views.ics_asset_preparation, name="asset-ics-preparation"),
+    path("assets/<int:pk>/prepare-par/", property_output_views.par_asset_preparation, name="asset-par-preparation"),
     path("property-records/prepare-ics/", property_output_views.ics_preparation, name="ics-preparation"),
     path("property-records/prepare-spc/", property_output_views.spc_preparation, name="spc-preparation"),
     path("property-records/prepare-par/", property_output_views.par_preparation, name="par-preparation"),

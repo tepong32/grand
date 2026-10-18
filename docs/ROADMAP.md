@@ -6,6 +6,10 @@ usability built in. Finance dependencies remain indexed in the consolidated
 [decision log](IMPLEMENTATION_DECISIONS.md#consolidated-owner-decisions--2026-10-18).
 Local v0.7.177 completes GSO ICS/SPC working preparation and the reviewed SPC source
 worksheet, following the existing [placeholder direction](gso/inventory-roadmap.md#placeholder-output-direction--2026-10-17).
+PAR preparation now also starts from an owning-office asset, with the existing
+property-read/export checks and only name/quantity copied. Acquisition facts and
+official identities remain supplied; the complete editable preview/print flow is
+documented in [the property draft contract](gso/property-record-design.md#working-draft-preparation--2026-10-18).
 Closed-maintenance correction notices retain statements alongside unchanged original
 values. The separately implemented [reviewed correction workflow](gso/maintenance-corrections.md)
 adds independently approved documentary successors without rewriting the original.
