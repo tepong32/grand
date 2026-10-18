@@ -1,5 +1,70 @@
 # GRAND continuation handoff
 
+## Local source follow-up and publication watch — 2026-10-18
+
+The wider goal remains ACTIVE. Local installed-VM checkpoints now include worksheet
+entry/filtering v0.7.188 / `9c90e1a8faf0b35f040d90852dd4bebb036de5ca` and maintenance
+review discovery v0.7.189 / `cc6feff2b5e81b218d95d7bbb566282d73054153`.
+Their branches/tags remain unpublished; actual local tests, failures, scoped reuse
+and synthetic browser evidence are recorded below. No deployment/production work.
+
+Separate `codex/finance-asset-source-followup` starts from that exact v0.7.189.
+Its bounded research closes the earlier unread-base-circular observation: DSWD's
+official index links a signed nine-page COA2022-004 copy, downloaded and visually
+inspected in full with hash/size retained. Referenced annexes are absent from this
+copy; current amendments and the complete LGU source/account/posting chain are not
+established. COA's FAQ retrieval failed. The [source checkpoint](docs/FINANCE_ASSET_VALUATION_RESEARCH_2026-10-18.md)
+separates source facts, engineering interpretation and unconfirmed uses. No runtime,
+template, model, migration, permission or financial rule changed in this follow-up.
+No duplicate application regression is needed for these source/continuity documents;
+retain the prior code receipts with their actual limitations. Documentation links,
+source-file checksum and whitespace are checked before its local VM checkpoint.
+
+Subsequent native query validation PASS51/51 in65.751s, zero skips, on unchanged
+v0.7.189 /cc6feff. Actual command: documented Python3.11
+`-B .tmp/native_query_validation.py` in its maintenance-review-queue worktree.
+The bounded helper invokes the committed `-B scripts/run_mysql_tests.py
+gso_integration_tests.test_asset_cost_work_queue gso_integration_tests.test_maintenance_work_queue
+gso_integration_tests.test_asset_cost_navigation gso_integration_tests.test_maintenance_review_navigation
+departments --verbosity 1` with private test-only credentials in the environment.
+It exercises both new modules' scope/aggregation, role boundaries, actual pages
+and dependent dashboards. All nine frozen feature-source hashes stay unchanged.
+
+The exclusive loopback MySQL8.4.11 clone initially contained only system schemas;
+metadata confirms strict SQL and ONLY_FULL_GROUP_BY. Both fresh test stores were
+destroyed, its owned server stopped, and original stopped-template hashes remained
+unchanged. Operator stores/settings were unused. Clone/logs remain synthetic test
+evidence. This subsequent native pass closes the earlier query-portability limit;
+it does not relabel the failed506-test SQLite run, execute every skipped native
+case from that run, replace exact-master CI or establish production recovery.
+
+The authorized publication reached remote master/v0.7.187 at
+`a116691a100ed9230b578f73692ed12add84205e`. The clean primary fast-forwarded from
+verified v0.7.182 / `4e60e996f64c7c16fc39a4b5966e62b6b8e2cebf`; one atomic push
+published master plus the five explicit v0.7.183–v0.7.187 tags. All refs were checked
+against their intended commits. Protected hashes/status in all seven checkouts
+still match the task baseline, with only the authorized primary HEAD advanced.
+
+Exact-candidate [CI39106284455](https://github.com/tepong32/grand/actions/runs/39106284455)
+PASSED19/19. Downloaded artifacts independently verify2932 unique test identities
+per backend, eight complete partitions,233 explicit SQLite skips and zero native
+skips. The same-SHA automatic push/master
+[CI39110395966](https://github.com/tepong32/grand/actions/runs/39110395966) is RUNNING;
+its final gates and coverage are not yet verified. Repository refs are published,
+but completed published-master CI is not claimed. No deployment occurred.
+
+An API timeout and local DNS failures temporarily stopped monitoring/publication.
+Read-only recheck recovered access to the SAME candidate run and exact SHA; no
+workflow was redispatched and no gate bypassed. This source/handoff checkpoint records pending master CI honestly; all new local
+branches/tags remain unpublished.
+
+Wait for every exact-master gate and verify downloaded coverage plus current refs
+and preservation proof. Record complete receipts in the next local handoff and
+DECISION-OPS-004 only after that proof. This local source checkpoint supplies no
+master-CI pass or further publication authority. New development stays local.
+Finance remains NO-GO; real imports, valuation policy, applicable local forms,
+production storage/recovery and formal acceptance remain unresolved boundaries.
+
 ## Local maintenance review discovery — 2026-10-18
 
 The wider goal stays ACTIVE. The reviewed v0.7.187 publication candidate remains

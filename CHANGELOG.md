@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.190] - 2026-10-18
+### Documentation
+- docs(finance): retain scoped base asset source review and local validation
+
 ## [0.7.189] - 2026-10-18
 ### Added
 - feat(gso): make pending maintenance corrections discoverable to reviewers

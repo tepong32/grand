@@ -49,6 +49,9 @@ creates no automatic journal entry. Real evidence/policy remain necessary for
 official financial use. The bounded local [documentary allocation contract](gso/asset-cost-allocations.md)
 implements this development direction for one accepted registered-asset receipt
 line; valuation and cross-receipt treatment remain unconfirmed.
+The same source checkpoint now retains a visually inspected official-hosted copy
+of base COA2022-004. Its per-item threshold does not resolve bundle-price allocation;
+no valuation, useful-life, cancellation or posting rule is activated by that review.
 
 **DECISION-GSO-001 — Official property output acceptance (open).** Which municipal
 PAR/ICS/SPC layouts, revisions, numbering and sign-off instructions are accepted?

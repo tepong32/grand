@@ -17,7 +17,7 @@ The locally implemented usability slice connects these existing worksheets to au
 employee home pages and review-status triage. It reuses current office/shared-source
 visibility and preserves provisional valuation and independent approval; no new
 financial rule or task infrastructure. Validation/publication belongs to CONTINUE.md.
-The next local correction-workflow slice makes existing maintenance history and
+The locally implemented correction-workflow slice makes existing maintenance history and
 pending closed-case corrections discoverable from authorized employee home, without
 adding asset access or changing review/evidence rules. It uses the existing case
 list and details; validation/publication belongs to CONTINUE.md.

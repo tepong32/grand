@@ -35,10 +35,35 @@ Do not apply retrospective passages by silently relabelling posted history or
 importing legacy openings. Real historical migration is deferred. A source annex
 helps draft mapping but does not establish local numbering/signatures, print
 parity, official issuance or LGU acceptance. No automatic expiry, financial
-correction or valuation policy was enabled. Later amendments, base circular2022-004
-and the complete annex/account/posting chain still need applicability review.
+correction or valuation policy was enabled. At this initial checkpoint the base
+circular2022-004 was unreviewed; the follow-up below addresses that copy only.
+Later amendments and the complete annex/account/posting chain still need review.
 ONAR's research copy is not a newly obtained certified copy for official legal use.
 
 Next: map a representative bundle invoice, explicit component sheet and Accounting
 decision to the provisional workflow, then assess the applicable recognition/cost
 rules and source-to-ledger mapping independently. Finance remains **NO-GO**; no deployment.
+
+## Base circular follow-up — 2026-10-18
+
+[DSWD CAR official index](https://car.dswd.gov.ph/about-us/philippine-transparency-seal/)
+links a [COA2022-004 signed copy](https://car.dswd.gov.ph/wp-content/uploads/2023/02/COA-CIRCULAR-NO.-2022-004-May-31-2022.pdf):
+nine scanned pages,4,903,304bytes, SHA-256
+`792869ce6102caaccd4c0f1841cd10dc1f9daddb22e9afcb3b7aea78a2e57d21`.
+All nine pages were locally rendered and visually inspected. Annexes referenced
+by the circular are absent from this copy. COA's FAQ could not be retrieved;
+no unread FAQ or national-agency accounting practice was adopted.
+
+Sections2/4.1 expressly include LGUs and apply the threshold to individual items,
+including items within bulk acquisitions. This does not prescribe component
+identity or allocate a bundle price. Sections4.7–4.14 distinguish property/Accounting
+records, accountability categories and agency-determined useful lives. A missing
+finding is separate from approved relief; never infer cancellation, retirement,
+financial posting or an employee's debt from this source alone. Historic treatments
+must be read with the LGU2024 supplement, not applied as silent register rewrites.
+
+Engineering inference: preserve explicit documentary amounts, original custody and
+independent review. A per-item threshold cannot resolve unknown valuation, allocation,
+useful-life policy or an actual relief decision. No runtime rule changed. Annexes,
+later amendments, applicable LGU procedures, representative source reconciliation
+and formal Accounting/LGU approval remain unverified. Finance stays NO-GO.

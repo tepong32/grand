@@ -10,6 +10,12 @@ The [October 17 Form 1 source follow-up](../FINANCE_FORM1_PHILHEALTH_SOURCE_AUDI
 retains the filed COA 2025-002 scan and the exact seven-page inspection boundary.
 Its PhilHealth-office scope does not establish a municipal Form 1 adjustment.
 
+The [October18 asset-source checkpoint](../FINANCE_ASSET_VALUATION_RESEARCH_2026-10-18.md)
+retains inspected COA2024-006 LGU material and the nine-page base COA2022-004 copy
+linked by DSWD CAR. Original URLs, byte hashes, inspected pages and missing annexes
+are explicit. These references do not establish bundle valuation, applicable local
+useful lives, relief/cancellation decisions, journal authority or official forms.
+
 ## Baseline sources
 
 | ID | Official source | Current implementation use | Prescribed artifacts / controls to capture | Applicability status and next evidence |
