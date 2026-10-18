@@ -1,4 +1,4 @@
-{% extends "inventory/base.html" %}{% block title %}Maintenance correction {{ record.revision }}{% endblock %}{% block content %}
+{% extends "inventory/maintenance_base.html" %}{% block title %}Maintenance correction {{ record.revision }}{% endblock %}{% block content %}
 <header class="hero"><div><h1>Maintenance correction {{ record.revision }}</h1><p>{{ record.case.asset.asset_name }} · {{ record.get_status_display }}</p></div></header>
 <nav class="quick-links"><a href="{% url 'inventory:maintenance-detail' record.case_id %}">Original record and current correction</a></nav>
 <section class="panel"><p>This is a documentary correction proposal, not a changed original closure, custody record, payment or Accounting entry. An approved proposal can be superseded by a later independently approved correction; consult the original work page for the current version.</p>

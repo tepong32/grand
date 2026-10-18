@@ -7,7 +7,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
 from . import maintenance_notices
 
-from .access import in_gso_scope, gso_department_for_user, has_inventory_permission
+from .access import in_gso_scope, gso_department_for_user, has_inventory_permission, can as can_asset
 from .models import Asset, AssetMaintenanceCase, AssetMaintenanceEvidence
 from .maintenance import (can_manage_maintenance, open_maintenance, update_maintenance,
                           attach_maintenance_evidence, close_maintenance)
@@ -41,7 +41,8 @@ def maintenance_list(request):
     else:
         status = "all"
     return render(request, "inventory/maintenance_list.html", {
-        "page": Paginator(rows, 25).get_page(request.GET.get("page")), "status": status})
+        "page": Paginator(rows, 25).get_page(request.GET.get("page")), "status": status,
+        "can_view_asset": can_asset(request.user, "view")})
 
 
 @never_cache
@@ -59,7 +60,8 @@ def maintenance_open(request, pk):
             form.add_error(None, " ".join(error.messages))
         else:
             return redirect("inventory:maintenance-detail", pk=case.pk)
-    return render(request, "inventory/maintenance_open.html", {"form": form, "asset": asset})
+    return render(request, "inventory/maintenance_open.html", {
+        "form": form, "asset": asset, "can_view_asset": can_asset(request.user, "view")})
 
 
 @never_cache
@@ -127,7 +129,8 @@ def maintenance_detail(request, pk):
         notices=notices, notice_page=notice_page,
         can_notice=can_manage_maintenance(request.user, case.asset) and case.status != case.OPEN,
         correction_page=correction_page, approved_correction=approved,
-        approved_fields=approved_fields, correction_error=correction_error))
+        approved_fields=approved_fields, correction_error=correction_error,
+        can_view_asset=can_asset(request.user, "view")))
 
 
 @never_cache

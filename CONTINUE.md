@@ -1,5 +1,101 @@
 # GRAND continuation handoff
 
+## Publication review remediation — 2026-10-18
+
+The wider goal was resumed through the interface and `get_goal` verified ACTIVE.
+The earlier goal-tool resume attempt failed because an unfinished goal already
+existed; no goal was falsely completed/replaced. The latest owner instruction
+authorizes this existing-batch publication and continued safe development despite
+the older goal objective's historical no-publication wording. No deployment;
+Finance remains NO-GO.
+
+Installed VM v0.7.186 / `1ca17fa80077aec3aedf0f68931153a50dc30fb5` retained the
+reviewed local v0.7.183–v0.7.185 chain plus seven continuity/source documents and
+VERSION/CHANGELOG. Its preview and execution passed, branch
+`codex/grand-local-batch-publication` was pushed, and exact candidate
+[CI39103798419](https://github.com/tepong32/grand/actions/runs/39103798419) started.
+Remote master/v0.7.182 remain `4e60e996f64c7c16fc39a4b5966e62b6b8e2cebf`;
+no new release tags or master integration occurred.
+
+Further least-privilege review reproduced a current-work integration failure:
+the new explicitly authorized maintenance reviewer opens a correction page200,
+then its inherited Workspace link `/gso/inventory/dashboard/` returns403. The
+original case also offered an asset-record link without the separate asset-read
+grant. `python -B .tmp/run_isolated.py test review_nav_probe --noinput --verbosity 1`
+in the isolated publication checkout FAILED1/1 in0.321s against unchanged v0.7.186,
+with the actual rendered destination followed through an authenticated client.
+The old shell assumption must not be fixed by expanding permissions.
+
+Promotion stopped safely. The superseded candidate CI was explicitly cancelled
+to avoid completing a run that cannot authorize this repaired candidate. Terminal
+result:7 successful jobs,10 cancelled workers,2 failed aggregate gates (`verify`,
+`mysql`),zero skipped jobs. Retrieved gate logs show SQLite/native result=cancelled,
+so their required-success checks exited1. This is NOT a passing CI run and its
+partial results are not complete coverage or an exact-final-revision gate.
+
+Separate clean `codex/gso-maintenance-review-navigation` starts at that exact
+v0.7.186 commit. The bounded repair gives all six maintenance pages a small shared
+base whose brand/Workspace return to authorized maintenance history. Asset links
+on history/original/open pages reuse the existing asset-read check; direct GSO/asset routes
+remain restricted for minimal reviewers. No service, evidence, model, migration,
+grant, financial, custody or correction-content rule changes. Four authenticated
+regressions cover minimal reviewer navigation, ordinary asset readers, managers
+without asset-read access, and minimal UAT read/mutation denial. Full related
+`python -B .tmp/run_isolated.py test gso_integration_tests --noinput --verbosity 1`
+executed360 in74.279s:328 passed,31 native-only skips,1 current-test fixture failure.
+The ordinary-reader scenario lacked its separate `view_asset` grant, so the
+application correctly hid that account's asset link. Add that explicit grant only
+to this new test class's ordinary-reader fixture; its manager-only case removes
+the grant, while minimal reviewers never receive it. Assertions are retained and
+production permissions are unchanged. All nine source/template/test hashes stayed
+unchanged throughout the failed run. The corrected fixture then passed4/4 in2.807s
+with the eight runtime files unchanged. Its runner retained fresh migration-only
+disposable schema copies for browser seeding; this is a test fixture, not production
+backup/recovery qualification.
+
+Real browser review then followed the fixed Workspace link successfully and found
+one remaining unconditional Asset register shortcut on maintenance history. The
+minimal reviewer clicked it and received403. The final repair applies the same
+existing asset-read check to that shortcut and uses instructions appropriate to
+readers. Regression assertions cover both hidden and permitted list links; no
+permissions are expanded. This final change affects only maintenance list presentation/context plus
+the new test. Final focused maintenance/nav validation PASSES48/48 in8.707s,
+zero skips, with all nine final source/template/test hashes frozen. Actual command:
+`python -B .tmp/run_isolated.py test gso_integration_tests.test_maintenance_review_navigation
+gso_integration_tests.test_maintenance_corrections gso_integration_tests.test_maintenance_notices
+gso_integration_tests.test_grand_maintenance gso_integration_tests.test_asset_cost_navigation
+--noinput --verbosity 1`. It covers every new role case and dependent maintenance/
+notice/correction/receiving navigation. The failed360-case run is retained as failed;
+no later complete local360 pass is claimed. Unchanged service/model/private-evidence
+code retains its scoped prior native evidence; current native/full coverage remains
+mandatory in new hosted CI. No schema or financial persistence change needs a
+duplicate local native run. Final `check`, `makemigrations --check --dry-run`
+(no changes), `discover` (2932 unique /360 GSO, eight complete partitions),
+`python -m pip check` and `git diff --check` pass. Publication is still pending.
+
+Final-source synthetic browser journeys passed: minimal reviewer Workspace leads
+to all maintenance history with its closed case; separate asset links are absent;
+independent explicit approval succeeds; UAT can read and navigate at390px with
+viewport/page widths both390; an explicit asset reader retains an accessible Asset
+record link. Pending UAT decision denial is covered by authenticated tests, not
+inferred from the already-approved browser row. Original case/asset snapshots,
+retained correction file and Finance-copy bytes verify unchanged after approval.
+The first post-browser verifier omitted the owned `.tmp` module path and stopped
+before DB access; the corrected scoped invocation passed. Initial anonymous preview
+media404s and favicon404 are fixture limits; no extra asset cleanup was made. Both
+owned preview processes and the named Playwright browser are stopped. Six synthetic
+PNGs stay untracked; `.tmp`, `.playwright-cli` and generated Python caches are ignored
+and excluded from the VM manifest. No deployment, saved-browser-download or native/
+production recovery qualification is claimed.
+
+After repair validation, preview and retain a new installed-VM candidate, run all
+required exact-candidate hosted jobs afresh, and integrate only after success.
+The earlier v0.7.186 integration helper must not be used: its required successful
+CI receipt does not exist. Preserve the cancelled run and failed red regression.
+Then verify exact-master CI and continue autonomous development. The employee-home
+allocation entry/status-triage gap remains a separate next-slice candidate, not an
+implemented capability or a reason to broaden this publication repair.
+
 ## Existing local batch publication and mission resumption — 2026-10-18
 
 The subsequent owner instruction supersedes the earlier local-only publication

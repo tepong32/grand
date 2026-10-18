@@ -1,0 +1,3 @@
+{% extends "inventory/base.html" %}
+{% block brand_link %}<a class="brand" href="{% url 'inventory:maintenance-list' %}?status=all">GRAND · GSO</a>{% endblock %}
+{% block workspace_link %}<a href="{% url 'inventory:maintenance-list' %}?status=all">Workspace</a>{% endblock %}

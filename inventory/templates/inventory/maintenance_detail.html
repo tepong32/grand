@@ -1,8 +1,8 @@
-{% extends "inventory/base.html" %}
+{% extends "inventory/maintenance_base.html" %}
 {% block title %}Maintenance · {{ case.asset.asset_name }}{% endblock %}
 {% block content %}
 <header class="hero"><div><p class="eyebrow">GSO · Maintenance case</p><h1>{{ case.asset.asset_name }}</h1><p>{{ case.get_status_display }} · Reported {{ case.reported_date }}</p></div></header>
-<nav class="quick-links"><a href="{% url 'inventory:asset-detail' case.asset_id %}">Asset record</a><a href="{% url 'inventory:maintenance-list' %}">Maintenance cases</a></nav>
+<nav class="quick-links">{% if can_view_asset %}<a href="{% url 'inventory:asset-detail' case.asset_id %}">Asset record</a>{% endif %}<a href="{% url 'inventory:maintenance-list' %}">Maintenance cases</a></nav>
 {{ version.errors }}
 <section class="panel"><h2>Original work record</h2>{% if approved_correction %}<p><strong>An independently approved documentary correction is recorded.</strong> <a href="#reviewed-corrections">Review the current correction below</a> before relying on these original entries.</p>{% elif correction_error %}<p class="errorlist" role="alert">Correction history requires investigation. Do not rely on a corrected value until its sources are verified.</p>{% endif %}{% if notice_page.paginator.count %}<p><strong>Correction notices are recorded below.</strong> Read them before relying on these original values. No corrected value or approval is implied.</p>{% endif %}<dl class="detail-grid">
 <div><dt>Reported problem</dt><dd>{{ case.problem|linebreaksbr }}</dd></div><div><dt>Service provider</dt><dd>{{ case.provider|default:"Not recorded" }}</dd></div>

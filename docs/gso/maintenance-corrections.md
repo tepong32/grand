@@ -11,6 +11,9 @@ postings are outside this workflow. Unknown cost and explicit zero stay distinct
 A distinct explicit review permission plus existing scoped maintenance read access
 authorizes a different person to approve/reject; install no automatic grant.
 UAT mutation denial applies even with both permissions.
+Maintenance navigation returns these reviewers to their authorized case history.
+Separate asset-register access remains independently checked; a maintenance review
+grant does not make asset-register or general GSO dashboard routes available.
 
 Keep immutable proposal content, actor/time, original case basis, predecessor
 approval, exact request UUID and retained evidence metadata. Decision events are

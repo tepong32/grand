@@ -146,6 +146,12 @@ alone is not a blocker. Prefer a coherent usable employee/citizen workflow, reta
 accepted research/allocation/correction boundaries and defer real historical imports.
 No deployment, production operations, official valuation or formal acceptance is
 authorized. Finance remains NO-GO. New development has no blanket publication grant.
+The v0.7.186 publication attempt stopped during further authenticated navigation
+review: a minimal maintenance reviewer received200 on a correction page but403
+from its rendered Workspace link. The superseded candidate CI was cancelled;
+its failed aggregate gates/partial coverage do not satisfy publication. A bounded
+module-navigation repair preserves separate asset access and needs new complete
+exact-revision gates. The handoff owns the failed proof and actual candidate state.
 
 ### Established implementation decisions
 

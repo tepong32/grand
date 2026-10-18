@@ -1,4 +1,4 @@
-{% extends "inventory/base.html" %}{% block title %}Propose a maintenance correction{% endblock %}{% block content %}
+{% extends "inventory/maintenance_base.html" %}{% block title %}Propose a maintenance correction{% endblock %}{% block content %}
 <header class="hero"><div><h1>Propose a maintenance correction</h1><p>{{ case.asset.asset_name }} · {{ case.get_status_display }} work record</p></div></header>
 <nav class="quick-links"><a href="{% url 'inventory:maintenance-detail' case.pk %}">Back to original work record</a></nav>
 <section class="panel"><p>Check the complete documented information, change the mistaken entries, and attach the source supporting your correction. A different authorized reviewer must approve it before it is displayed as the current documentary correction.</p>

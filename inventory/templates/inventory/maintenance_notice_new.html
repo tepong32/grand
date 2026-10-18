@@ -1,4 +1,4 @@
-{% extends "inventory/base.html" %}{% block title %}Record a correction notice{% endblock %}{% block content %}
+{% extends "inventory/maintenance_base.html" %}{% block title %}Record a correction notice{% endblock %}{% block content %}
 <header class="hero"><div><h1>Record a correction notice</h1><p>{{ case.asset.asset_name }} · {{ case.get_status_display }} work record</p></div></header>
 <nav class="quick-links"><a href="{% url 'inventory:maintenance-detail' case.pk %}">Back to the work record</a></nav>
 <section class="panel"><p>Explain what needs correction and identify your basis. Your statement, name and recording time will be retained beside the original work record. You can add a supporting file or record a reference-only notice.</p>

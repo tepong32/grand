@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.187] - 2026-10-18
+### Fixed
+- fix(gso): keep maintenance review navigation within authorized access
+
 ## [0.7.186] - 2026-10-18
 ### Documentation
 - docs(grand): prepare reviewed local workflows for gated publication

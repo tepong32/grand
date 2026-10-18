@@ -1,8 +1,8 @@
-{% extends "inventory/base.html" %}
+{% extends "inventory/maintenance_base.html" %}
 {% block title %}Maintenance history{% endblock %}
 {% block content %}
-<header class="hero"><div><p class="eyebrow">GSO · Asset care</p><h1>Maintenance history</h1><p>Open an asset record to report a repair concern. Costs here are supporting records for review.</p></div></header>
-<nav class="quick-links"><a href="{% url 'inventory:asset-list' %}">Asset register</a><a href="?status=open">Open cases</a><a href="?status=completed">Completed</a><a href="?status=cancelled">Cancelled</a><a href="?status=all">All history</a></nav>
+<header class="hero"><div><p class="eyebrow">GSO · Asset care</p><h1>Maintenance history</h1><p>Review repair concerns, documented work and independently reviewed corrections. Costs here are supporting records for review.</p></div></header>
+<nav class="quick-links">{% if can_view_asset %}<a href="{% url 'inventory:asset-list' %}">Asset register</a>{% endif %}<a href="?status=open">Open cases</a><a href="?status=completed">Completed</a><a href="?status=cancelled">Cancelled</a><a href="?status=all">All history</a></nav>
 <section class="panel"><h2>{{ status|capfirst }} cases</h2><div class="table-wrap"><table><thead><tr><th>Asset</th><th>Reported</th><th>Problem</th><th>Status</th><th>Provider</th></tr></thead><tbody>{% for case in page %}<tr><td><a href="{% url 'inventory:maintenance-detail' case.pk %}">{{ case.asset.asset_name }}</a></td><td>{{ case.reported_date }}</td><td>{{ case.problem|truncatechars:100 }}</td><td>{{ case.get_status_display }}</td><td>{{ case.provider|default:"Not recorded" }}</td></tr>{% empty %}<tr><td colspan="5">No cases in this view.</td></tr>{% endfor %}</tbody></table></div>
 <nav aria-label="Maintenance pages">{% if page.has_previous %}<a href="?status={{ status }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %} Page {{ page.number }} of {{ page.paginator.num_pages }} {% if page.has_next %}<a href="?status={{ status }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}</nav></section>
 {% endblock %}
