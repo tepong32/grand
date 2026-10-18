@@ -4,7 +4,7 @@
 {% block title %}Supply movement history{% endblock %}
 {% block content %}
 <header class="hero"><div><p class="eyebrow">GSO workspace · Supplies</p><h1>Supply movement history</h1><p>Review recorded receipts, issues, returns and adjustments across supply items.</p></div></header>
-<nav class="quick-links"><a href="{% url 'inventory:consumable-list' %}">Back to supplies</a>{% if can_export and not form.errors %}<a href="{% url 'inventory:stock-export' %}?{{ query_string }}">Export selected movements</a>{% endif %}</nav>
+<nav class="quick-links"><a href="{% url 'inventory:consumable-list' %}">Back to supplies</a>{% if can_export and not form.errors %}<a href="{% url 'inventory:stock-working-copy' %}?{{ query_string }}">Open printable copy</a><a href="{% url 'inventory:stock-export' %}?{{ query_string }}">Export selected movements</a>{% endif %}</nav>
 <section class="panel">
   <h2>Choose movements</h2>
   <p>For an issues list, choose Issued and the recording dates. Dates describe when GRAND recorded a movement, which may differ from the date on its source document.</p>

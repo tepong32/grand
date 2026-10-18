@@ -104,6 +104,7 @@ urlpatterns = [
     path("export/assets.csv", views.asset_export, name="asset-export"),
     path("consumables/", views.consumable_list, name="consumable-list"),
     path("consumables/movements/", views.stock_history, name="stock-history"),
+    path("consumables/working-copy/", views.stock_working_copy, name="stock-working-copy"),
     path("consumables/export/movements.csv", views.stock_export, name="stock-export"),
     path("consumables/add/", views.consumable_create, name="consumable-create"),
     path("consumables/<int:pk>/edit/", views.consumable_edit, name="consumable-edit"),

@@ -23,7 +23,11 @@ adding asset access or changing review/evidence rules. It uses the existing case
 list and details; validation/publication belongs to CONTINUE.md.
 The local supplies retrieval slice adds recorded-date/type selection across items
 and a matching complete movement CSV through existing read/export grants. It is
-source preparation, not an official RSMI, valuation or new stock operation. See
+source preparation, not an official RSMI, valuation or new stock operation.
+Its complete printable working copy now reads the same export selection across
+all pages and preserves original source references without invented valuation or
+certification. The reviewed official-hosted QC example remains a locality-specific
+reference; it is not adopted as the target municipality's form or approval policy. See
 [the stock record boundary](gso/stock-counts.md#movement-history-preparation) and
 CONTINUE.md for actual checks and local checkpoint status.
 Local drafts do not establish official forms, signatures, ledger authority or

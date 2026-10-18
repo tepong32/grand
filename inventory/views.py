@@ -14,6 +14,7 @@ from django.db.models import Q
 from django.db.models import Sum
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
@@ -909,6 +910,24 @@ def stock_export(request):
             movement.department_label, movement.recipient, movement.reference, movement.reason,
             movement.unit_cost if movement.unit_cost is not None else "", movement.actor or "", str(movement.item.public_id), str(movement.public_id),
         ))
+    return response
+
+
+@never_cache
+@stock_access_required("export")
+@require_http_methods(["GET"])
+def stock_working_copy(request):
+    form, movements, query = _stock_history_selection(request)
+    if not form.is_valid():
+        return HttpResponse("Invalid movement filters. Check the dates and movement type in Movement history.",
+                            status=400, content_type="text/plain")
+    rows = list(movements.order_by("occurred_at", "pk"))
+    response = render(request, "inventory/stock_working_copy.html", {
+        "movements": rows, "selection": form.cleaned_data, "query_string": query,
+        "can_view_history": can_stock(request.user, "view"),
+        "generated_at": timezone.now(), "movement_label": dict(StockMovement.KIND_CHOICES).get(form.cleaned_data.get("kind"), "All movements"),
+    })
+    response["X-Content-Type-Options"] = "nosniff"
     return response
 
 

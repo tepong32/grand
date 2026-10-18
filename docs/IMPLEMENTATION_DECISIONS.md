@@ -65,6 +65,9 @@ and existing export authority. Filtering those facts does not establish official
 RSMI layout, financial recognition, historical event dates or Accounting approval;
 keep those output/source-policy questions open. See
 [the retrieval contract](gso/stock-counts.md#movement-history-preparation).
+The [QC example review](gso/coa-requirements.md#supplies-output-example-reviewed--2026-10-18)
+supports source-copy preparation only. The printable stock history does not close
+official RSMI/SSMI applicability, form, signatory or Accounting-treatment questions.
 
 **DECISION-GSO-002 — Real historical imports (deferred by owner).** Which source export, owners,
 identity mappings and discrepancy decisions should an eventual import retain?

@@ -1,5 +1,112 @@
 # GRAND continuation handoff
 
+## Complete stock-history working copy — 2026-10-18
+
+The wider goal remains ACTIVE. Isolated `codex/gso-stock-working-copy` starts at
+local v0.7.192 / `3054698a63e35e7d55f54065dbed4b530b00de40`. Published master
+remains v0.7.187 / `a116691a100ed9230b578f73692ed12add84205e`; v0.7.188 onward
+remains local. No publication, deployment or production operation is authorized
+for this new slice. Finance stays NO-GO.
+
+The [official-hosted QC example review](docs/gso/coa-requirements.md#supplies-output-example-reviewed--2026-10-18)
+retains both source URLs, hashes, sizes and full three-page visual inspection.
+Its SSMI example and separate RSMI process illustrate local source/approval needs;
+neither establishes the target municipality's template, numbering, signatories,
+cost treatment or current national applicability. COA2002-003/2021-007 direct
+retrieval returned403; complete texts/later amendments remain unverified. No
+named officers, example numbers, deadlines, approvals or financial rules adopted.
+
+Movement history now opens a complete printable working copy using its existing
+CSV export authority, identical owner/filter selection and chronological order.
+The current history page parameter does not truncate output. Count and rows use
+one evaluated selection; working-copy/table headings repeat on printed pages.
+Source references remain references, UUIDs remain source IDs, and dates remain
+GRAND recording dates. Returns/adjustments retain separate rows. No quantities
+across unlike items, financial amounts, certification or signatures are invented.
+This is source preparation, not official RSMI/SSMI completion or an immutable
+issued archive. Existing catalog name/unit guards after movement history remain
+unchanged; no new model, migration, permission, stock or Finance write is needed.
+See [the output contract](docs/gso/stock-counts.md#complete-printable-working-copy).
+
+Five new authenticated tests cover complete selection/CSV identity and order,
+owner scope, separate export/read/UAT authority, invalid-filter failure, no Finance
+queries or movement writes, private headers, source-text escaping and explicit
+empty-output limits. They reuse fixture setup without importing duplicate tests.
+
+FAIL — expected original reproduction: `python -B .tmp/probe_print.py` against
+unchanged v0.7.192 returned404 for the authenticated working-copy route, then
+verified six unchanged domain/audit snapshots, Finance-copy bytes and original
+synthetic fixture hashes. The corrected probe returns200 with all53 selected
+issues even with `page=2`. A final probe also passes all five scoped roles,
+export-only home navigation and invalid-filter400 with those integrity guards.
+The probe uses an exclusive clone of a retained synthetic pair with the same
+schema; no migration, operator store or real historical import was used.
+
+PASS15/15 in6.070s, zero skips: `python -B .tmp/run_isolated.py test
+gso_integration_tests.test_stock_working_copy
+gso_integration_tests.test_stock_movement_history
+gso_integration_tests.test_grand_stock_authority --noinput --verbosity 1`.
+Subsequent final changes only add read-aware navigation/context and associated
+export-only link assertions. Core scope/filter/selection logic stayed unchanged;
+final native tests and the five-role SQLite probe cover that navigation follow-up.
+
+PASS15/15 in11.684s, zero skips, final source/test/template frozen: `python -B
+.tmp/native_working_copy.py` invokes committed `python -B scripts/run_mysql_tests.py
+gso_integration_tests.test_stock_working_copy
+gso_integration_tests.test_stock_movement_history
+gso_integration_tests.test_grand_stock_authority --verbosity 1` on exclusive
+MySQL8.4.11 strict/ONLY_FULL_GROUP_BY and two fresh test stores. The stopped
+system-only test template, five final feature/test hashes and existing stores were
+preserved. Both test schemas were destroyed and the owned clone stopped normally.
+Reported test timings exclude schema setup. No test or acceptance skip is a pass.
+
+PASS: actual browser history page2 → Open printable copy → all53 issued rows →
+matching filtered history. UAT empty history explicitly declines zero-stock
+certification; department-only readers and ungranted actors get403. An export-only
+actor retains print200, sees no inaccessible stock links and returns to GRAND
+home200. At390px the page is390px and the950px table scrolls inside312px. Desktop
+and mobile screenshots were inspected. Fixture favicon/default-logo/default-avatar
+404s on the existing home remain limitations; no media fix is claimed. Owned
+browser and loopback server were stopped normally.
+
+PASS: final A4-landscape browser PDF is four pages, 841.92×594.96points. All four
+pages were rendered and visually inspected: repeated working-copy/table headers,
+readable rows, no clipped cells, all53 exact expected movement UUIDs retained in
+extracted text. `playwright-cli pdf --filename=...` first produced a four-page
+Letter-landscape diagnostic. The final `playwright-cli run-code` calls the supported
+`page.pdf({path: 'output/playwright/stock-working-copy/complete-copy-a4.pdf',
+preferCSSPageSize: true})` to honor the template's A4 rule. `pdftoppm -scale-to 1600
+-png` rendered every page. Both PDFs and two screenshots are untracked synthetic
+artifacts; none is an issued municipal form or archived production evidence.
+
+PASS: `python -B .tmp/run_isolated.py check`; `python -B .tmp/run_isolated.py
+makemigrations --check --dry-run` (no changes); `python -B .tmp/run_isolated.py
+discover` (2958 unique /386 GSO across eight complete partitions); `python -m pip
+check`; `python -m unittest scripts.test_ci_test_runner -v` (9/9); source/helper
+syntax and `git diff --check`. The final read-only five-role probe was repeated
+after native completion with unchanged six domain/audit snapshots, Finance bytes
+and source synthetic-pair hashes. The retained published187 proof again verifies
+remote master/five183–187 tags, both19-job/2932-per-backend CI receipts and seven
+protected checkout/status/file baselines. Those hosted results belong to187,
+not this local slice; SQLite's233 explicit skips/native0 remain recorded below.
+
+Checkpoint scope is a local installed-VM patch v0.7.192 → v0.7.193, with historical
+release evidence preserved. Resolve local tag `v0.7.193` for its exact commit after
+the operation. The reviewed manifest is five implementation/test files plus this
+handoff, roadmap, decision register, stock contract and COA source matrix; only
+VERSION/CHANGELOG are managed automatically. No integration/push of v0.7.188 onward
+is authorized. No models, migrations, grants, stock service or Finance code changed.
+
+NOT RUN — OUT OF SCOPE: repeated full Finance/hosted release CI, actual municipal
+printing/signing, production storage/recovery and LGU/Accounting acceptance.
+The new read/export path has direct scoped, native and browser checks; future
+publication still requires all exact-candidate/master gates. Official RSMI/SSMI
+form applicability, historical imports, valuation and Finance foundation/certificate
+semantics remain open. Continue the wider mission by reconciling those existing
+gaps against actual sources before choosing the next coherent employee workflow;
+do not manufacture official rules or a new mandatory feature to avoid an external
+acceptance boundary. Finance remains NO-GO; no deployment or production operations.
+
 ## Supply movement-history preparation — 2026-10-18
 
 The wider goal remains ACTIVE. Isolated `codex/gso-stock-movement-history` starts

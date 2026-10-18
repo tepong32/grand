@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.193] - 2026-10-18
+### Added
+- feat(gso): print complete scoped supply movement working copies
+
 ## [0.7.192] - 2026-10-18
 ### Added
 - feat(gso): review and export selected supply movement history

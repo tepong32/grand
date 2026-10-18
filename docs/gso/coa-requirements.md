@@ -26,6 +26,31 @@ establishes the applicable municipal output. No executable accounting rule chang
 No claim is made that this search found every superseding issuance as of the research
 date. No commercial document summaries are used as the authority for executable rules.
 
+## Supplies output example reviewed — 2026-10-18
+
+The [Quezon City GSD index](https://quezoncity.gov.ph/departments/city-general-services-department/)
+links a local SSMI example and a separate supplies-monitoring procedure. Both PDFs
+were downloaded, hashed, rendered and visually reviewed in full:
+
+| Official-hosted local example | Retained receipt and observation |
+| --- | --- |
+| [SSMI sheet](https://quezoncity.gov.ph/wp-content/uploads/2022/07/03-SUMMARY-OF-SUPPLIES-AND-MATERIALS-ISSUED-SSMI.pdf) | 99,658bytes; one page; SHA256 `a67cf638fe9ab1eaf2a3560a741a3cf15ed73cb5f33f0ff1cd3356d3a5b7c2b1`. Labelled NGAS Annex35; item/unit/stock-reference and RIS quantity fields, costs and local certification/approval/posting areas are visible. |
+| [Monitoring procedure](https://quezoncity.gov.ph/wp-content/uploads/2024/04/15.-MONITORING-OF-ISSUANCES-AND-UTILIZATION-OF-SUPPLIES.pdf) | 176,742bytes; two pages; SHA256 `996770cb6c01f6b7630b0463c00e69fcdcee37fd8d9c809e432eaa1f29e471ab`. Describes QC document review, discrepancies, consolidation and forwarding to Accounting; it calls the submission RSMI. |
+
+These establish that locality's published examples, not the target municipality's
+accepted form or current national applicability. Do not copy named officers,
+control examples, deadlines or approval chain into GRAND. Direct retrieval of
+COA2002-003 and2021-007 again returned403; neither complete issuance nor later
+amendments were reviewed here. Poppler emitted source-font warnings; all three
+rendered pages remained visually readable. No executable accounting rule changes.
+
+Engineering consequence: the new stock-history working copy preserves supplied
+movement references, item units and GRAND recording dates, rather than relabelling
+UUIDs as stock numbers or every reference as a RIS. It supplies no valuation,
+certification, signatures or automatic recognition. This is a practical printable
+source copy, not RSMI/SSMI form completion. See [the stock contract](stock-counts.md)
+and the existing DECISION-GSO-001 in the [decision register](../IMPLEMENTATION_DECISIONS.md).
+
 ## Product coverage derived from those sources and the user's scope
 
 The workflow choices below are engineering recommendations; they are not quoted

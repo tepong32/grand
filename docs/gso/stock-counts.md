@@ -89,6 +89,28 @@ This working history does not generate an official RSMI, financial recognition,
 signatures, numbering, custody changes or any new stock movement. Current
 implementation and actual validation belong to the root handoff.
 
+### Complete printable working copy
+
+Movement history's Open printable copy applies exactly the existing CSV export
+authority, owner scope and validated filters. It reads all selected movements in
+chronological order, independent of the paged history's current page. The count
+and visible rows use the same evaluated selection; no silent cap or unlike-unit
+quantity total is added. Print / Save as PDF uses the existing browser-print pattern,
+with repeated working-copy/table headings and retained item/movement UUIDs.
+
+Keep original references labelled as references and dates as recording dates.
+The [reviewed QC example](coa-requirements.md#supplies-output-example-reviewed--2026-10-18)
+does not establish a local RSMI/SSMI template, stock numbers, signatories or
+recognition rule. No amount, signature, certification, numbering, posting or
+physical-event date is inferred. The working copy omits valuation columns; the
+existing CSV retains its unchanged optional recorded-cost column.
+
+The output is private/no-store and is not archived by GRAND. New rows may appear
+on a later refresh/export; this is not a reproducible issued report or immutable
+group snapshot. Store a saved copy only in approved office storage. Empty output
+does not certify zero stock or zero physical issues. Current checks and local
+checkpoint state belong to the root handoff; official acceptance remains open.
+
 ## Limits and remaining work
 
 The adjusting workflow accepts today's count against the current ledger basis.
