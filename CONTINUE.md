@@ -1,6 +1,57 @@
 # GRAND continuation handoff
 
-## Local source follow-up and publication watch — 2026-10-18
+## Maintenance access messaging follow-up — 2026-10-18
+
+The wider goal remains ACTIVE. `codex/gso-maintenance-access-state` starts from
+local installed-VM v0.7.190 / `e59b7089ad067574161d5f3bf524ddcdff484e18`.
+That source/validation checkpoint is committed locally with truthful pending
+master-CI state; its branch/tag remain unpublished, alongside v0.7.188/189.
+The published v0.7.187 receipt/current CI state and accepted constraints are below.
+No source checkpoint, test or research is Finance/LGU operational acceptance.
+
+Review of the completed maintenance entry found one concrete message defect:
+an actor without case-read access still saw its configured card labelled Planned,
+although the module exists and the issue is missing authority. An authenticated
+read-only probe against the retained synthetic browser pair FAILED on unchanged
+v0.7.190: HTTP200 and maintenance status Planned, where Restricted is required.
+Actual command: documented Python3.11 `-B .tmp/probe_access_state.py` in this
+worktree. Existing source, schemas and synthetic fixture matched; no fresh migration
+or operator store was needed for this HTTP reproduction. Exact domain/audit rows
+and Finance-copy bytes verified unchanged even on failure.
+
+The bounded repair reuses the existing Restricted/Permission required card state
+and administrator guidance, removes destinations for denied actors and retains
+the existing case-read predicate, authorized path and count queries. No template,
+grant, model, schema, source/correction service, custody or Finance behavior changes.
+The same authenticated probe then PASSED and confirmed direct module403, with
+domain/audit rows and Finance bytes unchanged. The existing UAT/read-grant regression
+now also asserts that exact card state and absence of either destination key.
+
+PASS42/42 in10.150s, zero skips: documented Python3.11
+`-B .tmp/run_isolated.py test gso_integration_tests.test_maintenance_work_queue
+gso_integration_tests.test_maintenance_review_navigation departments --noinput
+--verbosity 1`. Both changed source/test hashes remained frozen. The prior51-test
+native pass retains its scope for unchanged SQL/read predicates; it is not an
+exact-current-revision native or full CI pass. No duplicate full/native run is
+needed for this display-state-only correction; future publication still requires
+all exact-candidate/master gates.
+
+PASS: actual browser shows Permission required, administrator guidance and no
+maintenance link for the ungranted actor. At390px the page remains390px wide.
+An authorized minimal reviewer retains Available, its1/1/1 scoped counts and an
+accessible all-history destination. Desktop/mobile screenshots were retained and
+both images were visually inspected. Final authenticated probe again confirms
+Restricted/direct403 and exact unchanged domain/audit snapshots and Finance-copy
+bytes. Missing fixture logo/avatar/favicon404s remain fixture limitations. Only
+the named browser and owned loopback server were stopped.
+
+PASS: isolated `check`, `makemigrations --check --dry-run` (no changes), `discover`
+(2946 unique /374 GSO across eight complete partitions) and `git diff --check`.
+The local source checkpoint is preserved at e59b708. This bounded fix is prepared
+for its own installed-VM local checkpoint; further publication needs authorization.
+No deployment. Finance stays NO-GO and new development remains unpublished.
+
+## Verified publication and local source follow-up — 2026-10-18
 
 The wider goal remains ACTIVE. Local installed-VM checkpoints now include worksheet
 entry/filtering v0.7.188 / `9c90e1a8faf0b35f040d90852dd4bebb036de5ca` and maintenance
@@ -38,30 +89,33 @@ evidence. This subsequent native pass closes the earlier query-portability limit
 it does not relabel the failed506-test SQLite run, execute every skipped native
 case from that run, replace exact-master CI or establish production recovery.
 
-The authorized publication reached remote master/v0.7.187 at
-`a116691a100ed9230b578f73692ed12add84205e`. The clean primary fast-forwarded from
-verified v0.7.182 / `4e60e996f64c7c16fc39a4b5966e62b6b8e2cebf`; one atomic push
-published master plus the five explicit v0.7.183–v0.7.187 tags. All refs were checked
-against their intended commits. Protected hashes/status in all seven checkouts
-still match the task baseline, with only the authorized primary HEAD advanced.
+Authorized existing-batch publication VERIFIED: remote master and v0.7.187 are
+`a116691a100ed9230b578f73692ed12add84205e`. The clean primary fast-forwarded from verified v0.7.182 /
+`4e60e996f64c7c16fc39a4b5966e62b6b8e2cebf`; one atomic push published master and
+the five explicit v0.7.183–v0.7.187 tags, all remotely checked against their original
+commits. Installed-VM v0.7.186/187 retain the reviewed batch and its bounded
+maintenance-navigation repair; no history was rewritten.
 
-Exact-candidate [CI39106284455](https://github.com/tepong32/grand/actions/runs/39106284455)
-PASSED19/19. Downloaded artifacts independently verify2932 unique test identities
-per backend, eight complete partitions,233 explicit SQLite skips and zero native
-skips. The same-SHA automatic push/master
-[CI39110395966](https://github.com/tepong32/grand/actions/runs/39110395966) is RUNNING;
-its final gates and coverage are not yet verified. Repository refs are published,
-but completed published-master CI is not claimed. No deployment occurred.
+Exact-candidate [CI39106284455](https://github.com/tepong32/grand/actions/runs/39106284455) and exact-master
+[CI39110395966](https://github.com/tepong32/grand/actions/runs/39110395966) each passed19/19 jobs on that exact SHA.
+Downloaded artifacts independently verify2932 unique test identities per backend
+across eight complete partitions. SQLite explicitly skips233
+in the candidate run and233 in the master run;
+native skips zero in both. The cancelled v0.7.186 run remains failed/cancelled,
+not a substituted pass. Temporary API/DNS connection failures interrupted candidate and master
+monitoring. Read-only rechecks restored access to the same exact runs; no workflow
+was redispatched and no gate bypassed. The final53-file batch diff, source metadata and role/
+navigation repair were reviewed; local validation/failure evidence remains in the canonical handoff.
 
-An API timeout and local DNS failures temporarily stopped monitoring/publication.
-Read-only recheck recovered access to the SAME candidate run and exact SHA; no
-workflow was redispatched and no gate bypassed. This source/handoff checkpoint records pending master CI honestly; all new local
-branches/tags remain unpublished.
+All seven protected checkouts retain their original working status/file hashes;
+only the explicitly authorized clean primary HEAD advances. Original work,
+databases and later local development remain preserved. v0.7.188–190 and the maintenance-access
+follow-up remain unpublished. No deployment, production operation,
+official valuation or formal LGU/Accounting acceptance occurred. Finance stays NO-GO.
 
-Wait for every exact-master gate and verify downloaded coverage plus current refs
-and preservation proof. Record complete receipts in the next local handoff and
-DECISION-OPS-004 only after that proof. This local source checkpoint supplies no
-master-CI pass or further publication authority. New development stays local.
+Earlier sections retain checkpoint-time states and failures; this verified receipt
+supersedes their earlier publication-pending statements.
+
 Finance remains NO-GO; real imports, valuation policy, applicable local forms,
 production storage/recovery and formal acceptance remain unresolved boundaries.
 

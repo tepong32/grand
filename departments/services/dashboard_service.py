@@ -212,10 +212,10 @@ def _workspace_sections(department: Department, user=None) -> list[dict]:
             item.update(status="Restricted")
             item.pop("url_name", None)
     from inventory.maintenance_views import can_view_maintenance, scoped_assets
+    item = next((row for row in result if row['title'] == 'Maintenance requests'), None)
     if can_view_maintenance(user):
         from inventory.models import AssetMaintenanceCase
         cases = AssetMaintenanceCase.objects.filter(asset__in=scoped_assets(user))
-        item = next((row for row in result if row['title'] == 'Maintenance requests'), None)
         if item is None:
             item = {'title': 'Maintenance requests', 'icon': 'fa-tools'}
             result.append(item)
@@ -227,6 +227,10 @@ def _workspace_sections(department: Department, user=None) -> list[dict]:
                 {'label': 'Cases with proposed corrections', 'value': cases.filter(
                     reviewed_corrections__status='proposed').distinct().count()},
             ))
+    elif item is not None:
+        item.update(status='Restricted')
+        item.pop('url', None)
+        item.pop('url_name', None)
     from accounting.access import can_view_accounting
     from inventory_finance import asset_cost_allocations
     if asset_cost_allocations.can_view_workbench(user):

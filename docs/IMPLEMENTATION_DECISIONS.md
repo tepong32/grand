@@ -134,11 +134,11 @@ v0.7.177–v0.7.182 tags are verified. Exact-candidate
 exact-master [CI39099961625](https://github.com/tepong32/grand/actions/runs/39099961625)
 each passed19/19 jobs. Downloaded artifacts independently verify2870 test identities
 per backend,226 explicit SQLite skips and zero native skips. Protected original
-work matches the current-task on-disk baseline. New maintenance/allocation and
-source/navigation checkpoints remain local; this receipt does not extend publication
+work matched that task’s on-disk baseline. At that v0.7.182 checkpoint, maintenance/
+allocation and source/navigation checkpoints were still local; that receipt did not extend publication
 authority or establish formal acceptance, Finance readiness or production recovery.
 
-**DECISION-OPS-004 — Existing local batch publication and mission resumption (authorized; gates pending).**
+**DECISION-OPS-004 — Existing local batch publication and mission resumption (verified 2026-10-18).**
 The owner's subsequent 2026-10-18 instruction authorizes complete review, required
 exact-candidate CI, VM integration, explicit tags and exact-master CI for existing
 local v0.7.183–v0.7.185, plus accurate continuity/version documentation. Expected
@@ -153,8 +153,32 @@ The v0.7.186 publication attempt stopped during further authenticated navigation
 review: a minimal maintenance reviewer received200 on a correction page but403
 from its rendered Workspace link. The superseded candidate CI was cancelled;
 its failed aggregate gates/partial coverage do not satisfy publication. A bounded
-module-navigation repair preserves separate asset access and needs new complete
-exact-revision gates. The handoff owns the failed proof and actual candidate state.
+module-navigation repair preserved separate asset access and required new complete
+exact-revision gates, now verified below. The handoff owns the failed proof and actual candidate state.
+
+Authorized existing-batch publication VERIFIED: remote master and v0.7.187 are
+`a116691a100ed9230b578f73692ed12add84205e`. The clean primary fast-forwarded from verified v0.7.182 /
+`4e60e996f64c7c16fc39a4b5966e62b6b8e2cebf`; one atomic push published master and
+the five explicit v0.7.183–v0.7.187 tags, all remotely checked against their original
+commits. Installed-VM v0.7.186/187 retain the reviewed batch and its bounded
+maintenance-navigation repair; no history was rewritten.
+
+Exact-candidate [CI39106284455](https://github.com/tepong32/grand/actions/runs/39106284455) and exact-master
+[CI39110395966](https://github.com/tepong32/grand/actions/runs/39110395966) each passed19/19 jobs on that exact SHA.
+Downloaded artifacts independently verify2932 unique test identities per backend
+across eight complete partitions. SQLite explicitly skips233
+in the candidate run and233 in the master run;
+native skips zero in both. The cancelled v0.7.186 run remains failed/cancelled,
+not a substituted pass. Temporary API/DNS connection failures interrupted candidate and master
+monitoring. Read-only rechecks restored access to the same exact runs; no workflow
+was redispatched and no gate bypassed. The final53-file batch diff, source metadata and role/
+navigation repair were reviewed; local validation/failure evidence remains in the canonical handoff.
+
+All seven protected checkouts retain their original working status/file hashes;
+only the explicitly authorized clean primary HEAD advances. Original work,
+databases and later local development remain preserved. v0.7.188–190 and the maintenance-access
+follow-up remain unpublished. No deployment, production operation,
+official valuation or formal LGU/Accounting acceptance occurred. Finance stays NO-GO.
 
 ### Established implementation decisions
 

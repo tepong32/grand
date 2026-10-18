@@ -83,7 +83,11 @@ class MaintenanceWorkQueueTests(TestCase):
             'note': 'UAT must remain read only'}).status_code, 403)
         self.reviewer.user_permissions.remove(Permission.objects.get(
             content_type__app_label='inventory', codename='view_assetmaintenancecase'))
-        self.assertNotContains(self.client.get(reverse('department_dashboard')), f'href="{destination}"')
+        home = self.client.get(reverse('department_dashboard'))
+        self.assertNotContains(home, f'href="{destination}"')
+        card = next(item for item in home.context['dashboard_sections'] if item['title'] == 'Maintenance requests')
+        self.assertEqual(card['status'], 'Restricted')
+        self.assertFalse(card.get('url') or card.get('url_name'))
         self.assertEqual(self.client.get(destination).status_code, 403)
         row.refresh_from_db()
         self.assertEqual((row.status, row.events.count()), ('proposed', 1))

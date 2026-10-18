@@ -31,6 +31,9 @@ so closed cases remain discoverable; scoped counts describe open/completed cases
 and distinct cases with proposed corrections. Pending is not approval eligibility.
 The existing maintenance list/details own filtering, retained sources and independent
 review. See [the correction contract](gso/maintenance-corrections.md) and CONTINUE.md.
+Its configured card uses Permission required with no destination when case-read
+authority is absent. Planned remains for unfinished work; authorized history and
+scoped counts keep their existing contract. This message grants no access.
 
 Accounting, Budget, collection, reporting, record, custody, Finance setup and
 voucher links reuse their existing access helpers. HR leave administration links

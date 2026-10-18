@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.191] - 2026-10-18
+### Fixed
+- fix(gso): explain restricted maintenance access without changing authority
+
 ## [0.7.190] - 2026-10-18
 ### Documentation
 - docs(finance): retain scoped base asset source review and local validation
