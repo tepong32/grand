@@ -1,5 +1,122 @@
 # GRAND continuation handoff
 
+## Local documentary asset-cost allocations — 2026-10-18
+
+`codex/gso-reviewed-asset-cost-allocations` began clean at local-only maintenance
+VM v0.7.183 / `ca4ef06f064beb0a67932266f72b401b11e6dbf4`. This is separate from
+the authorized v0.7.182 publication candidate `4e60e996f64c7c16fc39a4b5966e62b6b8e2cebf`.
+Never publish this new work by pushing all local tags. Preserved original/primary
+checkouts, databases and local research remain separate.
+
+Publication receipt: the reviewed v0.7.177–v0.7.182 chain was fast-forwarded from
+`6e1a04ab861c213001d1e80fd054ba3eb428ffea` and atomically pushed to master with
+only those six tags. Remote master/v0.7.182 resolve to
+`4e60e996f64c7c16fc39a4b5966e62b6b8e2cebf`; all intermediate tag identities match.
+[Candidate CI39096814827](https://github.com/tepong32/grand/actions/runs/39096814827)
+passed all19 jobs. Downloaded artifacts independently verify2870 identities exactly
+once per backend,226 explicit SQLite skips and zero native skips. Original checkout
+status and protected tracked/untracked files/database hashes match the current-task
+on-disk baseline before/after publication; the earlier lost session-memory baseline
+is not claimed. New local v0.7.183 remains unpublished. Exact published-master
+[CI39099961625](https://github.com/tepong32/grand/actions/runs/39099961625) is running;
+that gate is still pending. No deployment or Finance readiness is implied.
+
+DECISION-FIN-002 now has a bounded local implementation for one accepted registered
+asset receipt line. Explicit component quantities/units and monetary amounts must
+reproduce the known documented source total. A bundle does not become multiple
+assets. Unknown cost blocks; known zero remains zero; sub-cent source totals need
+documented correction rather than an invented rounding rule. No auto pro-rata,
+shared freight/tax inference, financial-capacity assertion, official valuation,
+register/custody/unit-cost change or Finance/JEV write. See
+[the contract](docs/gso/asset-cost-allocations.md).
+
+New default-adapter migration0008 adds two tables and explicit view/propose/review
+permissions without automatic grants. GSO proposes within receipt ownership;
+explicitly selected Accounting department reviewers need current ledger read and
+the new review grant, independence and UAT mutation denial. Receipt→asset→proposal
+locks protect retries, version/predecessor conflicts and file budgets. Original
+acceptance and cost-amendment history/evidence are checked, immutable proposals
+and decisions retained, and documentary source drift clearly invalidates current
+use without rewriting history. Checked downloads and a read-only recovery command
+accompany the staff forms and workbench. The first focused SQLite run executed17
+tests in2.151s; behavior assertions passed but one new download test left its UAT
+streaming response unconsumed and failed Windows temporary-file cleanup. The test
+now consumes/closes it; production download behavior was not relaxed. The next
+complete GSO SQLite run executed352 in151.450s with31 native-only skips and one
+upgrade failure: Django's generated adapter0008 dependency on unrelated inventory
+0031 caused the existing maintenance additive-upgrade assertion to see the two
+allocation tables as well. Corrected only the new migration's dependency to the
+actual receiving/quantity source boundary0029. The existing two-table maintenance
+assertion is retained. The repaired complete GSO SQLite suite passed352 discovered /
+321 passed /31 native-only skips in61.946s. The first full native run executed352
+in167.906s but failed with18 errors: the new download test manually closed an
+already-consumed Django test-client response. The client's iterator already closes
+it with connection-cleanup signals guarded; a second manual close invalidated the
+class's outer MySQL transaction and cascaded into later setUp calls. Inspected the
+installed Django closing iterator and connection cleanup implementation to confirm
+this cause. Removed only the redundant manual close calls; all streams are still
+fully consumed and Windows temporary-file cleanup remains checked. This is a
+current-test failure, not a pre-existing service failure or a waived gate. A full
+fresh native rerun remains mandatory.
+
+Actual synthetic browser journeys verified mismatched9500/10000 rejection with
+retained text and file-reselection guidance, explicit7500/2500 proposal, independent
+Accounting acceptance without an implicit choice, and UAT read-only status at390px
+with no horizontal overflow. A second7000/3000 proposal was independently rejected;
+the first worksheet remained current. Browser review found successor forms started
+blank; they now carry forward the last reviewed entries/basis/department without
+rescaling or copying files, with a direct original-receipt link and clear Omit labels.
+An added component row worked; blank optional rows were omitted. Added two focused
+HTTP/form tests for this UX behavior. Authenticated evidence HTTP200/498bytes was
+observed; no OS-saved browser download is claimed. Initial login static/media404s
+and an authenticated favicon404 are limited preview artifacts. First screenshot
+capture lacked its output directory; creating the owned artifact directory allowed
+successful captures without a product change. Browser and owned preview are stopped.
+
+Stopped synthetic paired SQLite/private-copy recovery passed source/allocation
+checks with one reviewed and one rejected worksheet. Changed/missing/orphan files
+and changed stored facts were rejected. Original fixture bytes and Finance-copy
+hashes stayed unchanged; original asset quantity1/unit cost10000 stayed unchanged.
+This does not qualify native online or production recovery/RPO/RTO. Final focused
+SQLite passes23/23 in8.097s, zero skips. Fresh full native now passes354/354 in
+132.504s, zero skips, including four allocation races and the additive upgrade.
+This resolves the earlier current-test errors without changing production download
+or transaction behavior. The full SQLite352 run preceded only four focused fixture/
+UI files and two added tests; no full SQLite354 execution is claimed. The service,
+models, migration and race sources stayed unchanged. System check, no migration
+drift and discovery/eight complete class partitions pass:2926 unique tests /354 GSO.
+Both native test schemas were dropped and the exact owned server shut down normally
+after confirming no other fixture clients. Browser and preview are stopped.
+
+Actual commands use the documented Python3.11 environment and ignored wrappers
+that redirect both stores and private/runtime paths away from protected databases:
+
+```text
+python -B .tmp/run_isolated.py test gso_integration_tests.test_asset_cost_allocations --noinput --verbosity 1
+python -B .tmp/run_isolated.py test gso_integration_tests --noinput --verbosity 1 --testrunner preview_runner.CheckpointRunner
+python -B .tmp/native_allocations.py gso_integration_tests --verbosity 1
+python -B .tmp/rehearse_allocation_recovery.py
+python -B .tmp/stop_native_allocations.py
+python -B .tmp/run_isolated.py check
+python -B .tmp/run_isolated.py makemigrations --check --dry-run
+python -B .tmp/run_isolated.py discover
+git diff --check
+```
+
+Repeated commands reflect the failed and repaired runs recorded above, not hidden
+passes. The native wrapper delegates to committed `scripts/run_mysql_tests.py`
+with fresh default/finance schemas, never keepdb. No dependency change required
+another audit, and unrelated full Finance regression is out of scope for this
+default-only feature. Existing full hosted candidate/master CI concerns only
+published v0.7.182, not this local source. Final diff review and all15 Python/template
+source hashes pass unchanged; all23 inherited MySQL W036 warnings match the prior
+checkpoint exactly. The established VM adapter previews local-only patch v0.7.184
+for22 intended source/doc files plus VERSION/CHANGELOG, preserving historical
+release evidence and excluding generated browser artifacts. Further feature publication requires separately
+authorized exact-revision gates; no new feature/tag is pushed here.
+Finance remains **NO-GO**, no deployment,
+official LGU acceptance or production migration/recovery qualification.
+
 ## Local reviewed maintenance-correction development — 2026-10-18
 
 Separate `codex/gso-reviewed-maintenance-corrections` began clean at publication

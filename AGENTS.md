@@ -69,6 +69,13 @@ owns these accepted choices; do not ask them again.
 
 ## Project context and documentation map
 
+Asset-cost worksheets divide explicit documentary amounts, not official valuation.
+Retain accepted receipt/source evidence, exact component quantities/units/amounts,
+allocation basis and independent explicitly authorized Accounting review. No
+automatic pro-rata, rounding residual, register quantity/custody/cost change or JEV.
+Unknown cost stays unknown; accepted source amendments require a new worksheet.
+See [allocation contract](docs/gso/asset-cost-allocations.md).
+
 Department-aware Django platform for municipal public services and internal operations. Core domains include assistance, identity/departments, reporting, records, physical custody, Finance setup, Accounting, Budget and vouchers.
 
 ### Durable boundaries

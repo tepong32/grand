@@ -7,8 +7,11 @@ independent authorized Accounting review and an audit trail, including synthetic
 development/tests. Retain original source amounts and the allocation basis; do not
 silently divide costs or rewrite existing records. Until applicable valuation
 policy is confirmed, allocations are not officially approved accounting values
-and generate no automatic JEVs. This does not claim an implemented allocation
-workflow or policy/operational acceptance. See the
+and generate no automatic JEVs. A bounded local documentary worksheet is now
+implemented for one accepted registered asset receipt line, with explicit component
+amounts and independent Accounting review; current verification is recorded in the
+handoff. This does not establish valuation policy or operational acceptance. See
+[the allocation contract](asset-cost-allocations.md), the
 [decision register](../IMPLEMENTATION_DECISIONS.md) and current handoff.
 
 ## Working draft preparation — 2026-10-18

@@ -2,9 +2,14 @@ from django.urls import path
 from . import views
 from . import journal_mapping_views
 from . import property_link_views
+from . import asset_cost_views
 
 app_name = "inventory_finance"
 urlpatterns = [
+    path('asset-cost-allocations/', asset_cost_views.workbench, name='asset-cost-workbench'),
+    path('asset-cost-allocations/source/<int:pk>/', asset_cost_views.propose, name='asset-cost-propose'),
+    path('asset-cost-allocations/<int:pk>/', asset_cost_views.detail, name='asset-cost-detail'),
+    path('asset-cost-allocations/<int:pk>/evidence/', asset_cost_views.evidence, name='asset-cost-evidence'),
     path("property-links/", property_link_views.workbench, name="property-links"),
     path("property/<uuid:determination_id>/request/", property_link_views.request_link, name="property-link-request"),
     path("property-links/<uuid:link_id>/", property_link_views.detail, name="property-link-detail"),

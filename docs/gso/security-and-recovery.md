@@ -3,6 +3,20 @@
 This shell is for controlled development. A release is not permission to expose it
 to the internet or an assertion that LGU operational acceptance has passed.
 
+## Documentary asset-cost allocations — local development
+
+Documentary asset-cost allocations additionally retain
+`inventory/asset-cost-allocations/<receipt UUID>/`, proposals, exact source and
+predecessor snapshots, component amounts/basis and independent decision events in
+default. Include these with the coordinated two-store/private-file recovery set.
+`check_asset_cost_allocations` validates history, current accepted source facts,
+retained files and unreferenced evidence without repairing, rehashing or deleting
+anything. Stale reviewed worksheets require a new independently reviewed successor;
+never rewrite original asset costs or journal history to make a check pass. The
+explicit allocation review grant requires current Accounting ledger read within
+the selected department; no automatic grants. UAT mutation denial remains. This
+workflow confers no official valuation/posting or production recovery acceptance.
+
 ## Reviewed maintenance corrections — local development
 
 Migration0031 adds default-store correction proposals and decision events. Include

@@ -12,7 +12,12 @@ and [current validation](../../CONTINUE.md). The owner's later 2026-10-18 decisi
 authorizes gated VM publication of the preserved overnight chain and decisions;
 it does not certify an official form or complete a class/fund SPC. Reviewed
 allocations and independently approved maintenance corrections are authorized next
-development; real imports are deferred.
+development; real imports are deferred. Maintenance corrections have a separately
+validated local VM v0.7.183 checkpoint. The bounded documentary asset allocation
+workflow is implemented locally with verification in progress; neither is included
+in the published overnight v0.7.182 chain. Official valuation, cross-receipt cost
+treatment and deployment/operational acceptance remain open. See the
+[allocation contract](asset-cost-allocations.md) and current handoff.
 The earlier integrate-then-pause instruction was fulfilled by v0.7.176 and is
 superseded for local development by the current mission.
 

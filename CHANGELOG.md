@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.184] - 2026-10-18
+### Added
+- feat(gso): retain reviewed documentary asset-cost allocations
+
 ## [0.7.183] - 2026-10-18
 ### Added
 - feat(gso): retain independently reviewed maintenance corrections

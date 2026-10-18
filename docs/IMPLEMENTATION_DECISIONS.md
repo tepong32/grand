@@ -43,7 +43,9 @@ Accounting review and an audit trail. Develop/test with synthetic cases, retaini
 the allocation basis and original source amounts. Until applicable valuation policy
 is confirmed, an allocation is not an officially approved accounting value and
 creates no automatic journal entry. Real evidence/policy remain necessary for
-official financial use.
+official financial use. The bounded local [documentary allocation contract](gso/asset-cost-allocations.md)
+implements this development direction for one accepted registered-asset receipt
+line; valuation and cross-receipt treatment remain unconfirmed.
 
 **DECISION-GSO-001 — Official property output acceptance (open).** Which municipal
 PAR/ICS/SPC layouts, revisions, numbering and sign-off instructions are accepted?
@@ -105,6 +107,8 @@ complete audit trail. Existing notices remain statements, not implicitly approve
 corrections. Implement a distinct reviewed successor with explicit scope and
 downstream source checks; do not backfill approvals or silently alter custody,
 Accounting records or historical facts. File integrity does not establish truth.
+The separate [reviewed correction contract](gso/maintenance-corrections.md) records
+the local implementation boundary; it is not part of the overnight v0.7.182 publication.
 
 **DECISION-OPS-003 — Overnight chain publication (authorized; gates pending).**
 The owner authorizes the documented VM workflow to review, validate, integrate and

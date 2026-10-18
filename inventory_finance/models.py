@@ -4,6 +4,8 @@ from uuid import uuid4
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
+from inventory.models import disposal_private_storage
 
 
 class ReceiptClaimAttribution(models.Model):
@@ -228,3 +230,84 @@ class PropertyFinanceLinkEvent(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Property link events must be retained.")
+
+
+def asset_cost_evidence_path(instance, filename):
+    extension = filename.rsplit('.', 1)[-1].lower()
+    return f'inventory/asset-cost-allocations/{instance.line.receipt.public_id}/{instance.public_id.hex}.{extension}'
+
+
+class AssetCostAllocation(models.Model):
+    """Documentary component worksheet; never an asset value or journal."""
+    public_id = models.UUIDField(default=uuid4, unique=True, editable=False)
+    line = models.ForeignKey('inventory.ReceivingLine', on_delete=models.PROTECT, related_name='cost_allocations')
+    finance_department = models.ForeignKey('departments.Department', on_delete=models.PROTECT,
+                                         related_name='asset_cost_allocations')
+    revision = models.PositiveIntegerField()
+    predecessor = models.ForeignKey('self', on_delete=models.PROTECT, null=True, blank=True, related_name='successors')
+    source_snapshot = models.JSONField()
+    source_amount = models.DecimalField(max_digits=24, decimal_places=2)
+    components = models.JSONField()
+    basis = models.TextField(max_length=4000)
+    proposed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+                                   related_name='asset_cost_allocations_proposed')
+    proposed_at = models.DateTimeField(default=timezone.now, editable=False)
+    file = models.FileField(storage=disposal_private_storage, upload_to=asset_cost_evidence_path, max_length=500)
+    original_filename = models.CharField(max_length=255)
+    sha256 = models.CharField(max_length=64)
+    size = models.PositiveBigIntegerField()
+    content_checksum = models.CharField(max_length=64)
+    status = models.CharField(max_length=12, default='proposed', choices=(
+        ('proposed', 'Awaiting independent Accounting review'), ('approved', 'Reviewed documentary allocation'),
+        ('rejected', 'Rejected')))
+    state_version = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ('revision', 'pk')
+        default_permissions = ()
+        permissions = tuple((f'{action}_assetcostallocation', label) for action, label in (
+            ('view', 'Can view shared documentary asset-cost allocations'),
+            ('propose', 'Can propose documentary asset-cost allocations'),
+            ('review', 'Can independently review documentary asset-cost allocations')))
+        constraints = (
+            models.UniqueConstraint(fields=('line', 'revision'), name='gso_asset_allocation_revision'),
+            models.CheckConstraint(condition=models.Q(source_amount__gte=0, size__gt=0), name='gso_asset_allocation_amount'),
+        )
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            prior = type(self).objects.get(pk=self.pk)
+            mutable = {'status', 'state_version'}
+            if not getattr(self, '_decision_write', False) or any(
+                getattr(prior, field.attname) != getattr(self, field.attname)
+                for field in self._meta.concrete_fields if field.attname not in mutable):
+                raise ValidationError('Retain this allocation and propose a successor instead of rewriting it.')
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('Documentary allocation history is retained.')
+
+
+class AssetCostAllocationEvent(models.Model):
+    allocation = models.ForeignKey(AssetCostAllocation, on_delete=models.PROTECT, related_name='events')
+    version = models.PositiveIntegerField()
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+                              related_name='asset_cost_allocation_events')
+    occurred_at = models.DateTimeField(default=timezone.now, editable=False)
+    action = models.CharField(max_length=12)
+    note = models.TextField(max_length=4000)
+    snapshot = models.JSONField()
+    checksum = models.CharField(max_length=64)
+
+    class Meta:
+        ordering = ('version', 'pk')
+        default_permissions = ()
+        constraints = (models.UniqueConstraint(fields=('allocation', 'version'), name='gso_asset_allocation_event'),)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError('Independent allocation decisions cannot be replaced.')
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError('Independent allocation decisions are retained.')

@@ -1,0 +1,14 @@
+{% extends 'inventory/base.html' %}{% block title %}Documentary allocation {{ record.revision }}{% endblock %}{% block content %}
+<header class="hero"><div><h1>Documentary allocation {{ record.revision }}</h1><p>{{ record.line.receipt.delivery_reference }} · line {{ record.line.sequence }} · {{ record.get_status_display }}</p></div></header>
+<nav class="quick-links"><a href="{% url 'inventory_finance:asset-cost-workbench' %}">Back to allocations</a></nav>
+<section class="panel"><p><strong>This is not an officially approved accounting value.</strong> Documentary review does not confirm capitalization, tax treatment or payment and does not change the asset register, custody, claims or journals.</p>
+{% if record_error %}<p class="errorlist" role="alert">{{ record_error }}</p>{% else %}
+{% if source_error %}<p class="errorlist" role="alert">{{ source_error }}</p>{% elif is_current %}<p><strong>Current reviewed documentary worksheet on the verified source basis.</strong></p>{% elif record.status == 'approved' %}<p>This is a historical reviewed worksheet. A later allocation has replaced it.</p>{% endif %}
+<p>Proposed by {{ record.proposed_by }} on {{ record.proposed_at }}. Shared with {{ record.finance_department }} for independent Accounting review.</p>
+<p>Source: {{ record.source_snapshot.source.accepted_quantity }} {{ record.source_snapshot.source.unit }} × ₱{{ record.source_snapshot.source.unit_cost }} = ₱{{ record.source_amount }}.</p>
+<h2>Documented allocation basis</h2><p>{{ record.basis|linebreaksbr }}</p>
+<h2>Explicit components</h2>{% for item in record.components %}<article class="panel"><h3>{{ item.label }}</h3><dl class="detail-grid"><div><dt>Component quantity</dt><dd>{{ item.quantity }} {{ item.unit }}</dd></div><div><dt>Total component amount</dt><dd>₱{{ item.amount }}</dd></div><div><dt>Document / calculation reference</dt><dd>{{ item.reference }}</dd></div></dl></article>{% endfor %}
+<p><a href="{% url 'inventory_finance:asset-cost-evidence' record.pk %}">Download retained allocation evidence</a></p>
+<h2>Retained decision history</h2>{% for event in record.events.all %}<p>{{ event.occurred_at }} · {{ event.actor }} · {{ event.action }}: {{ event.note|linebreaksbr }}</p>{% endfor %}{% endif %}</section>
+{% if can_review %}<section class="panel"><h2>Independent Accounting documentary review</h2><p>Compare the explicit component amounts, basis and supporting document. Acceptance here is a documentary review, not official valuation or permission to post a journal.</p><form method="post">{% csrf_token %}{{ form.as_p }}<button class="button primary" type="submit">Record independent decision</button></form></section>{% endif %}
+{% endblock %}
