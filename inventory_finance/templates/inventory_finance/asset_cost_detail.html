@@ -1,4 +1,4 @@
-{% extends 'inventory/base.html' %}{% block title %}Documentary allocation {{ record.revision }}{% endblock %}{% block content %}
+{% extends 'inventory_finance/asset_cost_base.html' %}{% block title %}Documentary allocation {{ record.revision }}{% endblock %}{% block content %}
 <header class="hero"><div><h1>Documentary allocation {{ record.revision }}</h1><p>{{ record.line.receipt.delivery_reference }} · line {{ record.line.sequence }} · {{ record.get_status_display }}</p></div></header>
 <nav class="quick-links"><a href="{% url 'inventory_finance:asset-cost-workbench' %}">Back to allocations</a></nav>
 <section class="panel"><p><strong>This is not an officially approved accounting value.</strong> Documentary review does not confirm capitalization, tax treatment or payment and does not change the asset register, custody, claims or journals.</p>

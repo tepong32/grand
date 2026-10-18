@@ -1,4 +1,4 @@
-{% extends 'inventory/base.html' %}{% block title %}Prepare a documentary allocation{% endblock %}{% block content %}
+{% extends 'inventory_finance/asset_cost_base.html' %}{% block title %}Prepare a documentary allocation{% endblock %}{% block content %}
 <header class="hero"><div><h1>Prepare a documentary allocation</h1><p>{{ line.receipt.delivery_reference }} · line {{ line.sequence }} · {{ line.description }}</p></div></header>
 <nav class="quick-links"><a href="{% url 'inventory_finance:asset-cost-workbench' %}">Back to allocations</a><a href="{% url 'inventory:receiving-detail' line.receipt_id %}">Review original receipt</a></nav>
 <section class="panel"><p>This proposal does not establish an official accounting value or create assets or journal entries. A different authorized Accounting reviewer must decide it.</p>

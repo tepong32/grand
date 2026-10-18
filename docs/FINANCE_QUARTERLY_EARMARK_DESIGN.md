@@ -1,5 +1,12 @@
 # Quarterly planning and earmark semantics — investigation checkpoint
 
+2026-10-18 research resumption: the owner authorizes research-led development.
+The [new official-source review](FINANCE_EARMARK_RESEARCH_2026-10-18.md) now retrieves
+and visually checks the DBM manual, distinguishes financial authorities and excludes
+the withdrawn2026 GPPB IRR. Historical retrieval failures below are preserved as
+history. Local certificate consumption/correction rules remain unconfirmed; they
+cannot authorize financial actions or block unrelated accepted development.
+
 Implementation follow-up: [checkpoint 3A](FINANCE_QUARTERLY_PLANNING.md) now provides
 the quarterly schedule and ARO connection. The investigation below records the
 starting evidence; unresolved local certificate/reserved-column semantics remain open.

@@ -1,5 +1,81 @@
 # GRAND continuation handoff
 
+## Current handoff, review navigation and source research — 2026-10-18
+
+Separate `codex/finance-official-source-research` began clean at local VM v0.7.184 /
+`65a2643c2968d2ab2c06ce3dd8104176d9e94685`. This checkpoint adds a bounded review-
+navigation repair and source/decision/handoff documentation. It explicitly copies the two intended research notes
+and the design banner from the separate raw research checkout, preserving that
+checkout's uncommitted work and its original source PDFs/rendered evidence.
+It retains the current handoff rather than a stale v0.7.182 snapshot. Exactly six
+validated navigation/template/test paths are carried from their isolated branch;
+all five research/handoff drafts stayed byte-for-byte unchanged during that copy.
+One initial comparison used Windows' default text encoding and stopped before any
+copy; explicit UTF-8 comparison verified the unchanged base and safely completed it.
+
+Published master and v0.7.182 remain
+`4e60e996f64c7c16fc39a4b5966e62b6b8e2cebf`, fast-forwarded from
+`6e1a04ab861c213001d1e80fd054ba3eb428ffea` after complete49-path review and
+installed-VM preview/release. Only v0.7.177–v0.7.182 tags were atomically published;
+their remote identities are verified. [Candidate CI39096814827](https://github.com/tepong32/grand/actions/runs/39096814827)
+passed19/19 jobs. Downloaded artifacts independently verify2870 unique tests exactly
+once per backend,226 explicit SQLite skips and zero native skips. Exact published-
+master [CI39099961625](https://github.com/tepong32/grand/actions/runs/39099961625)
+also passed all19 jobs for that exact SHA. Its downloaded artifacts independently
+verify2870 unique tests exactly once per backend,226 explicit SQLite skips and zero
+native skips. Read-only final verification confirmed all six remote tags, the
+candidate branch and clean primary master. Protected original checkout status,
+tracked/untracked file and database hashes match the current-task on-disk baseline;
+the older lost session-memory baseline is not claimed. Actual final command:
+`python -B .tmp/verify_master182.py` in the isolated publication checkout; PASS.
+
+New development is local only: maintenance v0.7.183 /
+`ca4ef06f064beb0a67932266f72b401b11e6dbf4` and documentary allocations v0.7.184 /
+`65a2643c2968d2ab2c06ce3dd8104176d9e94685`. Maintenance passed324 native tests,
+zero skips, then24 focused final-UX tests on both backends. Allocation final native
+passed354/354, zero skips; final focused SQLite passed23/23. Earlier failures and
+their verified fixture/dependency fixes are retained below. Migrations add only
+default-store tables and explicit permissions with no automatic grants; neither workflow changes
+custody, original records, Finance history, asset valuation or journal entries.
+Both completed synthetic desktop/mobile and stopped-pair/private-file recovery
+checks; original fixture bytes/Finance copies remain unchanged. Those rehearsals
+do not establish native online or production recovery/RPO/RTO. All owned browser,
+preview and MySQL processes are stopped; generated artifacts stay excluded.
+
+Final navigation review reproduced a real scope/usability gap on the synthetic
+Accounting session: allocation detail200 but the shared header's GSO Workspace403.
+Allocation pages now override the brand/Workspace destinations to their authorized
+module through two small template blocks. Default GSO destinations and permission
+checks remain unchanged; the Accounting reader still receives403 at the GSO
+dashboard. Authenticated regressions cover Accounting, UAT and owner module links
+plus the unchanged receiving header. Full related SQLite passes356 discovered /
+325 passed /31 native-only skips in66.182s, with six source/template hashes unchanged.
+Production Python, model, migration, authorization, evidence, transaction and amount
+logic are unchanged from the successful354-case native run; no extra native rerun
+is needed for these template destinations. No full native356 execution is claimed.
+Actual command: `python -B .tmp/run_isolated.py test gso_integration_tests --noinput --verbosity 1`.
+Final consolidated check, `makemigrations --check --dry-run`, discovery and whitespace
+checks pass:2928 unique tests /356 GSO tests, with eight complete class partitions.
+The six navigation files match the tested hashes. Local VM v0.7.185 retains this
+bounded repair and source handoff; no new feature branch or v0.7.183–v0.7.185 tag
+is authorized for publication in this batch.
+
+Research sources/interpretations and limitations are retained separately:
+[DBM/GPPB earmark review](docs/FINANCE_EARMARK_RESEARCH_2026-10-18.md) and
+[COA LGU property review](docs/FINANCE_ASSET_VALUATION_RESEARCH_2026-10-18.md).
+The retrieved DBM manual and ONAR-filed COA scan were visually inspected; the
+withdrawn March2026 GPPB IRR is excluded. No guessed certificate, capitalization,
+allocation, historical-correction or posting rule was enabled. Research and owner
+permission remain distinct from formal authorized Accounting decisions.
+
+This publication batch is verified and complete. Stop after retaining the local
+handoff checkpoint. New feature publication needs its own separately
+authorized exact-revision gates. Continue Finance from supported source contracts;
+unresolved earmark consumption/cancellation and valuation choices cannot authorize
+real transactions. Real historical imports remain deferred. Official form parity,
+LGU/GSO acceptance, production storage/recovery qualification and broader Finance
+completion/operational gates stay open. **Finance remains NO-GO. No deployment.**
+
 ## Local documentary asset-cost allocations — 2026-10-18
 
 `codex/gso-reviewed-asset-cost-allocations` began clean at local-only maintenance

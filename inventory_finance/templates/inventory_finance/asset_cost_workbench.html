@@ -1,4 +1,4 @@
-{% extends 'inventory/base.html' %}{% block title %}Documentary asset-cost allocations{% endblock %}{% block content %}
+{% extends 'inventory_finance/asset_cost_base.html' %}{% block title %}Documentary asset-cost allocations{% endblock %}{% block content %}
 <header class="hero"><div><h1>Documentary asset-cost allocations</h1><p>Explicit component amounts with independent Accounting review.</p></div></header>
 <section class="panel"><p>These worksheets preserve documented allocations. They are not official accounting values and do not change asset quantities, custody, claims or journal entries. Valuation policy and formal acceptance remain separate.</p>
 <h2>Shared proposals and decisions</h2>{% for record in page %}<p><a href="{% url 'inventory_finance:asset-cost-detail' record.pk %}">{{ record.line.receipt.delivery_reference }} · line {{ record.line.sequence }} · revision {{ record.revision }}</a> — {{ record.get_status_display }} · {{ record.finance_department }}</p>{% empty %}<p>No allocation proposals are available in your scope.</p>{% endfor %}

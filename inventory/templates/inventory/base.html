@@ -81,10 +81,10 @@
 <body>
   <header class="topbar">
     <div class="topbar-inner">
-      <a class="brand" href="{% url 'inventory:dashboard' %}">GRAND · GSO</a>
+      {% block brand_link %}<a class="brand" href="{% url 'inventory:dashboard' %}">GRAND · GSO</a>{% endblock %}
       <nav class="nav" aria-label="Main navigation">
         <a href="{% url 'department_dashboard' %}">GRAND home</a>
-        <a href="{% url 'inventory:dashboard' %}">Workspace</a>
+        {% block workspace_link %}<a href="{% url 'inventory:dashboard' %}">Workspace</a>{% endblock %}
         {% inventory_navigation request.user as inventory_nav %}
         {% if inventory_nav.assets %}<a href="{% url 'inventory:asset-list' %}">Asset register</a>{% endif %}
         {% if inventory_nav.stock %}<a href="{% url 'inventory:consumable-list' %}">Consumables</a>{% endif %}

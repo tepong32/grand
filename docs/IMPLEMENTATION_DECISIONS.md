@@ -31,6 +31,9 @@ Record sources, applicability, interpretations and unresolved local choices. Do 
 require the owner to invent a basis before independent research and engineering
 continue. Neither research nor this authorization is formal Accounting approval;
 unresolved rules cannot authorize real financial transactions or certification.
+The [earmark source checkpoint](FINANCE_EARMARK_RESEARCH_2026-10-18.md) and
+[LGU property source checkpoint](FINANCE_ASSET_VALUATION_RESEARCH_2026-10-18.md)
+retain inspected primary materials, interpretations and precise remaining limits.
 
 **DECISION-FIN-002 — Explicit reviewed asset-cost allocations (development accepted; valuation policy unconfirmed).** Which documented
 allocation basis and representative receipt/claim/component cases should Accounting
@@ -110,7 +113,7 @@ Accounting records or historical facts. File integrity does not establish truth.
 The separate [reviewed correction contract](gso/maintenance-corrections.md) records
 the local implementation boundary; it is not part of the overnight v0.7.182 publication.
 
-**DECISION-OPS-003 — Overnight chain publication (authorized; gates pending).**
+**DECISION-OPS-003 — Overnight chain publication (verified 2026-10-18).**
 The owner authorizes the documented VM workflow to review, validate, integrate and
 publish preserved v0.7.176 → v0.7.181 work plus persistent decisions, only after
 actual-state review and every required gate. Inspect the complete diff, preserve
@@ -120,6 +123,17 @@ history/tags; use the installed VM adapter for the documentation checkpoint.
 Continue safe independent development afterward. No deployment, production operation
 or formal LGU/Accounting acceptance is authorized. Finance remains NO-GO; production
 storage/recovery qualification and other release requirements stay outstanding.
+
+The installed VM produced v0.7.182, reviewed and fast-forwarded from v0.7.176 to
+`4e60e996f64c7c16fc39a4b5966e62b6b8e2cebf`. Remote master and the six explicit
+v0.7.177–v0.7.182 tags are verified. Exact-candidate
+[CI39096814827](https://github.com/tepong32/grand/actions/runs/39096814827) and
+exact-master [CI39099961625](https://github.com/tepong32/grand/actions/runs/39099961625)
+each passed19/19 jobs. Downloaded artifacts independently verify2870 test identities
+per backend,226 explicit SQLite skips and zero native skips. Protected original
+work matches the current-task on-disk baseline. New maintenance/allocation and
+source/navigation checkpoints remain local; this receipt does not extend publication
+authority or establish formal acceptance, Finance readiness or production recovery.
 
 ### Established implementation decisions
 
