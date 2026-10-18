@@ -9,7 +9,7 @@ notices are not backfilled approvals. Corrections must not silently alter custod
 Accounting records or historical facts. Formal LGU acceptance is separate; see
 the [decision register](../IMPLEMENTATION_DECISIONS.md) and current handoff.
 
-The separate local implementation is now under validation in
+The separately implemented and locally validated workflow is documented in
 [reviewed maintenance corrections](maintenance-corrections.md). It retains complete
 documentary successor proposals, explicit independent review, source/predecessor
 bindings and protected files beside the unchanged original. No published capability

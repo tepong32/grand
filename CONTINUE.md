@@ -1,5 +1,64 @@
 # GRAND continuation handoff
 
+## Existing local batch publication and mission resumption — 2026-10-18
+
+The subsequent owner instruction supersedes the earlier local-only publication
+boundary below for the existing v0.7.183–v0.7.185 batch. It authorizes complete
+review, risk-based local checks, required exact-candidate hosted CI, installed VM
+integration/publication and exact-master CI, followed by resumed autonomous work.
+No deployment or production operations; Finance remains NO-GO. Publication failure
+must be reported accurately but does not block independent safe development.
+
+Initial actual state: clean isolated `codex/grand-local-batch-publication` created
+at v0.7.185 / `3c20712ee6064f509d759392044e7890c5ababa2`; remote master/v0.7.182
+both match `4e60e996f64c7c16fc39a4b5966e62b6b8e2cebf`. The local VM chain retains
+maintenance v0.7.183 `ca4ef06f064beb0a67932266f72b401b11e6dbf4`, allocations
+v0.7.184 `65a2643c2968d2ab2c06ce3dd8104176d9e94685` and navigation/research v0.7.185.
+No remote v0.7.183–v0.7.185 tags exist at initial inspection. Seven preserved
+checkouts have current-task on-disk status/file-hash baselines; the dirty original,
+primary database, raw research and navigation work are excluded from this branch.
+
+Complete unpublished47-path review confirms the two documentary workflows,
+default-only additive migrations, explicit permissions without auto-grants,
+independence/UAT/office boundaries, immutable evidence/history, exact retries,
+locked document budgets, same-handle checked downloads and read-only recovery
+checks. Asset cost/quantity/custody and Finance/JEV history stay unchanged. The
+notice upgrade test restores actual migration leaves while retaining assertions.
+Navigation repair keeps cross-office readers in their authorized module. Review
+found stale roadmap/authorization wording and an unsupported implication that
+municipal certificate examples had already been supplied; those statements are
+corrected. No runtime defect or expansion was found in this publication review.
+
+Prior local evidence remains scoped: native354/354 with zero skips covers the
+unchanged service/model/migration code; final related SQLite356 covers navigation,
+325 passed/31 native-only skips. Actual browser and stopped synthetic paired-file
+recovery evidence below is retained; neither is production qualification. Fresh
+current-source local checks PASS: `python -m pip check`; `python -m pip_audit -r
+requirements.txt` (no known vulnerabilities; Windows temporary-path alias warning);
+`python -B .tmp/run_isolated.py check`; `python -B .tmp/run_isolated.py makemigrations
+--check --dry-run` (no changes); `python -B -m unittest scripts.test_ci_test_runner -v`
+(9/9); `python -B .tmp/run_isolated.py test telegram_bot --noinput --verbosity 1`
+(5/5,0.489s); `python -B .tmp/run_isolated.py test
+gso_integration_tests.test_maintenance_corrections
+gso_integration_tests.test_asset_cost_allocations
+gso_integration_tests.test_asset_cost_navigation --noinput --verbosity 1`
+(49/49,6.652s,zero skips); `python -B .tmp/run_isolated.py discover`
+(2928 unique /356 GSO, eight complete partitions); `git diff --check`.
+Expected permission-denied HTTP test logs are not suite failures. Tests used two
+disposable SQLite stores and isolated private/media/export/backup paths, not operator
+databases. Seventeen prior receipt file checks match current code after Git line-ending
+normalization; prior native evidence is reused only for unchanged code. No new native
+local run is claimed. Exact hosted CI and publication receipts are still pending.
+Do not treat the previous v0.7.182 CI as testing this new batch. New source and
+continuity changes receive a previewed VM checkpoint; no historical version evidence
+is bulk rewritten. Exact source/environment matching is checked before reuse.
+
+After publication verification or a safe recorded publication stop, reassess the
+current Finance foundation/roadmap and implement one useful safe slice. Unresolved
+earmark consumption/cancellation and valuation policy cannot authorize transactions;
+real historical imports, official forms, LGU/GSO acceptance and production storage/
+recovery qualification remain outstanding. Do not spawn another coding agent.
+
 ## Current handoff, review navigation and source research — 2026-10-18
 
 Separate `codex/finance-official-source-research` began clean at local VM v0.7.184 /

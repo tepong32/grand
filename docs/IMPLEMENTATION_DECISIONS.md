@@ -135,6 +135,18 @@ work matches the current-task on-disk baseline. New maintenance/allocation and
 source/navigation checkpoints remain local; this receipt does not extend publication
 authority or establish formal acceptance, Finance readiness or production recovery.
 
+**DECISION-OPS-004 — Existing local batch publication and mission resumption (authorized; gates pending).**
+The owner's subsequent 2026-10-18 instruction authorizes complete review, required
+exact-candidate CI, VM integration, explicit tags and exact-master CI for existing
+local v0.7.183–v0.7.185, plus accurate continuity/version documentation. Expected
+references must match actual state; failures or unexpected state stop publication
+without force-push, bypass or loss of unrelated work. Continue autonomous development
+after verified publication or a safe documented publication stop; batch completion
+alone is not a blocker. Prefer a coherent usable employee/citizen workflow, retain
+accepted research/allocation/correction boundaries and defer real historical imports.
+No deployment, production operations, official valuation or formal acceptance is
+authorized. Finance remains NO-GO. New development has no blanket publication grant.
+
 ### Established implementation decisions
 
 - **AUTH-001 (2026-10-14):** public registration is a verified citizen identity;

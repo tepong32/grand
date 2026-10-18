@@ -6,9 +6,13 @@ usability built in. Finance dependencies remain indexed in the consolidated
 [decision log](IMPLEMENTATION_DECISIONS.md#consolidated-owner-decisions--2026-10-18).
 Local v0.7.177 completes GSO ICS/SPC working preparation and the reviewed SPC source
 worksheet, following the existing [placeholder direction](gso/inventory-roadmap.md#placeholder-output-direction--2026-10-17).
-The next local slice adds [closed-maintenance correction notices](gso/maintenance.md)
-alongside unchanged original values; a distinct independently approved correction
-workflow is now authorized by GSO-003 and is not yet implemented.
+Closed-maintenance correction notices retain statements alongside unchanged original
+values. The separately implemented [reviewed correction workflow](gso/maintenance-corrections.md)
+adds independently approved documentary successors without rewriting the original.
+[Documentary asset-cost allocations](gso/asset-cost-allocations.md) now implement
+explicit component amounts and independent Accounting review for one accepted
+asset receipt line. Both have local validation; publication state belongs to the
+current handoff. Official valuation, cross-receipt treatment and acceptance remain open.
 Local drafts do not establish official forms, signatures, ledger authority or
 operational acceptance. CONTINUE.md owns actual implementation/checkpoint results.
 The owner's subsequent 2026-10-18 decision authorizes gated VM publication of the
@@ -16,6 +20,10 @@ preserved overnight chain and decisions, followed by safe independent developmen
 Prioritize research-led Finance foundation work and explicit reviewed cost-allocation
 and maintenance-correction workflows in the decision log. Real imports are deferred.
 No deployment or production operations; Finance stays NO-GO.
+The later owner instruction authorizes publication of the existing local
+v0.7.183–v0.7.185 batch through all exact-candidate/master gates, then continued
+autonomous development of coherent employee/citizen workflows. Ending that batch
+does not end the wider mission. Real external/owner boundaries remain explicit.
 
 The user's 2026-09-18 [Finance foundation gate](FINANCE_FOUNDATION_GATE.md) supersedes
 the older sequence below: retrieval, Budget context, verified planning/certificate

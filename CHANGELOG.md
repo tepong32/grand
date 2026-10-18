@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.186] - 2026-10-18
+### Documentation
+- docs(grand): prepare reviewed local workflows for gated publication
+
 ## [0.7.185] - 2026-10-18
 ### Fixed
 - fix(gso): keep shared review navigation scoped and retain source research

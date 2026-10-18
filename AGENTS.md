@@ -50,7 +50,12 @@ Work on isolated `codex/` feature branches; preserve unrelated work and protecte
 stores. On 2026-10-18 the user authorized review, required exact-revision CI, VM
 integration and repository publication of preserved v0.7.177–v0.7.181 work and
 persistent decisions. Unexpected state or failed gates blocks publication; never
-force-push or infer further publication authority from autonomy. Deployment and
+force-push or infer further publication authority from autonomy. The owner's later
+2026-10-18 instruction additionally authorizes gated VM publication of the existing
+local v0.7.183–v0.7.185 batch, with accurate continuity documentation, followed by
+resumed autonomous development. Publication completion is not a reason to stop or
+mark the wider mission blocked; continue safe coherent work until a real boundary.
+New development does not inherit blanket publication authority. Deployment and
 production operations remain unauthorized. Finance stays NO-GO and GSO operational/LGU
 acceptance remains separate. Continue safe independent tasks when one is blocked;
 stop at an actual authority/safety/dependency boundary with a factual handoff.

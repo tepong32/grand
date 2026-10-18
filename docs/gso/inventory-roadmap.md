@@ -14,8 +14,11 @@ it does not certify an official form or complete a class/fund SPC. Reviewed
 allocations and independently approved maintenance corrections are authorized next
 development; real imports are deferred. Maintenance corrections have a separately
 validated local VM v0.7.183 checkpoint. The bounded documentary asset allocation
-workflow is implemented locally with verification in progress; neither is included
-in the published overnight v0.7.182 chain. Official valuation, cross-receipt cost
+workflow is implemented locally with completed local verification; neither is included
+in the published overnight v0.7.182 chain. The subsequent owner instruction authorizes
+their separate gated publication with the navigation/source checkpoint through
+v0.7.185; exact publication receipts belong to the current handoff.
+Official valuation, cross-receipt cost
 treatment and deployment/operational acceptance remain open. See the
 [allocation contract](asset-cost-allocations.md) and current handoff.
 The earlier integrate-then-pause instruction was fulfilled by v0.7.176 and is

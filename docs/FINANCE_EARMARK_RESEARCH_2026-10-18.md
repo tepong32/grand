@@ -52,7 +52,7 @@ earmark-circular review, full amendment audit, local procedure acceptance or for
 determination is claimed. Retain original source URLs and revisit applicability
 before official use. Finance remains **NO-GO**.
 
-Next: trace the supplied municipal certificate examples and an actual local
+Next: obtain representative municipal certificate examples and trace an actual local
 transaction against these separate authorities; keep unresolved financial actions
 disabled while implementing independently established workflows. No eGAPS or
 production data was opened or changed.
