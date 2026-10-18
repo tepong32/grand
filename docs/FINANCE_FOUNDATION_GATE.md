@@ -1,5 +1,14 @@
 # Finance foundation completion gate — 2026-09-18
 
+2026-10-18 direction: DECISION-FIN-001 authorizes research-led development from
+applicable official COA/DBM and other official sources, retaining sources,
+interpretations and unresolved local decisions. Missing local paperwork does not
+block independent research/development. Research and owner authorization are not
+Accounting approval; unresolved rules cannot authorize real transactions. The
+[decision register](IMPLEMENTATION_DECISIONS.md) owns accepted/deferred work and
+gated publication authority. Finance remains NO-GO; existing release, operational,
+source-reconciliation and formal acceptance gates are unchanged.
+
 The [current 22-section reconciliation](FINANCE_FOUNDATION_REQUIREMENT_AUDIT.md#current-reconciliation--2026-10-17)
 supersedes the September audit's next-repair instructions without deleting its
 history. Both repaired-source full backends now pass (2,572 discovered each;

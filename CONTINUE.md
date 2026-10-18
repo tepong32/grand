@@ -1,5 +1,67 @@
 # GRAND continuation handoff
 
+## Owner decisions and overnight publication candidate — 2026-10-18
+
+The owner accepted research-led Finance development, explicit documented asset-cost
+allocations with independent authorized Accounting review, and independently
+approved maintenance corrections preserving originals/evidence and audit history.
+Real imports are deferred; synthetic development continues. The consolidated
+decisions and AGENTS.md own the durable constraints. Research/owner permission is
+not Accounting approval; unresolved rules cannot authorize real transactions,
+allocations are not official valuation, and neither workflow may silently create
+JEVs or change custody, Accounting or historical facts.
+
+Publication of preserved v0.7.177–v0.7.181 work is now authorized through documented
+VM review/preview/commit, required checks, exact-candidate hosted CI, integration,
+push and exact-master verification. This supersedes historical no-publication
+statements below. New workflow code stays separate from this publication payload.
+No deployment or production operations. Finance remains **NO-GO**; formal GSO/LGU
+acceptance, production storage/recovery qualification and other gates remain open.
+
+Initial isolated `codex/grand-overnight-publication` is clean at local v0.7.181 /
+`67407c3ea27879b0d54370069ab1951baae1cd15`. Remote master remains published v0.7.176 /
+`6e1a04ab861c213001d1e80fd054ba3eb428ffea`. The preserved chain has five VM commits
+and 48 changed paths, with no unrelated branch history. Protected original and
+primary checkouts remain separate. Complete review, current-candidate checks, VM
+decision checkpoint and hosted CI are pending; no publication pass is claimed.
+Stop on failed gates or unexpected remote state; retain exact run/commit/tag receipts.
+
+Complete diff review covers the 48 preserved paths: working forms/source worksheet,
+append-only notices and additive default-only migration0030, checked download
+handles, read-only recovery commands, regression tests and truthful historical
+documentation. No runtime fix was required by this review. No workflow, grant,
+routing, dependency or Finance-schema change is added by the decision checkpoint.
+No new secret or machine-specific operator path was found in the added handoff.
+Existing source evidence applies unchanged: final GSO SQLite 274 passed/24 native
+skips; native 298/298, zero skips. Hosted full-project candidate/master gates remain
+required; no earlier local run is relabelled exact-candidate hosted proof.
+
+Current local release checks PASS: `python -m pip check`,
+`python -m pip_audit -r requirements.txt` (no known vulnerabilities; Windows
+temporary-path alias warning only), `python -B .tmp/run_isolated.py check`,
+`python -B .tmp/run_isolated.py makemigrations --check --dry-run` (none),
+`python -B -m unittest scripts.test_ci_test_runner -v` (9/9, 0.009s),
+`python -B .tmp/run_isolated.py test telegram_bot --noinput --verbosity 1`
+(5/5, 0.649s), and `git diff --check`. The wrapper redirects both databases and
+private/runtime paths. No dependency or CI policy was weakened. Owned native and
+preview processes from the overnight chain are stopped; artifacts remain ignored
+or in their original worktrees, excluded from the intended manifest.
+
+The installed VM historical-document adapter will preview/execute patch v0.7.182
+for these eight decision/instruction/roadmap/handoff contracts plus VERSION and
+CHANGELOG, preserving all five existing VM commits and tags. Candidate CI uses the
+existing workflow_dispatch feature-branch procedure; integrate only its exact
+successful revision with a fast-forward and verify new master CI. Required gates,
+not the absence of GitHub branch protection, control publication.
+
+Preservation note: the older session-memory hash baseline was unavailable in this
+resumed user turn. No file difference was established by that failed observation.
+Revalidated the original branch/HEAD and listed unrelated changes, the clean
+primary checkout and isolated publication ownership. Captured a new pre-commit
+on-disk status/hash baseline under ignored `.tmp/protected-baseline.txt` for the
+original tracked/untracked work and both protected database files. Compare it after
+publication; do not describe this new baseline as proof of historical hash equality.
+
 ## Current local slice — retained-source recovery checks, 2026-10-18
 
 New isolated `codex/gso-accounting-source-recovery` began clean at local VM v0.7.180 /

@@ -8,8 +8,11 @@ This roadmap prioritizes practical controls for equipment, vehicles, and consuma
 permits coherent local feature batches on isolated GRAND branches. ICS/SPC working
 draft preparation is implemented locally beside PAR; see
 [scope and boundaries](property-record-design.md#working-draft-preparation--2026-10-18)
-and [current validation](../../CONTINUE.md). This does not authorize merging or
-publishing the batch, certify an official form or complete a class/fund SPC.
+and [current validation](../../CONTINUE.md). The owner's later 2026-10-18 decision
+authorizes gated VM publication of the preserved overnight chain and decisions;
+it does not certify an official form or complete a class/fund SPC. Reviewed
+allocations and independently approved maintenance corrections are authorized next
+development; real imports are deferred.
 The earlier integrate-then-pause instruction was fulfilled by v0.7.176 and is
 superseded for local development by the current mission.
 

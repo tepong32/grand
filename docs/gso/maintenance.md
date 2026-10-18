@@ -1,5 +1,14 @@
 # Asset maintenance
 
+## Approved development direction — 2026-10-18
+
+DECISION-GSO-003 authorizes proposed corrections with independent approval,
+preserved original records/evidence and complete audit history. This distinct
+successor workflow is not implemented by the notices checkpoint below. Existing
+notices are not backfilled approvals. Corrections must not silently alter custody,
+Accounting records or historical facts. Formal LGU acceptance is separate; see
+the [decision register](../IMPLEMENTATION_DECISIONS.md) and current handoff.
+
 ## Closed-record correction notices — local development, 2026-10-18
 
 `codex/gso-maintenance-notices` starts at local VM v0.7.177 / `04f6200`; it is

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.182] - 2026-10-18
+### Documentation
+- docs(grand): record approved development and publication decisions
+
 ## [0.7.181] - 2026-10-18
 ### Added
 - feat(gso): audit CSV archives and enforce portable evidence paths

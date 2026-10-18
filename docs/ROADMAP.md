@@ -7,10 +7,15 @@ usability built in. Finance dependencies remain indexed in the consolidated
 Local v0.7.177 completes GSO ICS/SPC working preparation and the reviewed SPC source
 worksheet, following the existing [placeholder direction](gso/inventory-roadmap.md#placeholder-output-direction--2026-10-17).
 The next local slice adds [closed-maintenance correction notices](gso/maintenance.md)
-alongside unchanged original values; authoritative corrected values remain GSO-003.
+alongside unchanged original values; a distinct independently approved correction
+workflow is now authorized by GSO-003 and is not yet implemented.
 Local drafts do not establish official forms, signatures, ledger authority or
 operational acceptance. CONTINUE.md owns actual implementation/checkpoint results.
-Master integration, publication and deployment are outside this mission's authority.
+The owner's subsequent 2026-10-18 decision authorizes gated VM publication of the
+preserved overnight chain and decisions, followed by safe independent development.
+Prioritize research-led Finance foundation work and explicit reviewed cost-allocation
+and maintenance-correction workflows in the decision log. Real imports are deferred.
+No deployment or production operations; Finance stays NO-GO.
 
 The user's 2026-09-18 [Finance foundation gate](FINANCE_FOUNDATION_GATE.md) supersedes
 the older sequence below: retrieval, Budget context, verified planning/certificate

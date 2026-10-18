@@ -47,13 +47,25 @@ holds material choices. Cross-link rather than duplicate. Update the handoff at
 milestones and session end. Keep VERSION/CHANGELOG under the Version Manager.
 
 Work on isolated `codex/` feature branches; preserve unrelated work and protected
-stores. The 2026-10-18 mission resumes development after v0.7.176, superseding
-earlier completed-checkpoint pauses, but does not authorize master integration,
-release publication, deployment or production operations. Use the documented VM
-workflow when authorized; never force-push, rewrite shared history or infer release
-authority from overnight autonomy. Finance stays NO-GO and GSO operational/LGU
+stores. On 2026-10-18 the user authorized review, required exact-revision CI, VM
+integration and repository publication of preserved v0.7.177–v0.7.181 work and
+persistent decisions. Unexpected state or failed gates blocks publication; never
+force-push or infer further publication authority from autonomy. Deployment and
+production operations remain unauthorized. Finance stays NO-GO and GSO operational/LGU
 acceptance remains separate. Continue safe independent tasks when one is blocked;
 stop at an actual authority/safety/dependency boundary with a factual handoff.
+
+The same decision authorizes research-led Finance development using applicable
+official COA/DBM and other official sources, documented interpretations and explicit
+unresolved local questions. Research and owner permission are not Accounting
+approval; unresolved rules cannot authorize real transactions. Develop explicit
+documented asset-cost allocations with independent authorized Accounting review,
+audit history and no automatic JEV or official valuation claim before applicable
+policy is confirmed. Develop proposed maintenance corrections with independent
+approval and preserved originals/evidence; never silently change custody,
+Accounting or historical facts. Real historical imports are deferred; synthetic
+development does not establish migration readiness. The consolidated decision log
+owns these accepted choices; do not ask them again.
 
 ## Project context and documentation map
 
@@ -70,8 +82,9 @@ require DISPOSAL_PRIVATE_ROOT outside public media/static and separate coordinat
 file recovery; database dumps alone do not contain them. See [GSO data boundaries](docs/gso/grand-integration-design.md)
 and [recovery](docs/gso/security-and-recovery.md). Local form placeholders are
 authorized; draft outputs are not official form acceptance. New GSO/Finance work
-uses separate codex branches of GRAND after this integration checkpoint. User asks
-to pause after reviewed/tested integration and report actual outcomes in bullets.
+uses separate codex branches of GRAND after this integration checkpoint. The
+original integration pause was fulfilled at v0.7.176; the later direction above
+governs continued development and bounded publication.
 
 Private downloads must check path safety and retained hash/size on the actual
 streaming handle. Preserve additional case-wide checks; never replace them with

@@ -1,5 +1,16 @@
 # Property records and Finance relationships
 
+## Approved allocation development direction — 2026-10-18
+
+DECISION-FIN-002 authorizes explicit documented asset-cost allocations with
+independent authorized Accounting review and an audit trail, including synthetic
+development/tests. Retain original source amounts and the allocation basis; do not
+silently divide costs or rewrite existing records. Until applicable valuation
+policy is confirmed, allocations are not officially approved accounting values
+and generate no automatic JEVs. This does not claim an implemented allocation
+workflow or policy/operational acceptance. See the
+[decision register](../IMPLEMENTATION_DECISIONS.md) and current handoff.
+
 ## Working draft preparation — 2026-10-18
 
 The autonomous mission's local branch `codex/grand-autonomous-workflows` adds ICS

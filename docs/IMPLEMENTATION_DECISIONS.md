@@ -12,30 +12,38 @@ Accordingly, turning-point decisions should improve operational clarity without 
 
 ### Consolidated owner decisions — 2026-10-18
 
-These stable entries index existing unresolved dependencies; they are not a new
+These stable entries record accepted development choices and remaining evidence
+boundaries; they are not a new
 runtime approval register. The existing Finance discovery workflow still owns
 actual LGU confirmations. Resolve each question once with its sources, then update
 the linked contracts and all affected placeholders together. Routine technical
 choices remain the developer's responsibility.
 
-**DECISION-FIN-001 — Local quarterly/earmark semantics (open).** What confirmed
+**DECISION-FIN-001 — Research-led Finance development (accepted; rules unconfirmed).** What confirmed
 local basis, coverage and numerical treatment should the remaining planning and
 earmark/certificate operations use? Wrong assumptions would invent cash or
 certification authority. The [foundation gate](FINANCE_FOUNDATION_GATE.md) and
 [source contract](FINANCE_FORM1_SOURCE_CONTRACT.md) retain established facts and
 unknown overlap/coverage. Alternatives: adopt supplied reviewed evidence, or keep
-affected quantities unknown; guessing from labels is unsafe. Recommend the former
-when the owner supplies the actual basis and review. Independent drafts and other
-work continue; affected numerical/certification operations block at that boundary.
+affected quantities unknown; guessing from labels is unsafe. The owner authorizes
+research-led development from applicable official COA/DBM and other official sources.
+Record sources, applicability, interpretations and unresolved local choices. Do not
+require the owner to invent a basis before independent research and engineering
+continue. Neither research nor this authorization is formal Accounting approval;
+unresolved rules cannot authorize real financial transactions or certification.
 
-**DECISION-FIN-002 — Physical property cost allocation (open).** Which documented
+**DECISION-FIN-002 — Explicit reviewed asset-cost allocations (development accepted; valuation policy unconfirmed).** Which documented
 allocation basis and representative receipt/claim/component cases should Accounting
 approve? Documentary costs do not establish valuation. The
 [GSO completion audit](gso/completion-audit.md) records the existing amount-link
 controls and missing basis. Alternatives: a reviewed explicit per-component mapping
 or retained unknown allocations; automatic pro-rata allocation would invent a rule.
-Recommend explicit reviewed mappings after real cases are supplied. Physical custody
-and supplied-fact drafts continue; valuation/financial recognition integration blocks.
+The owner authorizes explicit documented allocations with independent authorized
+Accounting review and an audit trail. Develop/test with synthetic cases, retaining
+the allocation basis and original source amounts. Until applicable valuation policy
+is confirmed, an allocation is not an officially approved accounting value and
+creates no automatic journal entry. Real evidence/policy remain necessary for
+official financial use.
 
 **DECISION-GSO-001 — Official property output acceptance (open).** Which municipal
 PAR/ICS/SPC layouts, revisions, numbering and sign-off instructions are accepted?
@@ -45,13 +53,16 @@ mapping, or continue clearly marked working drafts. Recommend examples plus name
 property/Accounting review. PAR/ICS/SPC placeholders remain safe for preparation;
 official issuance, numbering, signed acknowledgment and compliance claims block.
 
-**DECISION-GSO-002 — Historical import scope (open).** Which source export, owners,
+**DECISION-GSO-002 — Real historical imports (deferred by owner).** Which source export, owners,
 identity mappings and discrepancy decisions should an eventual import retain?
 The [completion audit](gso/completion-audit.md) identifies the evidence needed.
 Alternatives: reviewed explicit maps and restored-copy rehearsal, or preserve
 unreconciled legacy records outside the active register. Recommend explicit maps;
 never match numeric IDs/names automatically. New operational work continues; an
 actual import or historical-opening certification blocks without that evidence.
+Real migration is explicitly deferred. Useful synthetic development/testing may
+continue; production migration readiness requires validated representative source
+records and reconciliation requirements. This does not block independent work.
 
 **DECISION-OPS-001 — Operational installation/recovery (open).** What authorized
 target, named operator roles, protected storage and recovery objectives/evidence
@@ -76,7 +87,7 @@ verification. Recommend retaining current gates until that dedicated review is
 authorized and validated. Feature development continues; no existing CI gate is
 changed, waived or treated as passed by this proposal.
 
-**DECISION-GSO-003 — Authoritative corrections to closed maintenance (open).**
+**DECISION-GSO-003 — Independently approved maintenance corrections (development accepted).**
 Which corrected fields, evidence and review authority may replace the effective
 documentary values of a closed work record? The existing maintenance service
 deliberately freezes closure; it provides no independently reviewed successor for
@@ -88,8 +99,23 @@ later. Notices are operational statements under the existing maintenance-managem
 grant, not approved corrections, signatures, payment or valuation. Safe provisional
 work includes recording the statement and optional protected source, with no
 effective cost/status/date/custody change. Applying corrected values or representing
-an approval blocks until the governing rule is established. Source-file integrity
-does not establish the truth or acceptance of a notice.
+an approval previously blocked pending direction. The owner now authorizes proposed
+corrections with independent approval, preserved original records/evidence and a
+complete audit trail. Existing notices remain statements, not implicitly approved
+corrections. Implement a distinct reviewed successor with explicit scope and
+downstream source checks; do not backfill approvals or silently alter custody,
+Accounting records or historical facts. File integrity does not establish truth.
+
+**DECISION-OPS-003 — Overnight chain publication (authorized; gates pending).**
+The owner authorizes the documented VM workflow to review, validate, integrate and
+publish preserved v0.7.176 → v0.7.181 work plus persistent decisions, only after
+actual-state review and every required gate. Inspect the complete diff, preserve
+unrelated work, verify hosted CI for the exact candidate and published master, and
+stop on unexpected state or failed gates. No bypass or force-push. Preserve existing
+history/tags; use the installed VM adapter for the documentation checkpoint.
+Continue safe independent development afterward. No deployment, production operation
+or formal LGU/Accounting acceptance is authorized. Finance remains NO-GO; production
+storage/recovery qualification and other release requirements stay outstanding.
 
 ### Established implementation decisions
 
