@@ -18,6 +18,13 @@ completed history: requesting-office clerks' counts exclude other offices' cases
 while existing UAT broader read access is preserved. See the [clerk handoff evidence](FINANCE_CLERK_HANDOFFS_2026-10-14.md)
 for the red reproduction, repair, real-route comparison and acceptance boundary.
 
+The local Asset-cost worksheets entry reuses its workbench permission and exact
+current GSO-owner/explicitly shared Accounting scope. Its review-status counts include
+retained history and are not financial values or approval authority. UAT may read
+without acquiring mutation rights. Actors without the separate module grant retain
+their other authorized workspaces. See [the worksheet contract](gso/asset-cost-allocations.md)
+and CONTINUE.md for current validation and publication state.
+
 Accounting, Budget, collection, reporting, record, custody, Finance setup and
 voucher links reuse their existing access helpers. HR leave administration links
 to the actual management screen only when authorized. Everyday employee links

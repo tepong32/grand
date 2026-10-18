@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.core import signing
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_http_methods
@@ -15,6 +15,8 @@ from . import asset_cost_allocations as service
 from .asset_cost_forms import AllocationProposalForm, AllocationComponents, AllocationDecisionForm
 
 SALT = 'gso-documentary-asset-cost-allocation-v1'
+STATUS_FILTERS = (('all', 'All proposals'), ('proposed', 'Awaiting review'),
+                  ('approved', 'Reviewed history'), ('rejected', 'Rejected proposals'))
 
 
 @never_cache
@@ -22,17 +24,23 @@ SALT = 'gso-documentary-asset-cost-allocation-v1'
 @require_GET
 def workbench(request):
     owner = department_for_user(request.user)
-    if not owner or not any(service.granted(request.user, a) for a in ('view', 'propose', 'review')):
+    if not service.can_view_workbench(request.user):
         raise PermissionDenied
+    status = request.GET.get('status', 'all')
+    if status not in dict(STATUS_FILTERS):
+        return HttpResponseBadRequest('Choose a valid allocation review status.')
     sources = ReceivingLine.objects.none()
     if service.can_propose(request.user):
         sources = ReceivingLine.objects.select_related('receipt', 'registered_asset').filter(
             receipt__department_id=owner.pk, receipt__status=ReceivingReceipt.ACCEPTED,
             kind=ReceivingLine.ASSET, is_void=False, registered_asset__isnull=False).order_by('-receipt_id', 'sequence')
     rows = service.visible(request.user).select_related('line__receipt', 'finance_department').order_by('-pk')
+    if status != 'all':
+        rows = rows.filter(status=status)
     return render(request, 'inventory_finance/asset_cost_workbench.html', {
         'page': Paginator(rows, 25).get_page(request.GET.get('page')),
-        'sources': Paginator(sources, 25).get_page(request.GET.get('source_page'))})
+        'sources': Paginator(sources, 25).get_page(request.GET.get('source_page')),
+        'selected_status': status, 'status_choices': STATUS_FILTERS})
 
 
 @never_cache

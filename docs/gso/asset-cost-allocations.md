@@ -43,3 +43,17 @@ drift, evidence integrity, native races, additive default-only migration,
 desktop/mobile staff journeys and stopped synthetic recovery evidence before a
 local checkpoint. Production storage/recovery and formal LGU acceptance remain
 separate. Finance stays **NO-GO**; no deployment.
+
+## Finding shared worksheets
+
+The employee starting page uses the same explicit module permission and current
+office/shared-Accounting visibility as the existing workbench. Its counts describe
+awaiting review, reviewed history and rejected proposals; they are not valuation,
+financial capacity, verified current source totals or approval authority. UAT retains
+its read access and mutation denial. No module grant is installed automatically.
+
+The workbench can show all proposals or one known review status. All remains the
+default so historical access is preserved. Both proposal and accepted-source page
+links retain the chosen filter and their positions; unknown status values are
+rejected. Filtering is read-only and never changes an original or review decision.
+Actual local validation and publication state belong to CONTINUE.md.

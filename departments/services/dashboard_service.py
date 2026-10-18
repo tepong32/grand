@@ -211,6 +211,20 @@ def _workspace_sections(department: Department, user=None) -> list[dict]:
             item.update(status="Restricted")
             item.pop("url_name", None)
     from accounting.access import can_view_accounting
+    from inventory_finance import asset_cost_allocations
+    if asset_cost_allocations.can_view_workbench(user):
+        worksheets = asset_cost_allocations.visible(user)
+        result.append({
+            "title": "Asset-cost worksheets", "icon": "fa-list-alt",
+            "description": "Prepare component amounts and review shared worksheets.",
+            "status": "Available", "url_name": "inventory_finance:asset-cost-workbench",
+            "action_label": "Open worksheets",
+            "summary_items": (
+                {"label": "Awaiting review", "value": worksheets.filter(status="proposed").count()},
+                {"label": "Reviewed history", "value": worksheets.filter(status="approved").count()},
+                {"label": "Rejected", "value": worksheets.filter(status="rejected").count()},
+            ),
+        })
     from budget.access import can_view as can_view_budget
     from vouchers.access import can_view_collections
     for title, icon, description, allowed, destination in (

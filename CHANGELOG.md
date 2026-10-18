@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.188] - 2026-10-18
+### Added
+- feat(gso): connect shared worksheets to employee home and review filters
+
 ## [0.7.187] - 2026-10-18
 ### Fixed
 - fix(gso): keep maintenance review navigation within authorized access

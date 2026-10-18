@@ -13,6 +13,10 @@ adds independently approved documentary successors without rewriting the origina
 explicit component amounts and independent Accounting review for one accepted
 asset receipt line. Both have local validation; publication state belongs to the
 current handoff. Official valuation, cross-receipt treatment and acceptance remain open.
+The locally implemented usability slice connects these existing worksheets to authorized
+employee home pages and review-status triage. It reuses current office/shared-source
+visibility and preserves provisional valuation and independent approval; no new
+financial rule or task infrastructure. Validation/publication belongs to CONTINUE.md.
 Local drafts do not establish official forms, signatures, ledger authority or
 operational acceptance. CONTINUE.md owns actual implementation/checkpoint results.
 The owner's subsequent 2026-10-18 decision authorizes gated VM publication of the

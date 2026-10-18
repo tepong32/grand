@@ -1,5 +1,77 @@
 # GRAND continuation handoff
 
+## Local employee worksheet entry and review triage — 2026-10-18
+
+The wider goal is ACTIVE. The first publication attempt safely stopped on the
+authenticated maintenance-navigation defect. Its bounded repair is installed-VM
+v0.7.187 / `a116691a100ed9230b578f73692ed12add84205e`, frozen on
+`codex/gso-maintenance-review-navigation` for [candidate CI39106284455](https://github.com/tepong32/grand/actions/runs/39106284455).
+Master remains verified v0.7.182 / `4e60e996f64c7c16fc39a4b5966e62b6b8e2cebf`.
+Integrate only after all required candidate gates, then verify exact-master CI.
+The cancelled v0.7.186 run and failed aggregate gates remain recorded below.
+
+Independent clean `codex/gso-allocation-review-queue` starts at that exact v0.7.187
+candidate. This local development is excluded from its publication and CI. The
+employee gap is concrete: authorized GSO/Accounting/UAT users could read worksheets
+by URL but had no employee-home entry, and the register ignored review-status
+selection. Current module/office visibility already owns the right records; no
+task system, permission, accounting rule or financial state is needed.
+
+Two regression methods against frozen original v0.7.187 FAILED with six subtest
+failures in1.190s: all three authorized home entries were absent, and each requested
+status still returned all rows. Actual command set `GRAND_TEST_SOURCE_ROOT` to the
+unchanged repaired-publication checkout, then ran `python -B .tmp/run_isolated.py
+test gso_integration_tests.test_asset_cost_work_queue.AssetCostWorkQueueTests.test_employee_home_reaches_the_authorized_shared_workspace_without_mutating_records
+gso_integration_tests.test_asset_cost_work_queue.AssetCostWorkQueueTests.test_status_filter_limits_shared_rows_and_defaults_to_all
+--noinput --verbosity 1`. Only new tests came from this worktree; original source
+and templates stayed frozen. No operator database or unrelated work was changed.
+
+The implemented local slice gives employee home an Asset-cost worksheets card
+through the existing workbench permission and exact visible-row query. Scoped
+Awaiting review / Reviewed history / Rejected counts link to the existing register.
+A simple GET status choice defaults to all, rejects unsupported states and preserves
+status plus both paginator positions. Current authority, independent decisions,
+UAT denial, immutable source/evidence and provisional valuation boundaries remain
+unchanged. No model, migration, grant, custody, Finance-store or journal change.
+Seven regressions cover discovery, scoping, independent ledger access, exact filter
+results, invalid input, real proposal pages and real source pages beyond25 rows.
+
+PASS: one serial SQLite run completed453 tests in206.658s:449 passed and four
+explicit native-only skips (three authentication collation/concurrency cases and
+one statement-package row-lock race). Actual command: documented Python3.11
+`-B .tmp/run_isolated.py test gso_integration_tests.test_asset_cost_work_queue
+gso_integration_tests.test_asset_cost_allocations gso_integration_tests.test_asset_cost_navigation
+departments users profiles home leave_mgt assistance social_welfare reporting records
+tracepoint finance.test_operations --testrunner preview_runner.CheckpointRunner
+--noinput --verbosity 1`. Scope follows the dashboard guide plus changed/related
+worksheet tests. All five runtime/template/test hashes stayed frozen. This is not
+a native or full current-revision CI pass; those remain publication gates.
+
+PASS: actual synthetic browser journeys reached the workbench from Accounting
+home, displayed1/1/1 scoped review counts, selected pending and rejected rows,
+and retained the other office's worksheet only in its GSO owner's view (2/1/1).
+UAT reads the pending detail without decision controls and the register fits390px
+without horizontal overflow. A ledger-only actor has no worksheet card while its
+existing ledger link remains. Browser screenshots are local synthetic evidence,
+not operator/Accounting acceptance. Fresh migration-only copies were seeded solely
+for this preview; subsequent verification confirms original asset/receiving rows,
+four verified worksheet states/six events, retained files and Finance-copy bytes.
+This checks expected states/events, not a before/after hash of every event field.
+Missing default logo/avatar/favicon404s were fixture-media limitations; no working
+route failed. Only the named browser and owned loopback server were stopped.
+
+PASS: isolated `check`, `makemigrations --check --dry-run` (no changes), `discover`
+(2939 unique /367 GSO across eight complete partitions) and `git diff --check`.
+No model, migration, routing or financial persistence changed; a duplicate local
+native run is NOT RUN — OUT OF SCOPE for this read-only presentation/query slice.
+The critical existing backend native evidence retains its original scope; it is
+not relabelled as validation of this new revision. The seven-checkout protected
+baseline remains unchanged. This slice remains local with no publication authority.
+Continue separate v0.7.187
+publication gates while developing safely; never push all local tags. Finance stays
+NO-GO, real historical imports remain deferred, and deployment/production operations
+remain unauthorized.
+
 ## Publication review remediation — 2026-10-18
 
 The wider goal was resumed through the interface and `get_goal` verified ACTIVE.

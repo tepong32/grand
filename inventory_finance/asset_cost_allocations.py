@@ -26,6 +26,11 @@ def granted(actor, action):
     return has_explicit_permission(actor, f'inventory_finance.{action}_assetcostallocation')
 
 
+def can_view_workbench(actor):
+    return bool(department_for_user(actor)
+                and any(granted(actor, action) for action in ('view', 'propose', 'review')))
+
+
 def can_propose(actor, line=None):
     owner = department_for_user(actor)
     return bool(owner and can_receiving(actor, 'view', line.receipt if line else None)
@@ -42,7 +47,7 @@ def can_review(actor, row):
 def visible(actor):
     owner = department_for_user(actor)
     rows = Allocation.objects.all()
-    if not owner or not any(granted(actor, a) for a in ('view', 'propose', 'review')):
+    if not can_view_workbench(actor):
         return rows.none()
     scope = Q(pk__in=[])
     if can_receiving(actor, 'view'):
