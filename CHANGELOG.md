@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.207] - 2026-10-19
+### Added
+- feat(finance): retain assessed charges with cheque redemption
+
 ## [0.7.206] - 2026-10-19
 ### Added
 - feat(inventory): page custody employee searches

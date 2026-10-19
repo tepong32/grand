@@ -33,7 +33,7 @@ def review_source(*, source, actor, approve, reason):
         from .cheque_returns import validate as validate_return
         validate_return(source)
         from .cheque_redemptions import validate as validate_redemption
-        validate_redemption(source)
+        validate_redemption(source, review=True)
         from .collection_charges import validate as validate_charges
         validate_charges(source, review=True)
         from .bank_collections import validate as validate_bank

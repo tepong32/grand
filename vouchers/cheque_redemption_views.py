@@ -1,10 +1,12 @@
 from django import forms
+from decimal import Decimal
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 from finance.models import FinanceTransactionVariant, FinancePostingRuleLine as Line
 from .collection_views import visible_sources
+from .collection_views import CollectionChargeForm
 from .collections import require
 from .models import TreasuryCollectionSource as Source
 from . import cheque_redemptions
@@ -13,7 +15,8 @@ from . import cheque_redemptions
 class RedemptionForm(forms.Form):
     variant = forms.ModelChoiceField(queryset=FinanceTransactionVariant.objects.none(), label='Reviewed principal-receipt treatment')
     received_on = forms.DateField(widget=forms.DateInput(attrs={'type':'date'}), label='Actual date received')
-    received_amount = forms.DecimalField(max_digits=18,decimal_places=2,label='Principal received')
+    received_amount = forms.DecimalField(max_digits=18,decimal_places=2,min_value=Decimal('0.01'),label='Total actually received',
+        help_text='Enter the principal plus any separately assessed additional charges below.')
     receipt_book = forms.CharField(max_length=80,label='New receipt book')
     receipt_number = forms.CharField(max_length=80,label='New receipt number')
     evidence_reference = forms.CharField(max_length=4000,widget=forms.Textarea,label='Actual receipt evidence')
@@ -47,6 +50,21 @@ class RedemptionForm(forms.Form):
         return values
 
 
+class RedemptionChargeForm(CollectionChargeForm):
+    authority_reference = forms.CharField(max_length=4000, widget=forms.Textarea(attrs={'rows':2}),
+        label='Applicable ordinance / authority reference')
+    assessment_reference = forms.CharField(max_length=4000, widget=forms.Textarea(attrs={'rows':2}),
+        label='Actual assessment reference and amount basis')
+
+    def __init__(self, *args, original_return, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['variant'].queryset = self.fields['variant'].queryset.filter(
+            department_id=original_return.finance_department_id)
+
+
+RedemptionCharges = forms.formset_factory(RedemptionChargeForm, extra=1)
+
+
 @login_required
 @require_http_methods(['GET','POST'])
 def create(request,public_id):
@@ -54,12 +72,20 @@ def create(request,public_id):
     if require(request.user,'vouchers.prepare_collections').pk != source.treasury_department_id:
         raise PermissionDenied
     form = RedemptionForm(request.POST or None,original_return=source,initial={'received_amount':source.amount})
-    if request.method == 'POST' and form.is_valid():
+    charge_data = request.POST if request.method == 'POST' and any(key.startswith('charges-') for key in request.POST) else None
+    charges = RedemptionCharges(charge_data, prefix='charges', form_kwargs={'original_return':source})
+    if request.method == 'POST' and form.is_valid() and (not charges.is_bound or charges.is_valid()):
         try:
-            receipt = cheque_redemptions.capture(original_return=source,actor=request.user,**form.cleaned_data)
+            components = [{'variant':str(row.cleaned_data['variant'].public_id),
+                **{key:row.cleaned_data[key] for key in ('amount','authority_reference','assessment_reference')}}
+                for row in charges if charges.is_bound and row.cleaned_data]
+            receipt = cheque_redemptions.capture(original_return=source,actor=request.user,
+                charges=components,**form.cleaned_data)
         except ValidationError as exc:
             form.add_error(None,exc)
         else:
             return redirect('vouchers:collection_detail',public_id=receipt.public_id)
-    return render(request,'vouchers/collections/form.html',{'form':form,'title':'Receive returned-cheque principal',
-        'redemption_form':True})
+    return render(request,'vouchers/collections/form.html',{'form':form,'title':'Receive returned-cheque redemption',
+        'redemption_form':True, 'original_principal':source.amount,
+        'officer_principal_only':bool(source.proposal.get('advance_cheque_return')),
+        'charges':charges})

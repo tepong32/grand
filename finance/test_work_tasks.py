@@ -784,16 +784,26 @@ class FinanceWorkTaskContractTests(TestCase):
 
     def test_setup_completion_credits_retained_actions_and_keeps_current_state_separate(self):
         from .services import transition_release
+        from unittest.mock import patch
 
         today = timezone.localdate()
         release = self._release(code="COMPLETED-SETUP", status="draft", effective_from=today + timedelta(days=5))
         self._release(code="STATUS-ONLY", status="active", effective_from=today)
-        transition_release(release, "submit", self.worker)
+        # This case asserts chronology. Equal timestamps intentionally sort by
+        # stable task identity, covered separately by the completed-pages case.
+        recorded_at = timezone.now()
+        with patch("django.utils.timezone.now", return_value=recorded_at):
+            transition_release(release, "submit", self.worker)
         first_id = finance_work_tasks(self.worker, view="completed")["tasks"][0]["task_id"]
-        transition_release(release, "return", self.reviewer, "Retain the correction reason.")
-        transition_release(release, "submit", self.worker)
-        transition_release(release, "approve", self.reviewer, "Reviewed corrected basis.")
-        transition_release(release, "schedule", self.reviewer)
+        with patch("django.utils.timezone.now", return_value=recorded_at + timedelta(seconds=1)):
+            transition_release(release, "return", self.reviewer, "Retain the correction reason.")
+        with patch("django.utils.timezone.now", return_value=recorded_at + timedelta(seconds=2)):
+            transition_release(release, "submit", self.worker)
+        with patch("django.utils.timezone.now", return_value=recorded_at + timedelta(seconds=3)):
+            transition_release(release, "approve", self.reviewer, "Reviewed corrected basis.")
+        with patch("django.utils.timezone.now", return_value=recorded_at + timedelta(seconds=4)):
+            transition_release(release, "schedule", self.reviewer)
+        self.assertLess(release.events.get(action="approve").created_at, release.events.get(action="schedule").created_at)
         prepared = finance_work_tasks(self.worker, view="completed")
         self.assertEqual(prepared["task_count"], 2)
         self.assertEqual(len({task["task_id"] for task in prepared["tasks"]}), 2)
@@ -808,7 +818,8 @@ class FinanceWorkTaskContractTests(TestCase):
         self.assertEqual(reviewed["task_count"], 3)
         self.assertTrue(reviewed["tasks_truncated"])
         self.assertEqual(reviewed["tasks"][0]["subject"], "Scheduled setup release")
-        transition_release(release, "retire", self.reviewer)
+        with patch("django.utils.timezone.now", return_value=recorded_at + timedelta(seconds=5)):
+            transition_release(release, "retire", self.reviewer)
         self.assertEqual(finance_work_tasks(self.reviewer, view="completed")["task_count"], 4)
         self.client.force_login(self.worker)
         response = self.client.get(reverse("finance_operations:my_work"), {"view": "completed"})

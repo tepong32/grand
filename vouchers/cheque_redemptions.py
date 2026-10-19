@@ -94,7 +94,7 @@ def rows(owner, snapshot, total, proof):
 
 @transaction.atomic
 def capture(*, original_return, actor, variant, received_on, received_amount, receipt_book,
-            receipt_number, evidence_reference, old_receipt_disposition, old_receipt_evidence, cheque=None):
+            receipt_number, evidence_reference, old_receipt_disposition, old_receipt_evidence, cheque=None, charges=None):
     office = require(actor,'vouchers.prepare_collections')
     if office.pk != original_return.treasury_department_id:
         raise PermissionDenied
@@ -106,8 +106,10 @@ def capture(*, original_return, actor, variant, received_on, received_amount, re
     available(source,received_on)
     variant,fund,rule,snapshot,checksum = context(variant,received_on,source.fund_code,Source.RECEIPT)
     total = amount(received_amount)
-    if total != source.amount or fund.pk != proof['fund_id'] or variant.department_id != source.finance_department_id:
+    if fund.pk != proof['fund_id'] or variant.department_id != source.finance_department_id:
         raise ValidationError('Redeem the whole original principal in its original fund and Accounting office.')
+    if charges and source.proposal.get('advance_cheque_return'):
+        raise ValidationError('Keep officer-advance replacement receipts principal-only; additional charges need a separate authorized collection.')
     if (old_receipt_disposition not in OR_DISPOSITIONS
             or not str(old_receipt_evidence or '').strip() or not str(evidence_reference or '').strip()):
         raise ValidationError('Retain the actual receipt evidence and original OR surrender or loss-affidavit evidence.')
@@ -115,7 +117,15 @@ def capture(*, original_return, actor, variant, received_on, received_amount, re
         raise ValidationError('Cheque redemption requires an explicitly identified manager’s or cashier’s cheque.')
     from .collection_cheques import capture as capture_cheque
     instrument = capture_cheque(office,received_on,cheque)
-    financial = rows(source.finance_department_id,snapshot,total,proof)
+    financial = rows(source.finance_department_id,snapshot,source.amount,proof)
+    retained_charges = []
+    if charges:
+        from .redemption_charges import build
+        financial, retained_charges = build(owner=source.finance_department_id, release_id=variant.release_id,
+            fund_id=fund.pk, day=received_on, fund_code=source.fund_code, principal_rows=financial,
+            charges=charges, current=True)
+    if total != source.amount + sum((Decimal(row['amount']) for row in retained_charges), Decimal('0')):
+        raise ValidationError('The total actually received must equal the whole principal plus every assessed charge.')
     proposal = {'schema_version':1, 'payer_reference':source.return_receipt.proposal['payer_reference'],
         'evidence_reference':str(evidence_reference).strip(), 'redemption':proof,
         'old_receipt_disposition':old_receipt_disposition,'old_receipt_evidence':str(old_receipt_evidence).strip(),
@@ -123,6 +133,8 @@ def capture(*, original_return, actor, variant, received_on, received_amount, re
         'fund_id':fund.pk,'financial_rows':financial,'cash_account_id':financial[0]['account_id']}
     if instrument:
         proposal['cheque'] = instrument
+    if retained_charges:
+        proposal['redemption_charges'] = retained_charges
     if source.proposal.get('advance_cheque_return'):
         from .advance_applications import capacity
         from accounting.models import JournalSubsidiaryLine
@@ -134,7 +146,7 @@ def capture(*, original_return, actor, variant, received_on, received_amount, re
         book=receipt_book,reference=receipt_number,day=received_on,total=total,proposal=proposal,redemption_return=source)
 
 
-def validate(source, *, lock_finance=False):
+def validate(source, *, lock_finance=False, review=False):
     proof = source.proposal.get('redemption')
     if not proof and not source.redemption_return_id:
         return
@@ -145,13 +157,25 @@ def validate(source, *, lock_finance=False):
     if lock_finance:
         JournalEntry.objects.select_for_update().get(pk=entry.pk)
         _, current = original(source.redemption_return,source.source_date)
-    expected = rows(source.finance_department_id,source.proposal['posting_rule_snapshot'],source.amount,proof)
+    principal = Decimal(current['principal'])
+    expected = rows(source.finance_department_id,source.proposal['posting_rule_snapshot'],principal,proof)
+    charges = source.proposal.get('redemption_charges', [])
+    if charges:
+        if source.redemption_return.proposal.get('advance_cheque_return'):
+            raise ValidationError('Officer-advance replacement receipts must remain principal-only.')
+        from .redemption_charges import build
+        expected, retained = build(owner=source.finance_department_id, release_id=source.configuration_release_id,
+            fund_id=entry.fund_id, day=source.source_date, fund_code=source.fund_code, principal_rows=expected,
+            charges=charges, current=review)
+        if retained != charges:
+            raise ValidationError('An assessed charge recipe changed. Reject this receipt and prepare a current successor.')
     current_officer = source.proposal.get('advance_refund')
     original_officer = source.redemption_return.proposal.get('advance_cheque_return')
     if ({key:value for key,value in (current_officer or {}).items() if key != 'disbursement'}
             != {key:value for key,value in (original_officer or {}).items() if key != 'disbursement'}):
         raise ValidationError('Retain the original officer refund identity on its replacement principal receipt.')
-    if (proof != current or source.amount != Decimal(proof['principal']) or source.proposal['fund_id'] != entry.fund_id
+    if (proof != current or source.amount != principal + sum((amount(row['amount']) for row in charges), Decimal('0'))
+            or source.proposal['fund_id'] != entry.fund_id
             or source.finance_department_id != entry.department_id
             or source.treasury_department_id != source.redemption_return.treasury_department_id
             or source.fund_code != source.redemption_return.fund_code

@@ -1,5 +1,12 @@
 # GRAND Finance complete-cycle roadmap
 
+October19 [ordinary redemption charges](FINANCE_REDEMPTION_CHARGES_2026-10-19.md)
+implement the documented principal-plus-assessed-components extension using
+reviewed collection recipes. Officer replacements retain principal-only dated
+capacity. Actual ordinance/applicability, external custody and prescribed-output
+acceptance remain separate. CONTINUE.md records actual validation/local version;
+this functionality does not establish Finance GO or formal Accounting approval.
+
 October19 obligation-service follow-up applies existing model line validation at
 submission/certification: exact appropriation/office, positive amount and valid
 movement direction. See [contract](FINANCE_OBLIGATION_LINE_VALIDATION_2026-10-19.md)

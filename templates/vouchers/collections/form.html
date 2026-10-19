@@ -4,7 +4,8 @@
 {% block content %}
 <div class="container py-3"><h1 class="h3">{{ title }}</h1>
 {% if custody_form %}<p>Use an item from your draft or currently held TracePoint packet. Linking identifies the cheque; only TracePoint's confirmed handover establishes physical custody.</p><p><a href="{% url 'tracepoint:workspace' %}">Open TracePoint to prepare or receive the actual packet</a></p>{% endif %}
-{% if redemption_form %}<p>Apply this new receipt to the original returned-cheque principal. A replacement cheque remains pending until bank clearing is confirmed. Record principal only here; fees and penalties need their separately reviewed collection treatment.</p>{% endif %}
+{% if redemption_form %}<p>Original principal: <strong>{{ original_principal }}</strong>. Apply this new receipt to that whole principal. A replacement cheque remains pending until bank clearing is confirmed.</p>
+{% if officer_principal_only %}<p>Officer-advance replacement: record principal only. Any additional charge needs a separate authorized collection; it must not reduce the officer advance.</p>{% else %}<p>Additional charges are optional. Enter only actual assessed amounts with applicable authority and a reviewed collection type. No rate or penalty is calculated here.</p>{% endif %}{% endif %}
 <p>{% if clearing_form %}Retain the bank confirmation and actual clearing date for independent Accounting review. The original receipt and deposit remain posted.{% else %}Retain the actual transaction date and supporting reference. Accounting independently reviews sources before posting.{% endif %}</p>
 <form method="post">{% csrf_token %}{{ form.as_p }}
 {% if shares %}<h2 class="h5">Receipts included in this deposit</h2><p>Enter each receipt and its actual deposited amount. Leave unused rows blank.</p>{{ shares.management_form }}{{ shares.non_form_errors }}
@@ -12,8 +13,8 @@
 <template id="deposit-share-template"><fieldset class="border p-3 mb-2"><legend class="h6">Additional receipt</legend>{{ shares.empty_form.as_p }}</fieldset></template>
 <button type="button" id="add-deposit-share" class="btn btn-outline-secondary mb-3">Add another receipt</button>
 <script src="{% static 'vouchers/collection-deposits.js' %}" defer></script>{% endif %}
-{% if charges %}<details {% if charges.is_bound or has_charges %}open{% endif %}><summary>One receipt covering several charge types</summary>
-<p>Enter each charge type and amount. Their sum must equal the amount received. Leave this section blank for an ordinary single-type receipt.</p>
+{% if charges and not officer_principal_only %}<details {% if charges.is_bound or has_charges %}open{% endif %}><summary>{% if redemption_form %}Additional assessed charges{% else %}One receipt covering several charge types{% endif %}</summary>
+<p>{% if redemption_form %}Enter each additional charge once. The total actually received must equal the original principal plus all these amounts. Retain the applicable ordinance and assessment for independent Accounting review. Leave unused rows blank.{% else %}Enter each charge type and amount. Their sum must equal the amount received. Leave this section blank for an ordinary single-type receipt.{% endif %}</p>
 {{ charges.management_form }}{{ charges.non_form_errors }}
 <div id="collection-charges">{% for charge in charges %}<fieldset class="border p-3 mb-2"><legend class="h6">Charge {{ forloop.counter }}</legend>{{ charge.as_p }}</fieldset>{% endfor %}</div>
 <template id="collection-charge-template"><fieldset class="border p-3 mb-2"><legend class="h6">Additional charge</legend>{{ charges.empty_form.as_p }}</fieldset></template>

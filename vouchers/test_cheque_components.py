@@ -103,3 +103,16 @@ class ComponentTests(TestCase):
         source.refresh_from_db()
         with self.assertRaises(ValidationError):
             review_source(source=source,actor=self.validator,approve=True,reason='Changed retained component')
+
+    def test_assessed_charge_preserves_mixed_original_principal_purposes(self):
+        receipt, deposit = self.sources()
+        original = self.bank_return(receipt, deposit); self.post_source(original); original.refresh_from_db()
+        replacement = self.redeem(original, received_amount='140', charges=[
+            fixtures.RedemptionTests.charge_data(self),
+            fixtures.RedemptionTests.charge_data(self, variant=str(self.second_type.public_id), amount='15')])
+        entry = self.post_source(replacement)
+        self.assertEqual(set(entry.lines.filter(account=self.collection_cash).values_list('cash_flow_category','debit')),
+            {('op_services', Decimal('85')), ('op_taxes', Decimal('55'))})
+        self.assertEqual(entry.lines.get(account=self.receivable).credit, Decimal('100'))
+        self.assertEqual(list(entry.lines.filter(account=self.collection_revenue).values_list('credit', flat=True)),
+            [Decimal('25'), Decimal('15')])

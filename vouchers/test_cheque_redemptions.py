@@ -47,6 +47,152 @@ class RedemptionTests(TestCase):
         self.post_source(source); source.refresh_from_db()
         return source
 
+    def charge_data(self, **changes):
+        values = {'variant': str(self.transaction_variant.public_id), 'amount': '25',
+            'authority_reference': 'Synthetic ordinance section, applicability checked',
+            'assessment_reference': 'Synthetic assessment: fixed 25, no inferred rate'}
+        values.update(changes)
+        return values
+
+    def post_combined(self, original, total='125', **changes):
+        from django.urls import reverse
+        self.client.force_login(self.treasury_user)
+        values = {'variant': self.redemption_type.pk, 'received_on': '2026-09-15',
+            'received_amount': total, 'receipt_book': 'COMBINED', 'receipt_number': '001',
+            'evidence_reference': 'Actual synthetic principal and assessed charge received',
+            'old_receipt_disposition': 'surrendered', 'old_receipt_evidence': 'Synthetic OR surrendered',
+            'method': 'cash', 'charges-TOTAL_FORMS': '1', 'charges-INITIAL_FORMS': '0'}
+        values.update({'charges-0-'+key: value for key, value in self.charge_data().items()})
+        values.update(changes)
+        return self.client.post(reverse('vouchers:cheque_redemption_create', args=[original.public_id]), values)
+
+    def test_http_combined_redemption_retains_assessed_charge(self):
+        original = self.returned_source()
+        response = self.post_combined(original)
+        self.assertEqual(response.status_code, 302)
+        receipt = Source.objects.get(book_reference='COMBINED')
+        self.assertEqual(receipt.amount, Decimal('125'))
+        self.assertEqual(receipt.proposal['redemption']['principal'], '100.00')
+        self.assertEqual(receipt.proposal['redemption_charges'][0]['assessment_reference'], self.charge_data()['assessment_reference'])
+        self.assertContains(self.client.get(response.url), self.charge_data()['authority_reference'])
+
+    def test_http_charge_cannot_be_ignored_to_accept_underpayment(self):
+        original = self.returned_source()
+        response = self.post_combined(original, total='100')
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Source.objects.filter(book_reference='COMBINED').exists())
+
+    def test_assessed_charge_posts_separately_and_exact_correction_preserves_copy(self):
+        from .collection_outputs import generate, content
+        from .collections import remaining_receipts
+        original = self.returned_source()
+        receipt = self.redeem(original, received_amount='125', charges=[self.charge_data()])
+        entry = self.post_source(receipt)
+        self.assertEqual(entry.lines.get(account=self.collection_cash).debit, Decimal('125'))
+        self.assertEqual(entry.lines.get(account=self.receivable).credit, Decimal('100'))
+        self.assertEqual(entry.lines.get(account=self.collection_revenue).credit, Decimal('25'))
+        self.assertEqual(remaining_receipts(self.treasury.pk)[str(receipt.public_id)], Decimal('125'))
+        frozen = generate(source=receipt, actor=self.validator)
+        original_bytes = content(frozen, self.validator)
+        self.assertIn(self.charge_data()['assessment_reference'].encode(), original_bytes)
+        with self.assertRaises(ValidationError): self.redeem(original, receipt_number='DUPLICATE')
+        correction = correct(original=receipt, actor=self.treasury_user, corrected_on=date(2026,9,15), reason='Wrong assessed amount')
+        with self.assertRaises(ValidationError): self.redeem(original, receipt_number='TOO-EARLY')
+        reversal = self.post_source(correction)
+        self.assertEqual(reversal.reversal_of_id, entry.pk)
+        self.assertEqual(reversal.lines.get(account=self.receivable).debit, Decimal('100'))
+        self.assertEqual(reversal.lines.get(account=self.collection_revenue).debit, Decimal('25'))
+        self.assertEqual(content(frozen, self.validator), original_bytes)
+        self.assertEqual(self.redeem(original, receipt_number='REPLACEMENT').amount, Decimal('100'))
+
+    def test_review_rechecks_charge_recipe_then_posting_uses_approved_snapshot(self):
+        from .collection_posting import review_source, materialize
+        original = self.returned_source()
+        receipt = self.redeem(original, received_amount='125', charges=[self.charge_data()])
+        line = self.transaction_variant.posting_rules.get(event_kind=Rule.COLLECTION).lines.get(side=Line.DEBIT)
+        Line.objects.filter(pk=line.pk).update(cash_flow_category='op_taxes')
+        with self.assertRaises(ValidationError):
+            review_source(source=receipt, actor=self.validator, approve=True, reason='Changed fee recipe')
+        self.assertFalse(receipt.posting_requests.exists())
+        Line.objects.filter(pk=line.pk).update(cash_flow_category='op_services')
+        review_source(source=receipt, actor=self.validator, approve=True, reason='Independent assessment and authority checked')
+        Line.objects.filter(pk=line.pk).update(cash_flow_category='op_taxes')
+        entry, created = materialize(receipt.posting_requests.get(), self.preparer)
+        self.assertTrue(created)
+        self.assertEqual(entry.lines.get(account=self.collection_cash).debit, Decimal('125'))
+        self.assertEqual(entry.lines.get(account=self.collection_cash).cash_flow_category, 'op_services')
+
+    def test_charge_evidence_amounts_identity_and_cash_route_are_required(self):
+        original = self.returned_source()
+        before = Source.objects.count()
+        for charges in ([self.charge_data(authority_reference='')], [self.charge_data(assessment_reference='')],
+                [self.charge_data(amount='-25')], [self.charge_data(amount='NaN')],
+                [self.charge_data(variant='invalid')], [self.charge_data(), self.charge_data()],
+                [self.charge_data(variant=str(self.redemption_type.public_id))], {'variant':'not-a-list'}):
+            with self.subTest(charges=charges), self.assertRaises(ValidationError):
+                self.redeem(original, received_amount='125', charges=charges)
+        debit = self.transaction_variant.posting_rules.get(event_kind=Rule.COLLECTION).lines.get(side=Line.DEBIT)
+        Line.objects.filter(pk=debit.pk).update(ledger_account_code=self.deposit_bank.code)
+        with self.assertRaises(ValidationError): self.redeem(original, received_amount='125', charges=[self.charge_data()])
+        self.assertEqual(Source.objects.count(), before)
+
+    def test_charge_cannot_cross_accounting_setup_or_bypass_actor_authority(self):
+        from django.contrib.auth.models import Group
+        from .roles import FINANCE_UAT_VIEWER_GROUP
+        original = self.returned_source()
+        foreign = FinanceTransactionVariant.objects.create(department=self.treasury, release=self.release,
+            code='foreign-charge', label='Other office charge', kind='other',
+            authority_reference='Synthetic foreign office', effective_from=date(2026,1,1), status='active', created_by=self.preparer)
+        with self.assertRaises(ValidationError):
+            self.redeem(original, received_amount='125', charges=[self.charge_data(variant=str(foreign.public_id))])
+        with self.assertRaises(PermissionDenied):
+            self.redeem(original, actor=self.validator, received_amount='125', charges=[self.charge_data()])
+        self.treasury_user.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        self.assertEqual(self.post_combined(original).status_code, 403)
+        with self.assertRaises(PermissionDenied):
+            self.redeem(original, received_amount='125', charges=[self.charge_data()])
+
+    def test_approved_charge_tampering_cannot_materialize_a_second_recipe(self):
+        from copy import deepcopy
+        from .collection_posting import review_source, materialize
+        from .remittances import _digest
+        original = self.returned_source()
+        receipt = self.redeem(original, received_amount='125', charges=[self.charge_data()])
+        review_source(source=receipt, actor=self.validator, approve=True, reason='Independent actual assessment')
+        proposal = deepcopy(receipt.proposal)
+        proposal['redemption_charges'][0]['amount'] = '24.00'
+        Source.objects.filter(pk=receipt.pk).update(proposal=proposal, proposal_checksum=_digest(proposal))
+        with self.assertRaises(ValidationError): materialize(receipt.posting_requests.get(), self.preparer)
+        self.assertFalse(receipt.posting_requests.get().accounting_entry_public_id)
+
+    def test_combined_manager_cheque_deposits_whole_total_and_later_return_is_distinct(self):
+        original = self.returned_source()
+        receipt = self.redeem(original, received_amount='125', charges=[self.charge_data()],
+            cheque={'kind':'manager','bank':'Synthetic bank','drawer_account':'Manager account',
+                'number':'COMBINED-MC','drawer':'Synthetic bank','date':'2026-09-15'})
+        entry = self.post_source(receipt); receipt.refresh_from_db()
+        with self.assertRaises(ValidationError): self.deposit(receipt, '100', 'PARTIAL-CHEQUE')
+        deposit = self.deposit(receipt, '125', 'COMBINED-CHEQUE'); self.post_source(deposit); deposit.refresh_from_db()
+        self.assertIn('clearing pending', redemption.settlement(receipt)['status'])
+        later = self.bank_return(receipt, deposit, debit_amount='125', bank_reference='COMBINED-RETURN', debited_on=date(2026,9,15))
+        returned = self.post_source(later); later.refresh_from_db()
+        self.assertEqual(returned.lines.get(account=self.receivable).debit, Decimal('125'))
+        with self.assertRaises(ValidationError): self.redeem(original, receipt_number='OLD-PRINCIPAL')
+        successor = self.redeem(later, received_amount='125', receipt_number='NEW-RETURN')
+        settled = self.post_source(successor)
+        self.assertFalse(settled.lines.filter(account=self.collection_revenue).exists())
+        self.assertEqual(entry.lines.get(account=self.collection_revenue).credit, Decimal('25'))
+
+    def test_http_incomplete_assessment_and_management_data_preserve_input(self):
+        original = self.returned_source()
+        response = self.post_combined(original, **{'charges-0-assessment_reference':''})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'This field is required.')
+        self.assertContains(response, self.charge_data()['authority_reference'])
+        response = self.post_combined(original, **{'charges-TOTAL_FORMS':'invalid'})
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Source.objects.filter(book_reference='COMBINED').exists())
+
     def redeem(self, source, **changes):
         values = dict(original_return=source,actor=self.treasury_user,variant=self.redemption_type,
             received_on=date(2026,9,15),received_amount='100',receipt_book='REDEMPTION',receipt_number='001',
@@ -165,6 +311,7 @@ class RedemptionConcurrencyTests(TransactionTestCase):
     bank_return = RedemptionTests.bank_return
     redeem = RedemptionTests.redeem
     returned_source = RedemptionTests.returned_source
+    charge_data = RedemptionTests.charge_data
     race = fixtures.ReturnConcurrencyTests.race
 
     def setUp(self):
@@ -178,6 +325,16 @@ class RedemptionConcurrencyTests(TransactionTestCase):
             return 'accepted'
         result = self.race(compete)
         self.assertEqual(result.count('accepted'),1,result)
+
+    def test_combined_charge_and_principal_only_compete_for_one_original_hold(self):
+        original = self.returned_source()
+        def compete(number):
+            changes = {'received_amount':'125','charges':[self.charge_data()]} if number == 1 else {}
+            self.redeem(original, receipt_number=str(number), **changes)
+            return 'accepted'
+        result = self.race(compete)
+        self.assertEqual(result.count('accepted'), 1, result)
+        self.assertEqual(original.redemption_receipts.count(), 1)
 
     def test_redemption_and_return_correction_share_original_source_lock(self):
         original = self.returned_source()

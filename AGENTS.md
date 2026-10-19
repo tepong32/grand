@@ -60,6 +60,13 @@ production operations remain unauthorized. Finance stays NO-GO and GSO operation
 acceptance remains separate. Continue safe independent tasks when one is blocked;
 stop at an actual authority/safety/dependency boundary with a factual handoff.
 
+Ordinary cheque redemptions may combine full principal with explicitly assessed
+charges under existing reviewed collection recipes. Retain separate amounts,
+applicable authority and assessment evidence; never infer rates or recognize
+principal as revenue again. Recheck recipes at review, pin them afterward, and
+preserve exact corrections and the original principal hold. Officer replacements
+remain principal-only. See [bounded contract](docs/FINANCE_REDEMPTION_CHARGES_2026-10-19.md).
+
 Budget allotment/obligation writers must preserve capacity at every affected
 effective-date boundary under the existing appropriation-line lock. A later
 return, release or cancellation cannot fund an earlier shortfall; latest balance
@@ -341,8 +348,9 @@ cheque stays pending until independently confirmed clearing; later dishonour sel
 new linked return instead of reopening the original reservation. Exact receipt correction
 retires its hold only after reconciliation and preserves dated deposit history. Versioned
 internal TracePoint associations retain separate physical handovers, independent mistaken-link
-withdrawal and joint visibility for custody-bearing outputs. External delivery, combined
-penalties and officer timing remain open. See
+withdrawal and joint visibility for custody-bearing outputs. External delivery and
+combined officer charges remain open; ordinary assessed charges use the
+[explicit component extension](docs/FINANCE_REDEMPTION_CHARGES_2026-10-19.md). See
 [current redemption scope](docs/FINANCE_CHEQUE_REDEMPTIONS_IN_PROGRESS.md).
 
 Incoming cheque bank returns have a validated v0.7.111 development checkpoint. Reuse collection sources with

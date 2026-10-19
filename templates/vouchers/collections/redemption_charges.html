@@ -1,0 +1,4 @@
+{% if charges %}<div style="overflow-wrap:anywhere"><h2 class="h5">Additional assessed charges</h2>
+{% for charge in charges %}<p><strong>{{ charge.label }} · {{ charge.code }} · {{ charge.amount }}</strong><br>
+Authority: {{ charge.authority_reference }}<br>Assessment: {{ charge.assessment_reference }}</p>{% endfor %}
+<p>These charges are separate from the original principal. The receipt amount includes both.</p></div>{% endif %}

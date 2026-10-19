@@ -104,6 +104,18 @@ class OfficerReturnTests(fixtures.OfficerChequeTests):
         self.assertEqual(sum(value for day,value in movements(detail)),Decimal('400'))
         self.assertEqual(subsidiary_schedule_rows(self.accounting.pk,'advance',timezone.localdate())[0]['balance'],Decimal('600'))
 
+    def test_assessed_charge_cannot_reduce_officer_advance_by_receipt_total(self):
+        detail, receipt, deposit = self.ready_return()
+        source = self.bank_return(receipt, deposit); self.post_refund_source(source)
+        before = movements(detail)
+        with self.assertRaises(ValidationError):
+            self.replacement(source, received_amount='425', charges=[{'variant':str(self.transaction_variant.public_id),
+                'amount':'25','authority_reference':'Synthetic fee basis','assessment_reference':'Synthetic 25 assessment'}])
+        self.assertEqual(movements(detail), before)
+        self.assertFalse(source.redemption_receipts.exists())
+        self.post_refund_source(self.replacement(source))
+        self.assertEqual(sum(value for day, value in movements(detail)), Decimal('400'))
+
     def test_source_error_correction_reserves_before_post_and_mirrors_officer(self):
         detail,receipt,deposit=self.ready_return()
         source=self.bank_return(receipt,deposit); self.post_refund_source(source)

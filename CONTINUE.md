@@ -1,5 +1,157 @@
 # GRAND continuation handoff
 
+## Ordinary redemption charges — local v0.7.207 checkpoint, 2026-10-19
+
+Goal ACTIVE. Isolated `codex/cheque-redemption-charges` starts tracked-clean at
+local206 / `d67b9caefbe7041b04845db454d20ac194565a45`. Prior worktree's three
+browser PNGs remain there. Published master is still187 /
+`a116691a100ed9230b578f73692ed12add84205e`. No merge, push, hosted CI, deployment
+or production operations. Finance **NO-GO**; research/testing does not establish
+formal Accounting/LGU/GSO acceptance. No coding agent was launched.
+
+Implemented the documented ordinary principal-plus-assessed-charges extension.
+One receipt total must equal the whole original principal plus explicit charges,
+each with an applicable authority and actual assessment. Existing reviewed recipes
+retain separate revenue/liability and cash-purpose amounts; independent review
+rechecks them and posting pins approved snapshots. Original principal is never
+recognized as new revenue. Existing whole-cheque deposits, return lineage, exact
+correction and one principal hold remain. Details/immutable source copies include
+the assessments. No model, migration, permission or routing changes. Officer
+replacement receipts remain principal-only with direct rejection/no-capacity-change
+coverage. See [contract, official source and boundaries](docs/FINANCE_REDEMPTION_CHARGES_2026-10-19.md).
+
+PASS baseline reproduction against unchanged206 application: `python -B
+.tmp/run_isolated.py test
+vouchers.test_cheque_redemptions.RedemptionTests.test_http_combined_redemption_retains_assessed_charge
+vouchers.test_cheque_redemptions.RedemptionTests.test_http_charge_cannot_be_ignored_to_accept_underpayment
+--noinput --verbosity 1`: two expected assertion failures, zero errors,3.006s.
+Old route rejects a combined actual total and ignores newly supplied charge rows
+on a principal-only submission; this is a demonstrated feature gap, not a claim
+that the old UI offered combined charges.
+
+PASS intermediate focused `python -B .tmp/run_isolated.py test
+vouchers.test_cheque_redemptions vouchers.test_cheque_components
+vouchers.test_advance_cheque_returns --noinput --verbosity 1`:68 discovered,
+56 passed/12 native-only skips,52.799s,exit0. Final mixed-purpose case was then
+expanded to two additional charge types; its final evidence is the broader run.
+
+PASS final frozen SQLite `python -B .tmp/run_scope.py`:527 discovered,
+480 passed/47 native-only skips,291.041s,exit0; both aliases destroyed.
+The wrapper executes `.tmp/run_isolated.py test` with the21 labels retained in
+`.tmp/charges-labels.json`, `--noinput --verbosity 2`. Scope covers collection
+storage/workflow/charges/bank/cheques/clearing/returns/redemptions/components,
+retrieval/concurrency/custody, officer refunds/cheques/returns/races, Accounting
+cash classifications, report cash flows/math/Treasury dates and all Finance setup.
+All47 skip IDs/reasons are retained separately; none is a pass.
+
+Full discovery3099→3111,12 new methods in existing classes; old identities and
+eight shard owners unchanged. All12 new methods belong to the actual527 scope.
+Final source freeze has13 paths:12 product/template/test paths plus the existing
+Finance chronology fixture described below. Cases cover HTTP entry/errors,
+authority/assessment/amount/identity/asset constraints, actor/UAT denial,
+review changes/approved snapshots, exact corrections/immutable copies,
+whole-cheque repeated returns, mixed purposes/two charges, unchanged officer
+capacity and competing principal reservations. Discovery/source/SQLite receipts
+remain in ignored `.tmp/charges-*.json`.
+
+FAIL — PRE-EXISTING, reproduced below: initial final
+`python -B .tmp/native_charges.py` executes the documented
+`scripts/run_mysql_tests.py` with the same21 labels on an exclusive system-only
+MySQL8.4.11/strict-mode clone.527 ran,526 passed/one failure,zero skips,667.788s,
+exit1. Failure: `finance.test_work_tasks.FinanceWorkTaskContractTests.
+test_setup_completion_credits_retained_actions_and_keeps_current_state_separate`,
+expected Scheduled setup release, received Approved setup release at line810.
+Native source hashes stayed exact; both aliases were destroyed and owned server
+stopped; original system-template hashes unchanged. `.tmp/charges-native.log`
+and the preserved `charges-native-first.log`/`charges-native-first-receipt.json`
+retain the failed gate. No checkpoint proceeds through that failure.
+
+Conclusive parent206 diagnostic: `python -B .tmp/native_baseline_order.py` repeats
+only the original unchanged test40 times on another fresh owned native clone;
+34 pass/six identical assertion failures,94.520s,zero skips,exit1. Diagnostic
+repetitions are not40 unique scenarios or a replacement gate. Captured event
+timestamps show approval and scheduling exactly equal (for example14:03:39.436443
+UTC); the existing stable task-ID tiebreak legitimately selects approval first.
+Parent test/production ordering files and tracked tree remain unchanged; source
+pair/native template hashes preserved and owned diagnostic server stopped.
+
+The one chronology fixture now supplies explicit successive times to the actual
+transition services, including retirement, and asserts approval precedes scheduling.
+Every original assertion and the separate equal-time pagination test remain.
+No production Finance task sorting or history changed; no gate waiver, skip,
+inherited-test migration or policy change. Focused chronology/equal-time SQLite
+checks first passed2/2,4.007s,zero skips. A later visual fix changes only the new
+charge partial's section wrapper to a div, avoiding site-wide section spacing.
+The other11 runtime/regression hashes from the527 SQLite run remain exact.
+PASS final `python -B .tmp/run_final_fixture.py`:5/5 overlapping selected cases,
+8.792s,zero skips,exit0; fresh stores destroyed. It covers both fixture/tie cases
+and three combined-HTTP/source-copy/invalid-form cases with final13-source hashes.
+The527-case SQLite result is reused only for unchanged code; this additional
+fixture and the charge partial are explicitly revalidated. Final receipts retain
+the exact reuse/delta manifest. All14 original chronology assertions remain,
+plus one precondition; AST review proves the separate equal-time test and
+production ordering/transition sources unchanged. No failed assertion is removed.
+
+PASS fresh final `python -B .tmp/native_charges.py`: all527/527,773.581s,
+zero skips,exit0, with final13 frozen source hashes. This repeats the entire same
+21-label native scope after the fixture/presentation fixes, including all47
+SQLite-skipped native cases and the new competing-redemption race. Both aliases
+destroyed, owned server stopped and original system-template hashes unchanged.
+The first failed gate and parent diagnostic remain preserved; neither is relabelled
+as a pass. Final native result/receipt are `.tmp/charges-native.log` and
+`charges-native-receipt.json`.
+
+PASS actual synthetic browser: Treasury enters assessed25 with principal100;
+total100 is rejected with retained form values and no source/journal. Corrected
+total125 creates one source, including a deliberately blank extra row. Independent
+Accounting reviews the retained authority/assessment and approves; a separate
+preparer materializes/submits and reviewer posts/reconciles. Exact rows are cash
+debit125, original receivable credit100 and charge revenue credit25. One source/
+request/journal, all prior source/request/journal rows and custody records unchanged.
+Two retained-copy versions preserve the actual assessments; version1 remains
+byte-identical after the template correction/version2. Protected synthetic source
+pair/files unchanged; Finance changes only in the exclusive disposable clone.
+
+Visual QA caught/fixed the section-wrapper gap; the owned cached-template server
+was stopped and restarted before final captures. Three final desktop/mobile
+screenshots inspected (mobile390/capture375), plus one A4 page from the native
+authenticated version2 download. Initial gap captures/first PDF remain diagnostic
+artifacts. An initial preparer403 was the fixture's missing existing source-read
+grant; only that synthetic actor received the grant, not application permissions.
+Local-file browser navigation was blocked; final PDF used the authorized native
+HTTP copy. Initial private PDF tooling attempts were corrected before the actual
+Pypdf/Poppler content/render verification. Missing synthetic branding/favicon404s
+remain fixture limits, not application500s or acceptance. Browser closed and both
+owned server runs terminal0. `.tmp/redemption-browser-verified.json` retains proof.
+
+PASS final framework check (zero issues), `makemigrations --check --dry-run`
+(no changes), AST, documentation links, whitespace, complete discovery/shard
+ownership and frozen-source checks. `python -B .tmp/final_checks.py` and
+`.tmp/review_fixture.py` retain receipts. Complete final diff reviewed:13
+source/template/test paths, eight appropriate documentation paths and managed
+VERSION/CHANGELOG only. The additional Finance path changes one proven fragile
+test fixture, retaining all original assertions; no production Finance setup code.
+
+Installed Version Manager README/core, inspect and historical-document adapter
+are used for local207 review/preview/actual commit. Only root VERSION/CHANGELOG
+are automatic updates; all intended source/docs are explicitly staged, preserving
+historical docs/changelog. Resolve local `v0.7.207` for the exact revision after
+execution; `.tmp/charges-checkpoint207-verified.json` retains base/branch/manifest
+and tested hashes. No merge/push/hosted CI or release artifact. Seven task PNG/PDF
+artifacts (including labelled initial gap/copy diagnostics) remain untracked;
+private helpers, synthetic stores, copies and logs are ignored/excluded. Tracked
+worktree should be clean after the checkpoint. Protected-original/publication187
+guard passed before finalization and remains required after the actual VM operation.
+
+Full3111 platform regression and current hosted CI are NOT RUN — outside this
+bounded local development scope/unauthorized respectively. Existing published187
+CI receipts remain historical187 evidence only. Real source/ordinance/form
+qualification, external cheque delivery, combined officer charges, production
+storage/recovery and formal acceptance remain open. Real historical imports stay
+deferred. Continue a documented independent functional slice after reconciling
+actual source and handoff; do not infer a local penalty/rate or invent work to
+avoid a genuine external boundary. Goal remains ACTIVE.
+
 ## Custody employee search — local v0.7.206 checkpoint, 2026-10-19
 
 Goal ACTIVE. Previous goal turn retained local VM205 /

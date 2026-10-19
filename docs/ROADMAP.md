@@ -1,5 +1,12 @@
 # GRAND product roadmap
 
+2026-10-19 Finance development adds explicit assessed charges to ordinary
+returned-cheque redemption, with separate principal recognition and existing
+independent review, deposit and exact correction controls. See [contract and
+remaining boundaries](FINANCE_REDEMPTION_CHARGES_2026-10-19.md); CONTINUE.md owns
+actual validation/local checkpoint evidence. No inferred rates, officer-advance
+charge allocation, publication or operational acceptance; Finance remains NO-GO.
+
 2026-10-19 custody lookup follow-up makes every authorized employee search match
 reachable in bounded pages for named handoffs and HR-reference reviews. It retains
 profile visibility, explicit inactive custody links, invalid-form state and the
