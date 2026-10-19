@@ -1,5 +1,11 @@
 # GRAND Finance complete-cycle roadmap
 
+October19 local control repair: [dated Budget capacity](FINANCE_DATED_BUDGET_CAPACITY_2026-10-19.md)
+reproduces and blocks intervening allotment/obligation breaches hidden by later
+returns/cancellations. Existing authority, store routing, permissions and posted
+history remain unchanged. Broader SQLite passes; native races/current checkpoint
+evidence belongs to CONTINUE.md. This is not an earmark policy or Finance acceptance.
+
 October 17 upstream ordinary-workflow follow-up:
 [OBR entry and independent certification](FINANCE_OBR_PAYABLE_HANDOFF.md#obr-entry-and-independent-certification-follow-up--2026-10-17)
 now have actual browser entry/rejection/correction/submission proof, separate from

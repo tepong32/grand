@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.203] - 2026-10-19
+### Fixed
+- fix(budget): preserve dated allotment capacity
+
 ## [0.7.202] - 2026-10-19
 ### Fixed
 - fix(assistance): protect retained legacy attachments

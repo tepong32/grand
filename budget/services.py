@@ -368,6 +368,49 @@ def authorization_allotment_totals(authorization):
     return totals
 
 
+def _validate_dated_budget_capacity(line, effective_date, *, released=Decimal("0"),
+                                    reserved=Decimal("0"), deferred=Decimal("0"), obligated=Decimal("0")):
+    """Replay recorded day-end balances; later restorations cannot fund earlier gaps.
+
+    Posting callers already hold this immutable appropriation line's shared lock.
+    Read each movement stream once, rather than querying every historical date.
+    """
+    changes = defaultdict(lambda: [Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0")])
+    for day, kind, release_effect, hold_effect in line.allotment_movements.values_list(
+            "effective_date", "movement_type", "release_effect", "hold_effect"):
+        changes[day][0] += release_effect
+        if kind in (AllotmentOrderLine.RESERVE, AllotmentOrderLine.RESERVE_RELEASE):
+            changes[day][1] += hold_effect
+        elif kind in (AllotmentOrderLine.DEFERRAL, AllotmentOrderLine.DEFERRAL_RELEASE):
+            changes[day][2] += hold_effect
+    for day, effect in line.obligation_movements.values_list("effective_date", "obligation_effect"):
+        changes[day][3] += effect
+    changes[effective_date]  # Check a candidate date even if no prior movement used it.
+    running = [Decimal("0"), Decimal("0"), Decimal("0"), Decimal("0")]
+    proposed = (released, reserved, deferred, obligated)
+    for day in sorted(changes):
+        running = [amount + change for amount, change in zip(running, changes[day])]
+        if day < effective_date:
+            continue
+        release, reserve, defer, obligation = [amount + delta for amount, delta in zip(running, proposed)]
+        executable = release - reserve - defer
+        problem = None
+        if release < 0:
+            problem = "released allotment would fall below zero"
+        elif release > line.amount:
+            problem = "released allotment would exceed the authorized appropriation"
+        elif reserve < 0 or defer < 0:
+            problem = "more reserve or deferral would be released than was held"
+        elif executable < 0:
+            problem = "reserve or deferral would exceed released allotment"
+        elif obligation < 0:
+            problem = "the obligation balance would fall below zero"
+        elif obligation > executable:
+            problem = "certified obligations would exceed executable allotment"
+        if problem:
+            raise ValidationError(f"{line}: {problem} on {day.isoformat()}. Review the dated posted movements.")
+
+
 def validate_allotment_order(order, *, lock_lines=False):
     order.full_clean()
     if order.control_difference != Decimal("0"):
@@ -381,14 +424,18 @@ def validate_allotment_order(order, *, lock_lines=False):
         locked = locked.select_for_update()
     appropriation_lines = {line.pk: line for line in locked}
     projected = {pk: allotment_line_balance(line) for pk, line in appropriation_lines.items()}
+    dated_effects = defaultdict(lambda: [Decimal("0"), Decimal("0"), Decimal("0")])
     for line in lines:
         line.full_clean()
         balance = projected[line.appropriation_line_id]
         release_effect, hold_effect = allotment_effect(line.movement_type, line.amount)
+        dated_effects[line.appropriation_line_id][0] += release_effect
         balance["released"] += release_effect
         if line.movement_type in (AllotmentOrderLine.RESERVE, AllotmentOrderLine.RESERVE_RELEASE):
+            dated_effects[line.appropriation_line_id][1] += hold_effect
             balance["reserved"] += hold_effect
         elif line.movement_type in (AllotmentOrderLine.DEFERRAL, AllotmentOrderLine.DEFERRAL_RELEASE):
+            dated_effects[line.appropriation_line_id][2] += hold_effect
             balance["deferred"] += hold_effect
         balance["held"] = balance["reserved"] + balance["deferred"]
         balance["unreleased"] = balance["authorized"] - balance["released"]
@@ -410,6 +457,9 @@ def validate_allotment_order(order, *, lock_lines=False):
             raise ValidationError(
                 f"{line.appropriation_line}: the allotment change would fall below already certified obligations."
             )
+    for line_id, (release, reserve, defer) in dated_effects.items():
+        _validate_dated_budget_capacity(appropriation_lines[line_id], order.effective_date,
+            released=release, reserved=reserve, deferred=defer)
     return lines, projected
 
 
@@ -617,6 +667,7 @@ def validate_obligation_request(request, *, lock_lines=False):
                 raise ValidationError(f"The {label} obligation balance cannot be reduced below zero for {line}.")
             if resulting > balance["executable"]:
                 raise ValidationError(f"The request exceeds the {label} unobligated allotment for {line}.")
+        _validate_dated_budget_capacity(line, request.obligation_date, obligated=effect)
     return lines
 
 

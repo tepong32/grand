@@ -1,5 +1,12 @@
 # GRAND product roadmap
 
+2026-10-19 Finance control follow-up repairs a reproduced dated-capacity gap in
+existing Budget allotment and obligation services: a later restoration must not
+hide an intervening overcommitment. It reuses the current financial definitions
+and shared line locks, with no new earmark rule, journal recipe or schema.
+[Contract and regression scope](FINANCE_DATED_BUDGET_CAPACITY_2026-10-19.md);
+native/local checkpoint state belongs to CONTINUE.md. Finance remains NO-GO.
+
 2026-10-19 legacy attachment follow-up supports the Assistance upload namespace
 retained by migration0002, which0003 did not relocate. Citizen/MSWD and native
 Records downloads share its safe-path check; raw development media denies both

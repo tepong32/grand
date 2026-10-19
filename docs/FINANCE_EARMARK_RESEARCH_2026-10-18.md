@@ -56,3 +56,31 @@ Next: obtain representative municipal certificate examples and trace an actual l
 transaction against these separate authorities; keep unresolved financial actions
 disabled while implementing independently established workflows. No eGAPS or
 production data was opened or changed.
+
+## Other-LGU process evidence — inspected2026-10-19
+
+The [General Santos City service index](https://gensantos.gov.ph/?slug=citizen-s-charter)
+links separate PR earmarking, adjustment and appropriation-certification services.
+The official-hosted [PR service](https://hrmdo.gensantos.gov.ph/uploads/services/511_50c335ad81b4f6dfb18127b4ea2e3ca8.pdf)
+describes one department/fund source, approved PR/APP support, RAAO registration,
+an assigned reference and distinct review/approval/release stages. The separate
+[adjustment service](https://hrmdo.gensantos.gov.ph/uploads/services/508_7712f21ef84ae18e860d30ddd112f325.pdf)
+requires an adjustment request and supporting original/cancellation evidence,
+with registry recording, validation and approval. These are that city's published
+processes, not this LGU's approved capacity formula, form or officials.
+
+Both two-page PDFs were downloaded intact and all four rendered pages inspected:
+PR166100bytes/SHA256 `276d6b2ebbb616fc4e67b43a9da07eebd2d1f7c5b985b7fe24ea71f83d6f8db9`;
+adjustment174434bytes/SHA256 `8670b4eab4bbd31c8b88fab826d7f001731a4b3409186a8311a873169f6394a7`.
+Web screenshots timed out; direct official retrieval/local rendering succeeded.
+The PR title says Simple while its classification says Complex; no local time,
+classification, copy count, numbering scheme or job title is adopted. The index's
+2026 heading does not establish an issuance/effectivity date on each PDF.
+
+Engineering inference: retain the distinction between procurement reservation,
+obligation and an appropriation certification. The sources still do not establish
+our LGU's exact hold basis, consumption, cancellation dates or issuance authority.
+No financial operation is enabled by this research. Reviewing the existing Budget
+guards separately exposed an intervening-date control defect; its repair follows
+already implemented allotment/obligation invariants, not an inferred earmark rule.
+See [the separate control repair](FINANCE_DATED_BUDGET_CAPACITY_2026-10-19.md).

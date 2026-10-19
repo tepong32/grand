@@ -1,5 +1,87 @@
 # GRAND continuation handoff
 
+## Dated Budget capacity — local v0.7.203 checkpoint, 2026-10-19
+
+Goal ACTIVE. Isolated `codex/budget-dated-capacity` starts at local202 /
+`b9b9cca4e1b3f90b121c3a98a0f10d16b1b779f3`. Remote master remains187 /
+`a116691a100ed9230b578f73692ed12add84205e`. No merge/push/hosted CI/deployment or
+production operation. Finance remains **NO-GO**; no formal LGU/Accounting acceptance.
+Original checkout, protected databases, older local work and all unrelated changes
+are preserved. No second coding agent was launched.
+
+Concrete Finance work: existing Budget checks could accept backdated releases,
+holds or obligations that fit latest/effective-date balances but breach an
+intervening posted date. Four direct-service regressions fail against unchanged202
+with four assertion failures/zero errors,2.245s (`python -B .tmp/probe_dated.py original-v1`).
+Corrected focused proof9/9,3.986s,zero skips includes direct/HTTP rechecks, negative
+movements and valid backdating. Original two-store fixture/file hashes are unchanged;
+the disposable Finance copy also returns to its original bytes after rollback.
+
+Implemented: one shared day-end replay reads each immutable movement stream once
+per appropriation line, applies combined proposed effects on/after its date and
+rechecks existing financial bounds. Both submit and final allotment/obligation
+writers use it under their unchanged line-lock/transaction boundaries. Old
+current/date checks, authorization/UAT, independence, snapshots, correction lineage
+and store routing remain intact. No model, migration, permission or journal changes.
+See [bounded contract](docs/FINANCE_DATED_BUDGET_CAPACITY_2026-10-19.md).
+
+PASS fresh frozen-source SQLite: `python -B .tmp/run_isolated.py test budget.tests
+ budget.test_quarterly budget.test_quarterly_concurrency vouchers.tests
+ vouchers.test_advance_recognition_corrections
+ vouchers.test_advance_recognition_correction_concurrency
+ vouchers.test_cancelled_advance_corrections vouchers.test_returned_advance_corrections
+ --noinput --verbosity 1`:233 discovered,221 passed/12 explicit native-only skips,
+140.139s,exit0; both aliases destroyed. Scope expands for shared Budget services,
+voucher handoff and later correction/recovery consumers. No skipped race is a pass.
+
+PASS fresh frozen-source native: `python -B .tmp/native_dated.py` invokes
+`python -B scripts/run_mysql_tests.py` with the same eight labels above and
+`--verbosity 1`:233/233,277.089s,zero skips,exit0. This includes all12 native
+races, two added here. Both fresh test aliases destroyed; verified owned test-only
+MySQL8.4.11/strict-mode loopback clone stopped. Original stopped system-only
+template hashes and all three tested source hashes remain unchanged. Receipt:
+`.tmp/dated-native-receipt.json`. No operator server/schema was used.
+
+PASS isolated check and `makemigrations --check --dry-run` (no changes), source/AST
+and whitespace checks. Full discovery3060→3071: nine new service cases plus two
+native races in existing Budget classes; all old IDs/classes/shard owners unchanged,
+eight complete/distinct partitions. CI assertions/workflows are unmodified.
+
+Browser PASS: actual Budget certification rejected with conflict date2027-01-15;
+pending status/number/version, all original movements/audit events and exact seeded
+Finance bytes remain unchanged. Only the disposable Finance store was deliberately
+seeded; no operator transaction. Protected source pair/files match. One screenshot
+inspected;390px viewport/375px document width. Named browser closed; owned server
+terminal0. Receipt: `.tmp/dated-browser-verified.json`. The initial private browser
+URL omitted /finance; corrected via Django reverse, without an application change.
+Missing synthetic branding/avatar404s remain fixture limits.
+
+One initial positive test used withholding above its latest released balance;
+the existing guard correctly rejected it. Corrected the synthetic amount to fit
+all dates; no financial assertion or application check was weakened. Official
+Gensan PR/adjustment PDFs were retrieved/hashed/rendered and all four pages viewed;
+source facts/limits live in the [existing research record](docs/FINANCE_EARMARK_RESEARCH_2026-10-18.md).
+No local earmark, numbering, signature, capacity or cancellation rule was adopted.
+
+Complete bounded diff reviewed: three implementation/test paths plus seven
+appropriate documentation paths; no accidental unrelated payload or new secret.
+Installed VM inspect/preview/actual local checkpoint uses the historical-document
+adapter: managed root VERSION/CHANGELOG only, preserving the historical tail.
+Resolve local tag `v0.7.203` for its exact resulting revision; private receipt
+`.tmp/dated-checkpoint203-verified.json` records the parent, manifest and hashes.
+Only the one browser PNG is untracked; ignored helpers, two-store synthetic
+fixtures, official-source PDFs and logs are excluded. No merge/push/hosted CI.
+The protected-original/publication guard passes against unchanged master187.
+
+NOT RUN - OUT OF SCOPE: full3071 suite and new hosted CI; this is a bounded local
+control checkpoint with the critical dependent native/SQLite scope completed.
+Earlier whole-chain CI covers only its recorded187 SHA. Production/recovery
+qualification, unknown local earmark rules and formal acceptance remain open.
+Next: inspect the direct obligation-service header/line validation boundary
+against existing model rules with an isolated synthetic proof. Source inspection
+alone is not a confirmed additional defect. Continue safe independent development;
+the wider goal remains ACTIVE and is not complete at this checkpoint.
+
 ## Legacy Assistance files — local v0.7.202 checkpoint, 2026-10-19
 
 Goal remains ACTIVE after the owner's **continue now** instruction; no new pause.

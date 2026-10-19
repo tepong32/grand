@@ -1,5 +1,29 @@
 # Finance gap register
 
+## FIN-GAP-039 - Backdated Budget changes miss intervening capacity breaches
+
+- Severity: **HIGH**, confirmed existing financial-control defect on local v0.7.202.
+  A later allotment return/release or obligation cancellation can hide an earlier
+  overcommitment from latest-only or effective-date/latest checks. Four direct
+  service regressions reproduce the defect on the unchanged parent.
+- Bounded repair: replay each affected line's complete dated movement streams,
+  applying the proposed effect at every later day-end boundary under the existing
+  final writer lock. Preserve valid backdating, immutable history, office/UAT
+  authority, independent approval and separate stores. No new local policy,
+  schema, financial recipe or journal behavior.
+- Engineering status: **REPAIRED AND VERIFIED LOCALLY**, v0.7.203 checkpoint.
+  Nine focused regressions pass; dependent SQLite221 pass/twelve native-only
+  skips. Fresh native233/233 pass,277.089s,zero skips, including all12 races
+  (two added). Actual browser rejection preserves pending state, original
+  movements/audits and seeded disposable Finance bytes. Both test aliases and
+  owned server cleaned up; original template hashes unchanged.
+  See [contract](FINANCE_DATED_BUDGET_CAPACITY_2026-10-19.md) and
+  [current exact results/checkpoint](../CONTINUE.md).
+- Closure boundary: this closes only the reproduced Budget control within the
+  verified scope; unconfirmed earmark policy, broader functionality, whole-chain
+  hosted CI/publication, operational/recovery and formal acceptance stay open.
+  Finance remains **NO-GO**. No deployment or production operation.
+
 October 17 authorized release attempt: the user has lifted the publication hold
 for the prepared checkpoint and requested actual VM commit/integration/push after
 required checks. Seven local workflow-security preflight checks pass; exact hosted

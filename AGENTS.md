@@ -60,6 +60,12 @@ production operations remain unauthorized. Finance stays NO-GO and GSO operation
 acceptance remains separate. Continue safe independent tasks when one is blocked;
 stop at an actual authority/safety/dependency boundary with a factual handoff.
 
+Budget allotment/obligation writers must preserve capacity at every affected
+effective-date boundary under the existing appropriation-line lock. A later
+return, release or cancellation cannot fund an earlier shortfall; latest balance
+alone is insufficient. Preserve original movements and valid backdating. See
+[dated Budget control](docs/FINANCE_DATED_BUDGET_CAPACITY_2026-10-19.md).
+
 The same decision authorizes research-led Finance development using applicable
 official COA/DBM and other official sources, documented interpretations and explicit
 unresolved local questions. Research and owner permission are not Accounting
