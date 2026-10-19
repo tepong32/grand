@@ -1,6 +1,6 @@
 """Development media delivery must not bypass the checked application routes.
 
-This is scoped to the four reviewed confidential namespaces, not a declaration
+This is scoped to reviewed confidential namespaces, not a declaration
 that every other legacy media upload is public or production storage is qualified.
 """
 from pathlib import Path, PureWindowsPath
@@ -16,13 +16,15 @@ def serve_development_media(request, path):
     try:
         target = root / relative
         normalized = relative.as_posix().casefold()
+        components = normalized.split('/')
         if (not path or relative.is_absolute() or PureWindowsPath(path).is_absolute()
                 or "\\" in path or ".." in relative.parts or ":" in path
                 or target.resolve() != target):
             raise ValueError
         target.relative_to(root)
         if (normalized.split("/", 1)[0] in {"records", "vouchers", "assistance_docs"}
-                or normalized.startswith("reporting/outputs/")):
+                or normalized.startswith("reporting/outputs/")
+                or (len(components) > 3 and components[0] == 'users' and components[2] == 'memos')):
             raise ValueError
     except (ValueError, RuntimeError, OSError):
         raise Http404 from None

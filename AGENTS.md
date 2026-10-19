@@ -124,6 +124,12 @@ Use actual retained metadata: accounting CSV sources have a hash without a size;
 disposal legacy downloads require their recorded size and explicit legacy policy.
 Never manufacture a missing integrity baseline or relax the strict hash/size row API.
 
+Employee assignment memos use existing sensitive-profile authority (owner or
+authorized HR profile manager), including previews and form widgets. Ordinary
+profile edits must not rename/delete their retained files; new uploads get stable
+opaque paths. No missing checksum baseline or archival approval is inferred.
+See [memo delivery and retention limits](docs/EMPLOYEE_MEMO_ACCESS.md).
+
 Closed-maintenance correction notices are attributable statements beside an
 unchanged original record, not approved replacements for cost, closure or custody.
 Keep them visible to future consumers; never infer authoritative corrected values

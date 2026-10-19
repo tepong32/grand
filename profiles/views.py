@@ -11,6 +11,7 @@ from .services.profile_service import can_view_profile
 from users.access import can_manage_employee_profiles
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
+from django.views.decorators.http import require_safe
 
 
 @login_required
@@ -31,6 +32,17 @@ def profileView(request, username=None):
         leave_credit=leave_credits,
     )
     return render(request, 'profiles/profile.html', context)
+
+
+@login_required
+@require_safe
+def department_memo(request, username):
+    user = get_object_or_404(User, username=username)
+    if not (request.user == user or can_manage_employee_profiles(request.user)):
+        raise Http404
+    profile = get_object_or_404(EmployeeProfile, user=user)
+    from .files import memo_response
+    return memo_response(profile.assigned_department_memo)
 
 
 @login_required

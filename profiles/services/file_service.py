@@ -4,9 +4,7 @@ from pathlib import Path
 import os
 from datetime import datetime
 import re
-
-from django.core.files.base import ContentFile
-from django.core.files.storage import default_storage
+from uuid import uuid4
 
 
 def _sanitize_name(value):
@@ -15,7 +13,9 @@ def _sanitize_name(value):
 
 
 def temp_memo_path(instance, filename):
-    return f"users/{_sanitize_name(instance.name)}/memos/temp_{filename}"
+    # Retain the callable used by historical migrations. New uploads use a
+    # bounded opaque filename, independent of mutable names and departments.
+    return f"users/{instance.user_id}/memos/{uuid4().hex}{Path(filename).suffix.lower()}"
 
 
 def uploaded_images_directory_path(instance, filename):
@@ -45,26 +45,3 @@ def resize_image(image_field, max_size=(600, 600)):
         if img.height > max_size[1] or img.width > max_size[0]:
             img.thumbnail(max_size)
             img.save(image_field.path)
-
-
-def normalize_department_memo(profile):
-    memo_field = profile.assigned_department_memo
-    if not memo_field or not hasattr(memo_field, 'name'):
-        return None
-
-    original_path = memo_field.name
-    file_name = generate_memo_filename(profile, os.path.basename(original_path))
-    new_path = build_memo_path(profile, file_name)
-
-    if original_path == new_path:
-        return None
-
-    memo_field.open('rb')
-    file_content = memo_field.read()
-    memo_field.close()
-
-    if original_path:
-        default_storage.delete(original_path)
-
-    memo_field.save(new_path, ContentFile(file_content), save=False)
-    return new_path

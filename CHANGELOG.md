@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.201] - 2026-10-19
+### Fixed
+- fix(profiles): protect assignment memo workflow
+
 ## [0.7.200] - 2026-10-19
 ### Fixed
 - fix(assistance): protect citizen links and private files

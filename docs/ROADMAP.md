@@ -1,5 +1,13 @@
 # GRAND product roadmap
 
+2026-10-19 owner resumed development after local v0.7.200. The bounded
+[employee assignment-memo workflow](EMPLOYEE_MEMO_ACCESS.md) repairs a reproduced
+upload500 and raw memo exposure while preserving existing owner/HR authority and
+edit history. Ordinary profile edits leave original memo files intact; controlled
+previews replace storage links. Current verification/checkpoint state belongs to
+CONTINUE.md. Publication, deployment and operational acceptance remain separate;
+Finance remains NO-GO.
+
 The 2026-10-19 [citizen/file-access review](CITIZEN_FILE_ACCESS_SECURITY_REVIEW.md)
 confirms development media bypass and ambiguous short-code access on synthetic
 data. DECISION-OPS-005 records a bounded secure-link/private-delivery proposal and

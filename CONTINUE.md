@@ -1,5 +1,101 @@
 # GRAND continuation handoff
 
+## Resumed employee memo workflow — local v0.7.201 checkpoint, 2026-10-19
+
+The owner explicitly said **continue now** and resumed the goal in the interface.
+This supersedes the historical pause below. Goal is ACTIVE. Branch
+`codex/employee-memo-access` starts at local v0.7.200 /
+`9bc00cee5081e6019b0d7e26873ffb177fb40f9e`, in an isolated worktree. Original
+checkout, protected databases, prior checkpoints/screenshots and unrelated work
+remain preserved. Remote master still187 / `a116691a100ed9230b578f73692ed12add84205e`.
+No merge/push/hosted CI/deployment or production operations are authorized.
+Finance remains **NO-GO**; formal LGU/GSO and storage/recovery acceptance stay open.
+
+Implemented a bounded existing-employee need: department assignment memo upload,
+preview and removal under existing owner/HR authority. See
+[contract and retained-file limits](docs/EMPLOYEE_MEMO_ACCESS.md). New uploads no
+longer reference a nonexistent profile name. The destructive post-save rename is
+removed, so unrelated edits retain original pointers/bytes. No field, schema,
+migration, permission, database router or Finance workflow change. The default
+file widget no longer leaks storage URLs. DEBUG memo URLs fail closed; avatars
+remain public. This is current-document delivery, not a new archive/HR policy.
+
+PASS red proof: `python -B .tmp/probe_memo.py original-v3`, unchanged200:
+three expected assertion failures/zero errors in1.412s (raw memo200, exposed HR
+storage link and upload500). PASS `corrected-v2`:11/11 in2.222s, zero skips.
+Nine new cases remain in the existing ProfileServiceTests class. Original
+synthetic pair/files and copied Finance bytes remain unchanged.
+
+PASS final frozen-source SQLite: `python -B .tmp/run_isolated.py test
+ profiles users assistance records gso_integration_tests.test_evidence_retirement
+ gso_integration_tests.test_packet_download_handles
+ gso_integration_tests.test_grand_office_records --noinput --verbosity 1`:
+216 discovered, 213 passed / three explicit native-only skips, 69.238s.
+Both disposable aliases destroyed; runner exit0. This expands for the default-
+profile save hook, owner/HR authorization and shared development-media boundary.
+
+PASS final native MySQL8.4.11: `python -B .tmp/native_memo.py` invokes the existing
+fresh two-store `scripts/run_mysql_tests.py profiles users assistance --verbosity 1`:
+107/107, 65.562s, zero skips, exit0. Original system-only template hashes and
+all eleven frozen source/template/test hashes match; owned cloned server stopped.
+No operator schema/credentials/data was accessed or altered. Both initial and final
+native checks use exclusive loopback test servers and keep diagnostic receipts.
+
+PASS `python -B .tmp/verify_memo_sources.py`: source/AST checks and discovery3047→3056,
+nine added methods, all existing test IDs/classes/shard owners retained with complete
+eight-way coverage; no CI gate changed. Discovery commands: isolated `discover`
+against parent200 then final source with separate output receipts. PASS isolated
+`check`, `makemigrations --check --dry-run` (no changes) and `git diff --check`.
+
+The first source also passed SQLite216 /69.731s /three skips and native107 /65.329s /
+zero skips. Subsequent review found Pillow.verify can raise SyntaxError for a bad
+PNG CRC. `python -B .tmp/probe_memo.py before-parser` reproduces500 as one assertion
+failure/zero errors (1.254s). The corrected fallback and precise memo-directory
+deny preserve ordinary avatars, including an avatar named memos. `corrected-final`
+passes all11 ProfileServiceTests in2.243s, zero skips; original fixture/Finance
+hashes unchanged. Final fresh runs above cover these last changes; earlier runs
+are retained as intermediate evidence, not relabeled final-source proof.
+
+NOT RUN — full application/hosted candidate/master CI and production/recovery/LGU
+checks: local-only bounded checkpoint; no publication/deployment authority. No
+dependency/router/migration/financial-rule change; broad Finance and repeated
+dependency audits are out of this feature's scope. Exact whole-chain candidate and
+published-master CI remain required before any later authorized publication.
+
+
+Browser PASS: actual HR multipart upload, protected image preview, employee link
+reading, second upload and clear. Two original images retained with exact source
+bytes, three existing HR edit events, current pointer empty and owner reload404.
+390px profile viewport/375px document width; screenshots inspected. Known missing
+synthetic brand/avatar404s remain. All named browser sessions and owned server are
+stopped. `python -B .tmp/verify_memo_browser.py` verifies source/Finance hashes and
+retained files/events. No real mail/Telegram/operator data used.
+
+Investigated intermediate failures: initial test users omitted unique emails;
+raw-response cleanup left an open test handle; both fixture issues were corrected.
+The first application run found a widget template in the project directory while
+Django's form renderer searches app templates; moved it into profiles/templates.
+A redirected-path mock compared Windows short and resolved long paths; fixed the
+mock target. No authorization/file/assertion/CI gate was weakened.
+
+Installed VM inspection/preview/actual local checkpoint use the historical-doc
+adapter: managed VERSION/CHANGELOG only, fifteen intended implementation/test/doc
+paths, three synthetic PNGs excluded. Resolve local tag v0.7.201 for the exact
+resulting commit; parent remains200. No merge, push or deployment. Source review
+and protected-checkout guard passed; no unrelated work is incorporated.
+
+The browser uses unchanged final upload/template/authority code. The later PNG-
+error and precise raw-directory branches are covered by final automated checks;
+do not relabel browser screenshots as proof of corrupted-image download handling.
+
+Next: continue safe independent work; do not pause merely because this checkpoint
+ended. Historical Assistance migration0002 used assistance_uploads/year/month;
+0003 changed only upload_to, without moving existing files. Current controlled
+routes reject that legacy namespace while DEBUG media does not deny it. Reproduce
+the legacy-path privacy/compatibility issue on synthetic files, then preserve
+existing citizen/staff/Records authority while repairing it in a separate slice.
+No actual historical/operator attachment was examined or migrated.
+
 ## Citizen private access — local v0.7.200 checkpoint, owner pause, 2026-10-19
 
 Latest owner instruction: **skip remaining and proceed with commit**, then pause.
