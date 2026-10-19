@@ -76,6 +76,10 @@ and current review decisions under existing read/export scope. It cannot certify
 a common inventory date, completeness, valuation or official RPCI. The separately
 reviewed QC example does not resolve target-municipality adoption or sign-off;
 those acceptance questions remain open, without blocking safe source preparation.
+Resumed 2026-10-19 development adds a supplied five-line RPCPPE draft under the
+same placeholder direction. It does not adopt the BTr NGA form, infer counts or
+valuation, or close the local form/signature/completeness boundary. Larger complete
+reports and accepted issuance remain distinct from this nonpersistent preparation.
 
 **DECISION-GSO-002 — Real historical imports (deferred by owner).** Which source export, owners,
 identity mappings and discrepancy decisions should an eventual import retain?

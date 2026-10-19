@@ -3,6 +3,7 @@ from django.urls import path
 from . import views
 from . import property_movement_views
 from . import property_output_views
+from . import rpcppe_drafts
 from . import property_card_views
 from . import property_views
 from . import receiving_views
@@ -31,6 +32,7 @@ urlpatterns = [
     path("property-records/prepare-ics/", property_output_views.ics_preparation, name="ics-preparation"),
     path("property-records/prepare-spc/", property_output_views.spc_preparation, name="spc-preparation"),
     path("property-records/prepare-par/", property_output_views.par_preparation, name="par-preparation"),
+    path("property-records/prepare-rpcppe/", rpcppe_drafts.preparation, name="rpcppe-preparation"),
     path("assets/<int:pk>/property-movements/", property_movement_views.movement_list, name="property-movements"),
     path("assets/<int:pk>/property-movements/new/", property_movement_views.movement_new, name="property-movement-new"),
     path("property-movements/<int:pk>/", property_movement_views.movement_detail, name="property-movement-detail"),

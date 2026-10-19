@@ -1,5 +1,12 @@
 # GRAND product roadmap
 
+2026-10-19 resumed development adds an unsigned RPCPPE five-line preparation
+draft through the existing property-read boundary: supplied facts, unknown/zero
+distinction, explicit quantity difference, exact supplied-value checks and editable
+preview/print. It does not replace a complete inventory, approved valuation or
+accepted municipal form. See [its bounded contract](gso/property-record-design.md#rpcppe-working-preparation--2026-10-19)
+and CONTINUE.md for actual validation and unpublished checkpoint state.
+
 2026-10-18 development mission: apply the durable [working doctrine](../AGENTS.md#working-doctrine--2026-10-18)
 and complete useful workflow slices with proportional verification and non-technical
 usability built in. Finance dependencies remain indexed in the consolidated

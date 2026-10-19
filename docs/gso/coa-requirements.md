@@ -1,5 +1,24 @@
 # COA sources and GSO workflow coverage
 
+## RPCPPE source-access checkpoint — 2026-10-19
+
+The [official BTr GAM index](https://www.treasury.gov.ph/?page_id=9865) lists its
+NGA RPCPPE form as Appendix73, separately from PAR Appendix71. This is a national-
+government reference, not proof of the target municipality's form or applicability.
+The [linked XLS](https://www.treasury.gov.ph/wp-content/uploads/2018/01/Appendix-73-RPCPPE.xls)
+could not be inspected: the browser reader rejected its legacy Excel content type;
+direct retrieval returned HTTP200 with959 bytes of HTML challenge, not an XLS.
+The attempted [official PSA annual-report PDF](https://rssomimaropa.psa.gov.ph/system/files/publication/2021%20Annual%20Report%20-%20PSO%20Oriental%20Mindoro.pdf) returned403 directly and timed out
+in the browser reader. No full workbook/PDF inspection or local template validation
+is claimed. Search excerpts are not a substitute for those missing documents.
+
+The owner-authorized [RPCPPE preparation draft](property-record-design.md#rpcppe-working-preparation--2026-10-19)
+therefore uses supplied placeholders and its own explicit draft arithmetic labels,
+without an appendix label, prescribed local roles, automatic dates/numbers, valuation
+or certification. Exact accepted fields, layout, instructions, current amendments
+and municipal adoption remain open. This source-access limitation does not create
+financial authority or block the previously authorized fill-in preparation.
+
 ## Count output example reviewed — 2026-10-18
 
 The [official QC GSD index](https://quezoncity.gov.ph/departments/city-general-services-department/)

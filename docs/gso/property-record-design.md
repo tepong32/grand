@@ -1,5 +1,33 @@
 # Property records and Finance relationships
 
+## RPCPPE working preparation — 2026-10-19
+
+Property records → Prepare RPCPPE draft supplies an unsigned five-line form,
+editable preview and browser Print / Save as PDF. Reuse the existing property
+document read boundary; UAT readers remain allowed. These entirely supplied
+entries do not require an export grant because no stored asset/count/Accounting
+records are copied or exported. No source query, database write, model, migration,
+permission or official report identity is introduced.
+
+Staff may supply office/type/fund/as-of facts, accountable-officer and role names,
+property descriptions/numbers, units, unit values, card/count quantities, signed
+difference values and remarks. Unknown stays blank; explicit zero is preserved.
+Only the quantity difference is calculated, as physical count minus property card,
+when both inputs exist. Monetary differences remain supplied. When both quantities,
+unit value and difference value are supplied, require their exact arithmetic;
+no rounding rule is invented. Leave monetary values blank for review when the
+applicable treatment/rounding is unresolved. No unlike-item quantity/value total,
+classification, valuation, signature or common-date completeness is inferred.
+
+The draft is private/no-store, nonpersistent and not an issued archive or accepted
+municipal form. Larger reports, automatic register/count population, class/fund
+aggregation, exact local layout/revision/numbering, official roles and signed
+issuance remain separate work and acceptance requirements. A current register
+quantity or a Not found result must never silently become a physical count.
+The [source-access checkpoint](coa-requirements.md#rpcppe-source-access-checkpoint--2026-10-19)
+does not establish municipal adoption or exact form parity. Actual validation and
+checkpoint/publication state belong to CONTINUE.md.
+
 ## Approved allocation development direction — 2026-10-18
 
 DECISION-FIN-002 authorizes explicit documented asset-cost allocations with

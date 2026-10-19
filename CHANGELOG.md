@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.196] - 2026-10-19
+### Added
+- feat(gso): prepare unsigned RPCPPE working drafts
+
 ## [0.7.195] - 2026-10-18
 ### Added
 - feat(gso): print complete scoped count records

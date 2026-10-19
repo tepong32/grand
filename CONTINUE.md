@@ -1,5 +1,113 @@
 # GRAND continuation handoff
 
+## Resumed: RPCPPE working preparation — 2026-10-19
+
+The goal tool confirms ACTIVE following the owner-requested pause. Prior pause/
+cleanup evidence below remains historical. Local v0.7.195 is
+`566bb9d050420333758acd149b861ba9fe904401`; isolated `codex/gso-rpcppe-drafts`
+starts there with a clean tracked tree. Published master remains v0.7.187 /
+`a116691a100ed9230b578f73692ed12add84205e`. New work from188 remains unpublished;
+no integration, push, deployment or production operation. Finance stays NO-GO.
+
+Source reconciliation found native Budget actuals capture/preparation/joint review
+already implemented (`budget_actuals_preparations`, `budget_actuals_certifications`,
+`budget_actuals_views`, migrations0041/0042); the older contract is not a reason to
+rebuild them. Earmark/certificate semantics, actual forms and operational acceptance
+remain open. Loss/relief research found access limitations and unreconciled source
+jurisdiction descriptions; no authority/deadline/valuation or new loss workflow was
+invented. The next selected documented engineering gap is owner-authorized RPCPPE
+fill-in preparation, keeping official-form acceptance separate.
+
+Implemented: Property records → Prepare RPCPPE draft → five supplied lines →
+editable preview → browser Print / Save as PDF. Reuse existing property-read grants;
+UAT read is allowed and manual drafts need no export grant. No source records are
+copied or altered. Explicit zero and unknown quantities/values remain distinct.
+Count minus property card is calculated only when both quantities are supplied;
+monetary differences remain supplied. If all quantities/unit value/difference value
+exist, exact Decimal arithmetic must match; no rounding is inferred. No report/
+property number, valuation, signature or completeness certification is generated.
+This is bounded preparation, not a complete municipal inventory or issued archive.
+No models, migrations, permissions, routing between databases or Finance behavior
+changed. See [the draft contract](docs/gso/property-record-design.md#rpcppe-working-preparation--2026-10-19).
+
+Regression baseline: authenticated route404 against unchanged195 runtime on an
+exclusive clone of the retained synthetic pair. Corrected/final HTTP probes pass
+clerk/UAT/read-without-export/ungranted cases, negative/zero/unknown and invalid
+arithmetic, preserving seven source/audit snapshots, Finance bytes and original
+synthetic-pair hashes. Source reads are not silently substituted for supplied fields.
+
+PASS final focused SQLite: `python -B .tmp/run_isolated.py test
+ gso_integration_tests.test_rpcppe_drafts
+ gso_integration_tests.test_property_drafts
+ gso_integration_tests.test_par_source_preparation --noinput --verbosity 1`:
+29/29 in6.987s, zero skips; both disposable stores destroyed. Eight new methods
+cover explicit/fresh permissions, UAT/read-only and zero Finance queries, unknown/
+zero/signed quantities and values, exact/nonfinite/precision/range arithmetic,
+invalid retained input, forged management bounds, XSS, CSRF/methods and discovery.
+All21 dependent PAR/ICS/SPC tests pass in this same final run.
+
+FAIL — CAUSED BY CURRENT WORK (new test assertion only): initial same29 command
+passed28 and failed1 in6.415s. The new invalid-input test matched the instructional
+words Print / Save as PDF rather than the actual print control. Changed only that
+assertion to require absence of the real print onclick; all four application-file
+hashes remained unchanged. The complete corrected29 run above covers every invalid
+case without weakening application validation. Both original/corrected logs and
+source manifests remain in `.tmp/rpcppe-{sqlite,sqlite-corrected}.log` and the
+initial/final hash receipts.
+
+PASS actual browser: minimal property reader register link → supplied date,
+property-card1/physical-count0/unit25/signed difference−25 → collapsed preview/Print.
+Second line has explicit unit-value0.00 and unknown count. Final single A4-landscape
+page retains all five lines, placeholders, signed value, draft/unsigned warnings
+and blank signature/date areas; rendered final page and desktop/mobile screenshots
+were inspected. This is the normal short example; longer supplied text may need
+additional pages. Real local-form/printer acceptance is unperformed. At390px,
+page390 and table950 inside312px region. UAT editor GET
+works; ungranted403. Client-level probes additionally cover UAT/manual-read POST.
+An initial CLI fill treated the leading minus as an option and left that field
+blank. Normal keyboard Home/Minus then entered−25.00; the value was observed before
+resubmission and the final PDF. Original blank-value capture and final artifacts
+remain preserved (six files). No app change/restart followed this CLI observation
+error. Browser and owned loopback server are stopped; fixture favicon404 remains.
+
+PASS isolated commands: `python -B .tmp/run_isolated.py check` (no issues/zero
+silenced), `python -B .tmp/run_isolated.py makemigrations --check --dry-run`
+(no changes), `python -B .tmp/run_isolated.py discover` (2979 unique/407 GSO,
+eight complete partitions), `python -m pip check`, syntax/five frozen app/test
+hashes and `git diff --check`. Partition unit9/9 evidence from195 is reused only
+for unchanged partition code/environment; no fresh unit/full-suite pass is claimed.
+
+NOT RUN — OUT OF SCOPE: fresh native MySQL and broad Finance/release/hosted CI.
+The new behavior is stateless Forms/Decimal/HTML over the unchanged property-read
+predicate, with no native source query/schema/transaction change. Focused tests
+cover new arithmetic, permission/HTTP/CSRF and no-write/no-Finance behavior. The
+unchanged property-read predicate has prior194 native evidence; that is not a
+native pass for the new endpoint or full196. Publication still requires exact
+candidate/master gates. No test process was duplicated or overlapped.
+
+Source limitations: [the BTr index](https://www.treasury.gov.ph/?page_id=9865)
+identifies an NGA form, not accepted municipal layout. Its XLS returned a200 HTML
+challenge rather than a workbook; the browser reader rejected the legacy content
+type. PSA PDF access returned403/timeout. No complete workbook/PDF inspection or
+exact local form parity is claimed. The existing supplied-placeholder authorization
+permits this draft; it confers no Accounting/LGU approval or real transaction power.
+See [the source checkpoint](docs/gso/coa-requirements.md#rpcppe-source-access-checkpoint--2026-10-19).
+
+Installed VM local checkpoint target195 →196, after final checks and preview;
+resolve local `v0.7.196` for the exact commit after the operation. Manifest: five
+implementation/test files, this handoff, roadmap, decisions and two feature/source
+contracts; managed VERSION/CHANGELOG only. Preserve historical release evidence,
+six synthetic artifacts,195 pause/cleanup receipts, original dirty checkout,
+protected databases and all unrelated work. No new software/dependency installed.
+
+The wider goal remains unfinished/ACTIVE. Next reconcile the remaining named
+RPCI/RSMI preparation gaps and actual source boundaries before another usable slice;
+do not duplicate the completed movement/count working copies or treat them as
+accepted official reports. Certificate/valuation/local policy, representative
+historical sources (real import deferred), production storage/recovery and formal
+LGU/GSO/Accounting acceptance remain explicitly open. Continue safe documented
+work without inventing official rules or deployment/publication authority.
+
 ## Pause checkpoint: complete count-record working copies — 2026-10-18
 
 Owner instruction: finish the in-flight focused checkpoint through Version Manager,

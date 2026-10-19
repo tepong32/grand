@@ -1,0 +1,33 @@
+{% extends "inventory/base.html" %}
+{% block title %}RPCPPE preparation sheet{% endblock %}
+{% block content %}
+<style>
+.rpcppe-sheet{background:white;color:#111;padding:24px;border:1px solid #aaa;margin-top:24px;overflow-wrap:anywhere}.draft-scroll{overflow-x:auto}.rpcppe-sheet table{width:100%;table-layout:fixed;min-width:950px;font-size:11px}.rpcppe-sheet th,.rpcppe-sheet td{border:1px solid #777;padding:6px;white-space:normal;overflow-wrap:anywhere;vertical-align:top}.rpcppe-sheet tbody tr:last-child td{border-bottom:1px solid #777}.rpcppe-sheet td{height:32px}.draft-signatures{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:18px}.draft-signatures p{border-top:1px solid #777;padding-top:6px}.draft-line{border-top:1px solid #ddd;padding-top:12px}.draft-editor summary{cursor:pointer;font-weight:650}.draft-editor summary:focus-visible,.draft-scroll:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+@media print{.topbar,.footer,.hero,.draft-controls,.draft-editor,.messages{display:none!important}body{background:white}main{width:100%;padding:0;margin:0}.rpcppe-sheet{padding:0;margin:0;border:0;font-size:11px;line-height:1.3}.rpcppe-sheet h2{font-size:18px;margin:8px 0}.rpcppe-sheet p{margin:6px 0}.rpcppe-sheet table{min-width:0;font-size:10px}.rpcppe-sheet th,.rpcppe-sheet td{padding:4px}.draft-scroll{overflow:visible}.rpcppe-sheet thead{display:table-header-group}.rpcppe-sheet tr,.draft-signatures{break-inside:avoid}@page{size:A4 landscape;margin:12mm}}
+</style>
+<header class="hero"><div><h1>RPCPPE preparation sheet</h1><p>Prepare supplied property-card and physical-count facts for completion and review.</p></div></header>
+<nav class="quick-links draft-controls"><a class="button" href="{% url 'inventory:property-register' %}">Back to property records</a>{% if ready %}<button class="button primary" type="button" onclick="window.print()">Print / Save as PDF</button>{% endif %}</nav>
+<details class="panel draft-editor"{% if not ready %} open{% endif %}><summary>{% if ready %}Change draft details{% else %}Enter draft details{% endif %}</summary>
+<form method="post">{% csrf_token %}
+<p>Enter known facts or leave placeholders. These entries are not saved. Preview, then Print / Save as PDF; keep any saved copy in approved office storage.</p>
+<p>This five-line preparation sheet is unsigned. It does not certify a complete inventory, establish Accounting valuation, assign official numbers or change custody. Check the applicable local template and source documents before official use.</p>
+{% if invalid %}<p role="alert">Check the highlighted fields. Your entries are retained below.</p>{% endif %}
+<h2>Office, inventory date and supplied names</h2><div class="form-grid">{{ header.as_p }}</div>
+<h2>Property lines</h2><p>Count minus property card is calculated only when both quantities are supplied. Blank counts stay unknown. Difference values are supplied separately, not calculated or rounded. When all source amounts are supplied, the draft checks their arithmetic.</p>
+{{ lines.management_form }}{{ lines.non_form_errors }}{% for line in lines %}<fieldset class="draft-line"><legend>Property {{ forloop.counter }}</legend><div class="form-grid">{{ line.as_p }}</div></fieldset>{% endfor %}
+<button class="button primary" type="submit">Preview preparation sheet</button>
+</form></details>
+{% if ready %}<section class="rpcppe-sheet" aria-label="RPCPPE draft preview">
+<p><strong>DRAFT — FOR COMPLETION AND REVIEW</strong></p><h2>Report on the Physical Count of Property, Plant and Equipment · preparation sheet</h2>
+<p>LGU: {{ details.lgu|default:"[LGU / municipality]" }} · Office: {{ details.office|default:"[Office]" }}</p>
+<p>Type of property: {{ details.property_type|default:"[Property type]" }} · Fund: {{ details.fund|default:"[Fund]" }} · As of: {{ details.as_of|date:"Y-m-d"|default:"[As-of date]" }}</p>
+<p>Accountable officer: {{ details.accountable_officer|default:"[Name to be supplied]" }} · {{ details.designation|default:"[Designation / office]" }} · Accountability assumed: {{ details.assumption_date|date:"Y-m-d"|default:"[Date to be supplied]" }}</p>
+<p>Local form reference / revision: {{ details.form_reference|default:"[Confirm local form and revision]" }}</p>
+<div class="draft-scroll" role="region" aria-label="Supplied RPCPPE draft lines" tabindex="0"><table><colgroup><col style="width:22%"><col style="width:12%"><col style="width:5%"><col style="width:9%"><col style="width:9%"><col style="width:9%"><col style="width:9%"><col style="width:10%"><col style="width:15%"></colgroup>
+<thead><tr><th colspan="9">DRAFT · Supplied facts only · Not a certified complete inventory</th></tr><tr><th>Article / description</th><th>Property number</th><th>Unit</th><th>Unit value (supplied)</th><th>Property-card quantity</th><th>Physical-count quantity</th><th>Count minus property card</th><th>Difference value (supplied)</th><th>Remarks</th></tr></thead><tbody>
+{% for line in print_lines %}<tr><td>{{ line.article|default:"[Article]" }}<br>{{ line.description|default:"[Description]" }}</td><td>{{ line.property_number|default:"[Not supplied]" }}</td><td>{{ line.unit|default:"[Unit]" }}</td><td>{% if line.unit_value != None %}{{ line.unit_value|floatformat:2 }}{% else %}[Not supplied]{% endif %}</td><td>{% if line.card_quantity != None %}{{ line.card_quantity|floatformat:3 }}{% else %}[Not supplied]{% endif %}</td><td>{% if line.counted_quantity != None %}{{ line.counted_quantity|floatformat:3 }}{% else %}[Not supplied]{% endif %}</td><td>{% if line.difference != None %}{{ line.difference|floatformat:3 }}{% else %}[Not supplied]{% endif %}</td><td>{% if line.difference_value != None %}{{ line.difference_value|floatformat:2 }}{% else %}[Not supplied]{% endif %}</td><td>{{ line.remarks|default:"[Remarks]" }}</td></tr>{% endfor %}
+</tbody></table></div>
+<div class="draft-signatures"><p>Prepared by: {{ details.prepared_by|default:"[Name / designation]" }}<br>Signature / date: ____________________</p><p>Review / approval: {{ details.reviewed_by|default:"[Supplied name / designation]" }}<br>Signature / date: ____________________</p></div>
+<p><strong>Unsigned preparation.</strong> Supplied names are placeholders, not approvals. This is not an accepted local form, Accounting valuation or issued report. No unlike-item quantity or value total is inferred.</p>
+</section>{% endif %}
+{% endblock %}
