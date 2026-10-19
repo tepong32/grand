@@ -106,6 +106,11 @@ row wrapper and compatible imports. Native Records uploads require their retaine
 hash/size and record-UUID namespace before an audited download starts. Keep native
 Records authority distinct from GSO grants and linked-source export authority;
 see [Records downloads](docs/RECORDS.md#controlled-download-and-audit-behavior).
+Linked Records outputs recheck their source owner. Preserve native archival access
+to superseded outputs; shadow vouchers are not official filed outputs. Verify actual
+retained source checksums and official-report filing evidence. Assistance references
+its current replaceable attachment and has no retained hash/size baseline; enforce
+safe paths without inventing a historical integrity claim or altering its workflow.
 Use actual retained metadata: accounting CSV sources have a hash without a size;
 disposal legacy downloads require their recorded size and explicit legacy policy.
 Never manufacture a missing integrity baseline or relax the strict hash/size row API.

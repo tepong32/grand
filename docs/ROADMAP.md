@@ -6,6 +6,12 @@ checked on the streaming handle before an audit event. Existing authority and
 separate linked-source exports are preserved. This supports the existing office
 workflow; it creates no loss/relief registry, financial treatment or acceptance.
 See [Records](RECORDS.md#controlled-download-and-audit-behavior) and CONTINUE.
+Its linked-source follow-up verifies existing Report/Voucher checksums and original
+report filing evidence, rechecks current source ownership and rejects unsafe paths.
+Retained superseded outputs remain available. Mutable Assistance attachments are
+clearly current references without a fabricated integrity baseline. See
+[the source contract](RECORDS.md#linked-source-files); native archive authority,
+Finance controls and production qualification remain distinct.
 
 2026-10-19 supplies follow-up adds RPCI/RSMI supplied draft entry, editable preview
 and printing for existing GSO stock readers, preserving unknowns/zeros and exact

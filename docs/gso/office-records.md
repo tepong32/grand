@@ -52,6 +52,15 @@ Records grant. See [the upload contract](../RECORDS.md#controlled-download-and-a
 and current CONTINUE for exact validation and local checkpoint state. Linked
 operational-source downloads and production storage qualification remain separate.
 
+The subsequent linked-source follow-up checks current source ownership, safe paths
+and actual retained Report/Voucher checksums, including the original official-report
+filing event. It preserves superseded archival bytes and native Records authority.
+Assistance has no retained integrity baseline: its current replaceable attachment
+is explicitly identified, not converted into a certified original. See
+[the linked-source contract](../RECORDS.md#linked-source-files). No inventory
+association, new permission, financial action or storage migration is introduced;
+production media/recovery and formal acceptance remain open.
+
 ## Validation scope
 
 Verify absent standalone route, current native grant/revocation, no cross-office

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.199] - 2026-10-19
+### Fixed
+- fix(records): check linked source downloads
+
 ## [0.7.198] - 2026-10-19
 ### Fixed
 - fix(records): verify retained upload downloads

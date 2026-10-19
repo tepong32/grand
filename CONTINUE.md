@@ -1,5 +1,102 @@
 # GRAND continuation handoff
 
+## Records linked-source downloads — 2026-10-19
+
+Previous goal turn made concrete progress: local VM198 /
+`5206412dbdbc1022a775523d69cac54321bd4505` completed checked uploaded-file downloads.
+This turn confirms the goal ACTIVE and isolates clean198 in
+`codex/records-source-download-integrity`. Published master is still v0.7.187 /
+`a116691a100ed9230b578f73692ed12add84205e`. No merge/push/deployment is authorized;
+Finance remains NO-GO. The original checkout, dirty197 pause and all other work
+remain preserved. Current instructions supersede historical pause/ACTIVE snapshots.
+
+Actual source inspection found the remaining Records download route opening linked
+files without checking retained metadata or rechecking the linked source's current
+office. Reports and Voucher outputs have checksums; RequestDocument has neither
+hash nor size and remains replaceable. Do not fabricate a legacy baseline or add
+another document registry, ledger, Finance permission or Assistance-version workflow.
+
+Implemented: current source-owner checks precede source details/downloads; report
+ownership uses its definition, vouchers their configuration release and Assistance
+its existing MSWD rule. Foreign/unowned sources show an unavailable label and no
+source/download links. Existing native Records authority is preserved; original
+workspace authority remains distinct. Retained superseded outputs stay readable,
+but shadow vouchers do not become official records. Report/Voucher bytes must
+match retained SHA256. Official-report associations also reproduce their one
+original filing-event checksum; missing/ambiguous/drifted evidence fails closed.
+Report slug renames retain original paths/bytes. All supported files require safe
+namespaces and reject redirected directories. No model, migration, permission,
+database routing, Finance persistence or financial rule changed.
+
+Assistance retains its existing current-attachment behavior, with safe paths and a
+plain-language notice that it may be replaced in Assistance. Its response/event
+explicitly says the integrity baseline was not recorded; no cryptographic match,
+original-file retention or retrospective approval is claimed. No removed attachment
+is served. The shared path validator is factored from the checked-file function;
+AST comparison proves the extracted path statements and remaining strict hash/size
+algorithm are unchanged. Inventory's strict row wrapper and imports stay intact.
+
+Actual authenticated red proof against unchanged198: two new tests fail with200
+responses for corrupt output and changed source ownership (2tests/2failures/zero
+errors,1.370s). Corrected first14 cases pass2.478s on an exclusive clone. Both proof
+runs retain original synthetic-pair and Finance-copy hashes. Three added cases for
+fresh office/restricted/association identity, missing ownership/removal and slug
+rename are included in the frozen fresh suite below. No failed application gate
+was dismissed. Logs: `.tmp/source-{original,corrected}.log`.
+
+Browser PASS: a native Records-only clerk opens workspace → current Assistance
+record → visible replaceable-source notice → actual Download. Downloaded bytes
+match the synthetic source exactly. Desktop/mobile screenshots were inspected;
+390px viewport/scroll widths are390, notice/actions readable. No extra Finance or
+Assistance-workspace grant was added. The fixture lacks logo/avatar media (known404s);
+no official form/PDF rendering or LGU/printer acceptance is claimed. Initial private
+seeding failed because a manually instantiated TestCase lacked `client`; only that
+helper was corrected and a fresh owned v2 fixture seeded. No application assertion
+was weakened. Original synthetic pair and Finance-copy hashes remain unchanged;
+named browser is closed and owned server90523 is terminal0/stopped. Two untracked
+screenshots remain. Private browser/source fixtures are synthetic, never operator data.
+
+PASS fresh focused SQLite: `python -B .tmp/run_isolated.py test records
+ gso_integration_tests.test_evidence_retirement
+ gso_integration_tests.test_packet_download_handles
+ gso_integration_tests.test_grand_office_records --noinput --verbosity 1`:
+109/109 in7.617s, zero skips (17new and92 existing). Both disposable stores were
+destroyed; session33063 is terminal0. All six frozen app/template/test hashes match;
+no source/assertion changed during the run. PASS isolated `check` (zero issues),
+`makemigrations --check --dry-run` (no changes), `pip check`, syntax/algorithm AST
+comparisons and `git diff --check`. Discovery covers3023 unique tests across all
+eight partitions, including420 GSO. These are actual local results, not hosted CI.
+
+The17 new methods cover all three source streams/headers/audit identities, zero
+Finance queries, same-size output corruption, missing baselines/files, original
+filing drift/loss/ambiguity, unsafe/cross-version paths and directory redirection,
+current/missing source ownership, hidden foreign details, superseded/shadow state,
+current attachments/removal, native permission/current office/confidentiality and
+association/disposition boundaries, slug rename and audit-failure handle cleanup.
+The existing198 upload, native Records, GSO entry and evidence/packet regressions
+are included because the path validator is shared. No parallel suite was launched.
+
+NOT RUN — OUT OF SCOPE: fresh native MySQL/Finance persistence and full hosted
+publication suites. This is read-only default-store ownership/evidence retrieval
+with unchanged strict file-check algorithms, no schema/transaction/capacity change
+and no Finance alias query. Focused SQLite exercises actual ORM/JSON evidence and
+authenticated endpoints; it is not a new native/full-suite pass. Exact candidate
+and published-master gates remain mandatory for any later authorized publication.
+
+Production private-media/storage/recovery qualification remains open: MEDIA_ROOT
+and DEBUG media serving can bypass an endpoint for a known file URL. A checked
+handle prevents an unchecked reopen, not concurrent in-place writes. Assistance
+cannot prove old replaced bytes without retained source evidence; never relabel a
+current attachment as its historical filed copy. No deployment, real historical
+import, Finance readiness or formal Accounting/GSO/LGU acceptance is claimed.
+
+VM target: local198 →199 through installed Version Manager and the established
+historical-document adapter. Explicit intended source/test/docs only; VERSION and
+CHANGELOG managed. Resolve local tag `v0.7.199` after execution for exact SHA. No
+remote branch/tag/master update. Preserve all prior local checkpoints and receipts.
+Continue the active mission with real documented employee/Finance needs; do not
+invent loss/relief authority or new official rules to fill unresolved source gaps.
+
 ## Resumed: verified native Records uploads — 2026-10-19
 
 The goal tool confirms ACTIVE again after the owner-requested pause below. The
