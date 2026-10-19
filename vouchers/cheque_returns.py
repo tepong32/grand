@@ -60,6 +60,8 @@ def original_evidence(receipt, deposit, day):
         from .advance_refunds import validate_source
         validate_source(receipt,check_capacity=False)
         evidence['advance_refund'] = receipt.proposal['advance_refund']
+        if receipt.proposal.get('officer_components'):
+            evidence['officer_components'] = receipt.proposal['officer_components']
     evidence['charges'] = receipt.proposal.get('charges', [])
     evidence['collection_cash_accounts'] = sorted({row['account_id'] for row in receipt.proposal['financial_rows']
         if row.get('cash_flow_category')})
@@ -89,7 +91,7 @@ def available(receipt, day, *, exclude=None):
 
 @transaction.atomic
 def capture(*, receipt, deposit, actor, variant, debited_on, debit_amount,
-            bank_reference, reason, evidence_reference, applicability_reference):
+            bank_reference, reason, evidence_reference, applicability_reference, charge_treatments=None):
     office = require(actor, 'vouchers.prepare_collections')
     if office.pk != receipt.treasury_department_id:
         raise PermissionDenied
@@ -115,11 +117,24 @@ def capture(*, receipt, deposit, actor, variant, debited_on, debit_amount,
         if not value or len(value) > (80 if key == 'bank_reference' else 4000):
             raise ValidationError('Retain the bank debit reference (up to 80 characters), reason, evidence and recipe applicability basis.')
         values[key] = value
+    retained_components = None
+    if receipt.proposal.get('officer_components'):
+        from .officer_receipt_components import return_rows as component_rows
+        financial, retained_components = component_rows(receipt=receipt,owner=variant.department_id,
+            release_id=variant.release_id,fund_id=fund.pk,day=debited_on,fund_code=receipt.fund_code,
+            snapshot=snapshot,bank=evidence['bank'],cash_accounts=evidence['collection_cash_accounts'],
+            treatments=charge_treatments or [],current=True)
+    else:
+        if charge_treatments:
+            raise ValidationError('Separate officer charge treatments apply only to a retained combined refund instrument.')
+        financial = rows(variant.department_id,snapshot,total,evidence['bank'],
+            evidence['collection_cash_accounts'],evidence['collection_purposes'],evidence.get('cash_components'),evidence.get('advance_refund'))
     proposal = dict(schema_version=1, **values, original_cheque=evidence,
         receiving_bank=evidence['bank'], posting_rule=str(rule.public_id), posting_rule_snapshot=snapshot,
         posting_rule_checksum=checksum, fund_id=fund.pk,
-        financial_rows=rows(variant.department_id, snapshot, total, evidence['bank'],
-            evidence['collection_cash_accounts'], evidence['collection_purposes'], evidence.get('cash_components'), evidence.get('advance_refund')))
+        financial_rows=financial)
+    if retained_components is not None:
+        proposal['officer_charge_returns'] = retained_components
     if evidence.get('advance_refund'):
         proposal['advance_cheque_return'] = evidence['advance_refund']
     return new_source(actor=actor, treasury=office, variant=variant, fund=fund,
@@ -127,7 +142,7 @@ def capture(*, receipt, deposit, actor, variant, debited_on, debit_amount,
         total=total, proposal=proposal, return_receipt=receipt, return_deposit=deposit)
 
 
-def validate(source, *, lock_finance=False):
+def validate(source, *, lock_finance=False, review=False):
     if source.kind != Source.CHEQUE_RETURN:
         return
     if not source.return_receipt_id or not source.return_deposit_id or _digest(source.proposal) != source.proposal_checksum:
@@ -139,6 +154,19 @@ def validate(source, *, lock_finance=False):
         list(JournalEntry.objects.select_for_update().filter(
             public_id__in=(evidence['receipt_entry'], evidence['deposit_entry'])).order_by('pk'))
         evidence = original_evidence(source.return_receipt, source.return_deposit, source.source_date)
+    if evidence.get('officer_components'):
+        from .officer_receipt_components import return_rows as component_rows
+        expected, retained = component_rows(receipt=source.return_receipt,owner=source.finance_department_id,
+            release_id=source.configuration_release_id,fund_id=evidence['fund_id'],day=source.source_date,
+            fund_code=source.fund_code,snapshot=source.proposal['posting_rule_snapshot'],bank=evidence['bank'],
+            cash_accounts=evidence['collection_cash_accounts'],treatments=source.proposal.get('officer_charge_returns',[]),current=review)
+        if retained != source.proposal.get('officer_charge_returns'):
+            raise ValidationError('A component return recipe changed. Reject this source and prepare a current successor.')
+    else:
+        if source.proposal.get('officer_charge_returns'):
+            raise ValidationError('Retain the original combined officer receipt before applying component return recipes.')
+        expected = rows(source.finance_department_id,source.proposal['posting_rule_snapshot'],source.amount,evidence['bank'],
+            evidence['collection_cash_accounts'],evidence['collection_purposes'],evidence.get('cash_components'),evidence.get('advance_refund'))
     if (source.proposal.get('original_cheque') != evidence
             or source.proposal.get('receiving_bank') != evidence['bank']
             or source.amount != source.return_receipt.amount
@@ -146,9 +174,7 @@ def validate(source, *, lock_finance=False):
             or source.treasury_department_id != source.return_receipt.treasury_department_id
             or source.proposal['fund_id'] != evidence['fund_id']
             or source.fund_code != source.return_receipt.fund_code
-            or source.proposal['financial_rows'] != rows(source.finance_department_id,
-                source.proposal['posting_rule_snapshot'], source.amount, evidence['bank'],
-            evidence['collection_cash_accounts'], evidence['collection_purposes'], evidence.get('cash_components'), evidence.get('advance_refund'))
+            or source.proposal['financial_rows'] != expected
             or source.proposal.get('advance_cheque_return') != evidence.get('advance_refund')):
         raise ValidationError('The return must reproduce its original whole-cheque bank effect and approved counterpart.')
 

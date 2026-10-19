@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.208] - 2026-10-20
+### Added
+- feat(finance): separate officer principal from redemption charges
+
 ## [0.7.207] - 2026-10-19
 ### Added
 - feat(finance): retain assessed charges with cheque redemption

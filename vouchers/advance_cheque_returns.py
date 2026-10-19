@@ -71,7 +71,8 @@ def prepare_correction(original, day):
         return None
     validate_source(original,check_capacity=False)
     from .advance_applications import capacity
-    capacity(JournalSubsidiaryLine.objects.get(pk=data['original_detail']),day,original.amount)
+    from .officer_receipt_components import principal
+    capacity(JournalSubsidiaryLine.objects.get(pk=data['original_detail']),day,principal(original))
     return data
 
 
@@ -91,6 +92,7 @@ def active_hold(source):
 
 def movements(detail):
     from .collection_corrections import original_journal, corrected_sources
+    from .officer_receipt_components import principal
     result = []
     returns = Source.objects.filter(kind=Source.CHEQUE_RETURN,
         proposal__advance_cheque_return__original_detail=detail.pk,
@@ -98,7 +100,7 @@ def movements(detail):
     for source in returns:
         validate_source(source,check_capacity=False)
         original_journal(source)
-        result.append((source.source_date,-source.amount))
+        result.append((source.source_date,-principal(source)))
     corrections = Source.objects.filter(kind=Source.CORRECTION,
         proposal__advance_cheque_return_correction__original_detail=detail.pk)
     for source in corrections:
@@ -108,7 +110,7 @@ def movements(detail):
         if source.status == Source.POSTED and source.correction_of_id not in corrected_sources(
                 source.treasury_department_id,source.source_date):
             raise ValidationError('Reconcile the exact officer return correction before treating it as posted.')
-        result.append((source.source_date,source.amount))
+        result.append((source.source_date,principal(source)))
     return result
 
 
@@ -118,11 +120,13 @@ def attach(entry, source, request):
         return
     detail = JournalSubsidiaryLine.objects.get(pk=data['original_detail'])
     correction = source.kind == Source.CORRECTION
+    from .officer_receipt_components import principal
+    value = principal(source)
     line = entry.lines.get(account_id=detail.journal_line.account_id)
     row = JournalSubsidiaryLine(entry=entry,journal_line=line,category=JournalSubsidiaryLine.ADVANCE,
         reference_key=detail.reference_key,reference_label=detail.reference_label,source_code=detail.source_code,
-        source_reference=str(request.public_id),debit=0 if correction else source.amount,
-        credit=source.amount if correction else 0,
+        source_reference=str(request.public_id),debit=0 if correction else value,
+        credit=value if correction else 0,
         source_snapshot={CORRECTION if correction else RETURN:data,
             'original_advance_detail':detail.pk,'transaction_type':detail.source_code})
     row.full_clean(); row.save()
@@ -142,6 +146,8 @@ def validate_journal(entry):
     detail = JournalSubsidiaryLine.objects.get(pk=data['original_detail'])
     rows = list(entry.subsidiary_lines.all())
     correction = source.kind == Source.CORRECTION
+    from .officer_receipt_components import principal
+    value = principal(source)
     if len(rows) != 1:
         raise ValidationError('Retain one exact original-officer subsidiary on the return adjustment.')
     row = rows[0]
@@ -151,8 +157,8 @@ def validate_journal(entry):
             or row.journal_line.account_id != detail.journal_line.account_id
             or row.source_snapshot != {CORRECTION if correction else RETURN:data,
                 'original_advance_detail':detail.pk,'transaction_type':detail.source_code}
-            or row.debit != (0 if correction else source.amount)
-            or row.credit != (source.amount if correction else 0)):
+            or row.debit != (0 if correction else value)
+            or row.credit != (value if correction else 0)):
         raise ValidationError('Retain the original officer, asset and exact subsidiary amount through the return adjustment.')
     if correction:
         original_entry = JournalEntry.objects.get(public_id=source.proposal['original_entry'])

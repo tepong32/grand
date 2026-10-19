@@ -276,6 +276,20 @@ class RedemptionTests(TestCase):
         self.post_source(final); original.refresh_from_db()
         self.assertEqual(original.status,Source.CORRECTED)
 
+    def test_retired_receipt_retains_history_after_parent_return_correction_without_reopening_it(self):
+        from accounting.models import JournalEntry
+        from .collection_posting import validate_collection_journal
+        original = self.returned_source()
+        receipt = self.redeem(original);self.post_source(receipt)
+        receipt_entry = JournalEntry.objects.get(public_id=receipt.posting_requests.get().accounting_entry_public_id)
+        self.post_source(correct(original=receipt,actor=self.treasury_user,corrected_on=date(2026,9,16),reason='Wrong receipt'))
+        self.post_source(correct(original=original,actor=self.treasury_user,corrected_on=date(2026,9,16),reason='Wrong original return'))
+        validate_collection_journal(receipt_entry)
+        original.refresh_from_db()
+        with self.assertRaises(ValidationError):self.redeem(original,received_on=date(2026,9,16),receipt_number='FORBIDDEN-REUSE')
+        Source.objects.filter(pk=original.pk).update(review_reason='Changed original bank-return review')
+        with self.assertRaises(ValidationError):validate_collection_journal(receipt_entry)
+
     def test_replacement_cheque_requires_clearing_and_repeated_return_uses_new_obligation(self):
         original = self.returned_source()
         receipt = self.redeem(original,cheque={'kind':'manager','bank':'Synthetic bank','drawer_account':'Manager account',

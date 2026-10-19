@@ -109,15 +109,16 @@ cancelled hosted run into a pass. The synthetic browser/server are stopped.
 ## Still open in this phase
 
 October19 follow-up: [explicit ordinary assessed charges](FINANCE_REDEMPTION_CHARGES_2026-10-19.md)
-implements the ordinary principal-plus-charges extension below. Officer combined
-charges, actual applicable authority and formal acceptance remain separate.
+implements the ordinary principal-plus-charges extension below. The
+[officer extension](FINANCE_OFFICER_REDEMPTION_CHARGES.md) is implemented locally;
+actual applicable authority and formal acceptance remain separate.
 Current validation/version evidence belongs to CONTINUE.md; earlier principal-only
 results below are historical scope, not full-current-source results.
 
 - External custody delivery to a payee or court, distinct from internal TracePoint handovers.
-- Officer fees/penalties combined with principal remain unsupported; ordinary
-  collections use the explicit reviewed components linked above. No inferred rates
-  or balance differences are permitted.
+- Officer combined-charge validation/checkpoint status belongs to CONTINUE.md;
+  the linked contract requires explicit original advance and charge components.
+  No inferred rates or balance differences are permitted.
 - Officer cheque refunds retain their separate dated-capacity boundary.
 
 System and migration-drift checks pass. No operator migration or bank contact occurred.

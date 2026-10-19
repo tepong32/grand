@@ -1,5 +1,11 @@
 # Actual bank returns of officer refund cheques
 
+October19 follow-up: [officer assessed-redemption components](FINANCE_OFFICER_REDEMPTION_CHARGES.md)
+are implemented locally, preserving the original advance amount separately from whole
+instrument totals and reviewed charge receivables. CONTINUE.md owns current
+validation/checkpoint status; the following September results describe their
+historical principal-only scope. No Finance GO, publication or formal acceptance.
+
 2026-09-15: validated v0.7.115 development checkpoint on `codex/finance-officer-cheque-returns`
 in `C:/Users/Administrator/.codex/worktrees/grand-officer-cheque-returns`.
 The pending-officer-cheque base is pushed as v0.7.114 `ad7a300`

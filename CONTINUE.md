@@ -1,5 +1,95 @@
 # GRAND continuation handoff
 
+## Officer assessed-redemption local208 checkpoint — pause requested, 2026-10-20
+
+The owner requested focused completion and a checkpoint, then PAUSE for the night.
+The larger mission remains incomplete. Do not start another feature or cleanup;
+wait for an explicit resume after this checkpoint. Finance **NO-GO**; no deployment,
+production operation, formal Accounting/LGU/GSO acceptance or publication authority.
+
+Isolated `codex/officer-redemption-charges` is based on local207 /
+`49af4e14c89511e6ed9420061618a0ed0162ee19`. The local VM208 checkpoint includes only
+the reviewed15 runtime/test paths, nine continuity/contract documents and root
+VERSION/CHANGELOG. Its exact commit is resolved by `v0.7.208` and retained in the
+ignored `.tmp/officer-checkpoint208-verified.json` after the installed VM operation.
+Published master remains187 / `a116691a100ed9230b578f73692ed12add84205e`.
+No merge, push, hosted CI, remote tag, release publication or deployment.
+Initial feature tree was tracked-clean; final tracked tree is clean with five
+untracked QA artifacts preserved. The original dirty checkout, protected stores,
+prior branches/history and prior207's seven artifacts are preserved.
+
+Implemented the [complete officer component contract](docs/FINANCE_OFFICER_REDEMPTION_CHARGES.md):
+actual425 can contain officer400 plus assessed25. Whole receipts/deposits/returns/
+exact reversals remain whole; dated holds and officer subsidiaries use only400.
+Repeated redemption settles original advance/charge-receivable debit counterparts,
+with fresh assessed charges recognized separately. Independent recipe review and
+pinned posting remain mandatory. Retired historical replay requires the receipt's
+reconciled exact correction and original posted evidence; it never reopens a
+corrected parent for another receipt. No model, migration, permission, routing or
+new posting-rule instruction changed. No automatic rate, penalty or JEV authority.
+
+Validation uses Python3.11 and disposable two-store fixtures:
+
+- PASS original207 reproduction: the new assessed-principal case hit the old
+  guard (one expected assertion failure/zero errors,3.389s). Intermediate focused
+  runs passed5/5 in12.386s and44/44 in69.573s,zero skips.
+- FAIL — CURRENT DEVELOPMENT, fixed: four-case forms/history run had1 failure/
+  2 errors/1 pass,15.493s. A new helper shadowed its purpose variable; fixed only
+  the synthetic helper. Historical source replay also needed the bounded repair
+  above. The next run passed3/had1 error,14.503s: a new audit comparison used
+  decimal text instead of finite exact decimal values; corrected the comparison.
+- FAIL — CURRENT DEVELOPMENT, fixed: `python -B .tmp/run_scope.py` ran717 tests
+  across32 labels in433.220s,exit1:639 passed/77 native-only skips/one new-test
+  `JournalEntry` import error. Both aliases were destroyed. Added only that local
+  import afterward; all product sources and all assertions remain unchanged.
+- PASS `python -B .tmp/run_isolated.py test` with the three fully qualified ordinary
+  history/correction methods in `.tmp/officer-final-sqlite-delta.log`, `--noinput
+  --verbosity 2`:3/3,zero skips,4.155s,exit0; both aliases destroyed. Reused639
+  successful cases with exact runtime hashes; all717 IDs verified. The prior717
+  command remains recorded FAIL, not relabeled a full current-source pass.
+- PASS `python -B .tmp/native_officer.py`: documented fresh
+  `scripts/run_mysql_tests.py` with100 exact case labels and `--verbosity 2`;
+  100/100,zero skips,438.139s,exit0. Selection includes all77 native-only cases
+  from the717 scope, all19 new methods (three overlap), and seven direct legacy/
+  corrected-history dependents. Strict MySQL8.4.11 used an exclusive system-only
+  clone; both fresh aliases were destroyed, owned server stopped and original
+  stopped-template hashes unchanged. No overlapping test processes.
+- PASS discovery3111→3130,19 new methods in existing classes; original methods'
+  AST assertions, prior IDs and all eight shard owners preserved. PASS
+  `python -B .tmp/checks_officer.py`: framework, migration drift, AST, whitespace
+  and source freeze. Exact32-label/100-case lists, commands, hashes and receipts
+  remain in ignored `.tmp/officer-*`; no secrets belong in committed documents.
+- PASS actual browser clerk rejection of400 with assessed25, corrected425 manager
+  cheque entry, whole425 deposit through existing services, actual component-return
+  entry and independent Accounting UI decision, then existing posting services.
+  Exact officer400/fee25/bank425, previous rows and protected synthetic source pair
+  are verified. Three screenshots and both A4 PDF pages inspected; authenticated
+  retained HTML bytes match the actual download. Footer alone spills to page2;
+  optional pagination polish is deferred. Default logo/avatar files are absent in
+  the fixture; reviewer initially lacked existing read permission, granted only in
+  the exclusive clone. No app permission changed. Browser/owned HTTP server closed.
+- NOT RUN — OUT OF SCOPE at the owner's faster checkpoint request: repeat of the
+  unchanged successful SQLite cases, full717 native/full3130 suites, extended
+  unchanged UI posting journeys and hosted CI. Critical native cases above were
+  retained. Current-code publication/release, production storage/recovery,
+  actual prescribed forms/printers and formal acceptance remain unqualified.
+
+Installed VM inspect/preview/release uses the established process-local adapter:
+only root VERSION/CHANGELOG receive generated updates; all historical release text
+and version references remain intact. Transition207→208, local lightweight tag
+`v0.7.208`, message `Release v0.7.208: feat(finance): separate officer principal from
+redemption charges`; no `--push`. Exact26-file manifest, preview and local commit/
+tag/parent/remote verification are retained in `.tmp/vm-officer208-*` and the
+checkpoint receipt. QA PNG/PDF and private test-runtime files are not staged.
+
+Foundation certificate/form semantics and operational inputs remain unresolved.
+Generated claim adoption still requires original default-store payment/correction
+integration. GSO loss/relief research found official2025-004 amendment metadata;
+full COA text retrieval was403 and Supreme Court resolution retrieval timed out.
+Do not treat indexed excerpts as complete current adjudication authority; no loss
+module changed. These are carry-over limits, not newly approved local rules.
+No coding agent was launched. Next action: remain paused until the owner resumes.
+
 ## Ordinary redemption charges — local v0.7.207 checkpoint, 2026-10-19
 
 Goal ACTIVE. Isolated `codex/cheque-redemption-charges` starts tracked-clean at

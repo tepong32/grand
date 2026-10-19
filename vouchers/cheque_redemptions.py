@@ -1,6 +1,6 @@
 """Principal receipts applied once to a specific posted incoming-cheque return."""
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
@@ -15,17 +15,63 @@ from .remittances import _digest
 OR_DISPOSITIONS = {'surrendered':'Original receipt surrendered', 'loss_affidavit':'Loss affidavit retained'}
 
 
-def original(source, day):
+def _historical_return_journal(source):
+    """Verify posted bytes for retired history without authorizing another receipt."""
+    from accounting.posted_evidence import verify_source_link
+    requests = list(source.posting_requests.exclude(status='cancelled'))
+    if (source.status not in (Source.POSTED,Source.CORRECTED) or len(requests) != 1
+            or requests[0].status != 'posted' or _digest(source.proposal) != source.proposal_checksum
+            or not source.reviewed_at or not source.reviewed_by_id
+            or source.reviewed_by_id == source.prepared_by_id or not source.review_reason
+            or _digest(source.return_receipt.proposal) != source.return_receipt.proposal_checksum):
+        raise ValidationError('Retain one independently posted original bank return for retired history.')
+    request = requests[0]
+    entry = JournalEntry.objects.get(public_id=request.accounting_entry_public_id)
+    verify_source_link(request,entry,source_type='cheque_return')
+    # Posting authority is historical: never require a former poster's current role.
+    event = entry.audit_events.filter(action='posted').first()
+    try:
+        recorded = (Decimal(event.snapshot['debit']),Decimal(event.snapshot['credit'])) if event else None
+        if recorded is not None and not all(value.is_finite() for value in recorded):recorded = None
+    except (KeyError,TypeError,ValueError,InvalidOperation):
+        recorded = None
+    rows = [{'account_id':row.account_id,'account_code':row.account.code,'debit':str(row.debit),
+        'credit':str(row.credit),'cash_flow_category':row.cash_flow_category}
+        for row in entry.lines.select_related('account').order_by('sequence','pk')]
+    debit,credit = entry.totals
+    if (entry.status != JournalEntry.POSTED or not entry.posted_at or not entry.posted_by_id
+            or not event or event.actor_id != entry.posted_by_id or event.department_id != entry.department_id
+            or entry.posted_by_id in (entry.created_by_id,entry.submitted_by_id,source.prepared_by_id)
+            or debit != source.amount or credit != source.amount
+            or recorded != (debit,credit)
+            or entry.fund_id != source.proposal['fund_id'] or entry.reversal_of_id
+            or entry.source_snapshot.get('collection_payload') != request.payload
+            or request.payload.get('proposal') != source.proposal
+            or request.payload.get('proposal_checksum') != source.proposal_checksum
+            or request.payload.get('prepared_by') != source.prepared_by_id
+            or request.payload.get('reviewed_by') != source.reviewed_by_id
+            or request.payload.get('review_reason') != source.review_reason
+            or request.payload.get('source_date') != source.source_date.isoformat()
+            or request.payload.get('amount') != str(source.amount) or rows != source.proposal['financial_rows']):
+        raise ValidationError('Retain the exact original posted bank-return journal, source and review for retired history.')
+    return entry,request
+
+
+def original(source, day, *, historical=False):
     from .collection_corrections import original_journal
-    if (source.kind != Source.CHEQUE_RETURN or source.status != Source.POSTED
+    if (source.kind != Source.CHEQUE_RETURN or (not historical and source.status != Source.POSTED)
             or not isinstance(day, date) or not source.source_date <= day <= timezone.localdate()):
         raise ValidationError('Select a posted bank return and an actual subsequent principal receipt date.')
-    if source.corrections.filter(status__in=(Source.PROPOSED,Source.APPROVED,Source.POSTED)).exists():
+    if not historical and source.corrections.filter(status__in=(Source.PROPOSED,Source.APPROVED,Source.POSTED)).exists():
         raise ValidationError('Resolve the bank-return correction before receiving its redemption.')
-    entry, request = original_journal(source)
+    entry, request = _historical_return_journal(source) if historical else original_journal(source)
     debits = list(entry.lines.filter(debit__gt=0).select_related('account'))
-    if len(debits) != 1 or debits[0].debit != source.amount or entry.reversal_entries.exclude(status=entry.VOIDED).exists():
+    if (not debits or sum((row.debit for row in debits),Decimal('0')) != source.amount
+            or not historical and entry.reversal_entries.exclude(status=entry.VOIDED).exists()):
         raise ValidationError('Retain one exact original return receivable and resolve any reversal first.')
+    if len(debits) != 1:
+        from .officer_receipt_components import returned_debits
+        debits = returned_debits(source,entry)
     proof = {'return_source':str(source.public_id), 'return_checksum':source.proposal_checksum,
         'return_entry':str(entry.public_id), 'return_request':str(request.public_id),
         'return_request_checksum':request.payload_checksum, 'receivable_line':debits[0].pk,
@@ -34,6 +80,9 @@ def original(source, day):
         'original_receipt':str(source.return_receipt.public_id),
         'original_receipt_checksum':source.return_receipt.proposal_checksum,
         'cash_flow_purpose':source.proposal['original_cheque']['collection_purposes'][0]}
+    if len(debits) > 1:
+        proof['return_debits'] = [{'line':row.pk,'account_id':row.account_id,
+            'account_code':row.account.code,'amount':str(row.debit)} for row in debits]
     components = source.proposal['original_cheque'].get('cash_components')
     if components:
         proof.pop('cash_flow_purpose')
@@ -71,9 +120,10 @@ def protect(source, day):
 
 
 def rows(owner, snapshot, total, proof):
+    from .officer_receipt_components import redemption_rows as settle_originals
     if proof.get('cash_flow_components'):
         from .cheque_components import redemption_rows
-        return redemption_rows(owner,snapshot,total,proof)
+        return settle_originals(owner,redemption_rows(owner,snapshot,total,proof),total,proof)
     instructions = snapshot.get('lines', [])
     cash = [row for row in instructions if row['side'] == Line.DEBIT and row['account_source'] == Line.FIXED_ACCOUNT
         and row['amount_source'] == Line.EVENT_AMOUNT]
@@ -88,8 +138,8 @@ def rows(owner, snapshot, total, proof):
     debtor = account(owner,proof['receivable_code'])
     if cash_account.account_type != 'asset' or debtor.pk != proof['receivable_account'] or cash_account.pk == debtor.pk:
         raise ValidationError('Retain the original receivable and a separate actual collection asset.')
-    return [financial_row(cash_account,total,Line.DEBIT,proof['cash_flow_purpose']),
-        financial_row(debtor,total,Line.CREDIT)]
+    return settle_originals(owner,[financial_row(cash_account,total,Line.DEBIT,proof['cash_flow_purpose']),
+        financial_row(debtor,total,Line.CREDIT)],total,proof)
 
 
 @transaction.atomic
@@ -108,8 +158,6 @@ def capture(*, original_return, actor, variant, received_on, received_amount, re
     total = amount(received_amount)
     if fund.pk != proof['fund_id'] or variant.department_id != source.finance_department_id:
         raise ValidationError('Redeem the whole original principal in its original fund and Accounting office.')
-    if charges and source.proposal.get('advance_cheque_return'):
-        raise ValidationError('Keep officer-advance replacement receipts principal-only; additional charges need a separate authorized collection.')
     if (old_receipt_disposition not in OR_DISPOSITIONS
             or not str(old_receipt_evidence or '').strip() or not str(evidence_reference or '').strip()):
         raise ValidationError('Retain the actual receipt evidence and original OR surrender or loss-affidavit evidence.')
@@ -139,21 +187,30 @@ def capture(*, original_return, actor, variant, received_on, received_amount, re
         from .advance_applications import capacity
         from accounting.models import JournalSubsidiaryLine
         data = source.proposal['advance_cheque_return']
-        disbursement = capacity(JournalSubsidiaryLine.objects.get(pk=data['original_detail']),received_on,total)
+        from .officer_receipt_components import basis
+        officer = basis(source)
+        disbursement = capacity(JournalSubsidiaryLine.objects.get(pk=data['original_detail']),received_on,Decimal(officer['amount']))
         proposal['advance_refund'] = dict(data,disbursement={key:str(value) if isinstance(value,Decimal) else value
             for key,value in disbursement.items()})
+        if total != Decimal(officer['amount']):
+            proposal['officer_components'] = officer
     return new_source(actor=actor,treasury=office,variant=variant,fund=fund,kind=Source.RECEIPT,
         book=receipt_book,reference=receipt_number,day=received_on,total=total,proposal=proposal,redemption_return=source)
 
 
-def validate(source, *, lock_finance=False, review=False):
+def validate(source, *, lock_finance=False, review=False, historical=False):
     proof = source.proposal.get('redemption')
     if not proof and not source.redemption_return_id:
         return
     if (not proof or not source.redemption_return_id or source.kind != Source.RECEIPT
             or _digest(source.proposal) != source.proposal_checksum):
         raise ValidationError('Retain the exact redemption source and its original returned-cheque identity.')
-    entry, current = original(source.redemption_return, source.source_date)
+    if historical:
+        from .collection_corrections import corrected_sources
+        if (lock_finance or review or source.status != Source.POSTED or source.redemption_active
+                or source.pk not in corrected_sources(source.treasury_department_id,timezone.localdate())):
+            raise ValidationError('Only an exactly corrected, reconciled receipt may use retired redemption history.')
+    entry, current = original(source.redemption_return, source.source_date,historical=historical)
     if lock_finance:
         JournalEntry.objects.select_for_update().get(pk=entry.pk)
         _, current = original(source.redemption_return,source.source_date)
@@ -161,8 +218,6 @@ def validate(source, *, lock_finance=False, review=False):
     expected = rows(source.finance_department_id,source.proposal['posting_rule_snapshot'],principal,proof)
     charges = source.proposal.get('redemption_charges', [])
     if charges:
-        if source.redemption_return.proposal.get('advance_cheque_return'):
-            raise ValidationError('Officer-advance replacement receipts must remain principal-only.')
         from .redemption_charges import build
         expected, retained = build(owner=source.finance_department_id, release_id=source.configuration_release_id,
             fund_id=entry.fund_id, day=source.source_date, fund_code=source.fund_code, principal_rows=expected,
@@ -174,6 +229,9 @@ def validate(source, *, lock_finance=False, review=False):
     if ({key:value for key,value in (current_officer or {}).items() if key != 'disbursement'}
             != {key:value for key,value in (original_officer or {}).items() if key != 'disbursement'}):
         raise ValidationError('Retain the original officer refund identity on its replacement principal receipt.')
+    if current_officer:
+        from .officer_receipt_components import principal as officer_principal
+        officer_principal(source)
     if (proof != current or source.amount != principal + sum((amount(row['amount']) for row in charges), Decimal('0'))
             or source.proposal['fund_id'] != entry.fund_id
             or source.finance_department_id != entry.department_id
@@ -197,7 +255,7 @@ def validate_journal(entry):
     if not proposal.get('redemption'):
         return
     source = Source.objects.get(public_id=entry.source_snapshot['collection_source'])
-    validate(source)
+    validate(source,historical=entry.status == JournalEntry.POSTED and source.status == Source.POSTED and not source.redemption_active)
     if proposal != source.proposal or entry.reversal_of_id:
         raise ValidationError('The redemption journal must retain the exact independently reviewed principal receipt.')
 

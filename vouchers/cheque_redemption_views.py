@@ -87,5 +87,5 @@ def create(request,public_id):
             return redirect('vouchers:collection_detail',public_id=receipt.public_id)
     return render(request,'vouchers/collections/form.html',{'form':form,'title':'Receive returned-cheque redemption',
         'redemption_form':True, 'original_principal':source.amount,
-        'officer_principal_only':bool(source.proposal.get('advance_cheque_return')),
+        'officer_principal':source.proposal.get('advance_cheque_return',{}).get('amount'),
         'charges':charges})

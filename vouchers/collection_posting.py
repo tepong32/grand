@@ -31,7 +31,7 @@ def review_source(*, source, actor, approve, reason):
         raise ValidationError('The retained collection/deposit proposal changed.')
     if approve:
         from .cheque_returns import validate as validate_return
-        validate_return(source)
+        validate_return(source, review=True)
         from .cheque_redemptions import validate as validate_redemption
         validate_redemption(source, review=True)
         from .collection_charges import validate as validate_charges

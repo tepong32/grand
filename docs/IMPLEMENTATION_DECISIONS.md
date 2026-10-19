@@ -4,8 +4,10 @@ October19 D-096/D-099 implementation follow-up: ordinary returned-cheque
 redemptions may retain explicit assessed charge components using existing reviewed
 collection recipes, with applicable ordinance/authority and assessment references.
 This applies the accepted research-led design; it selects no local rate or rule.
-Officer replacements remain principal-only to preserve dated advance capacity.
-See [contract](FINANCE_REDEMPTION_CHARGES_2026-10-19.md); actual validation/version
+The [officer extension](FINANCE_OFFICER_REDEMPTION_CHARGES.md) keeps only the original
+officer component in dated advance capacity while retaining whole receipts and
+separate fee receivables. It sets no rate or local authority. See the
+[ordinary contract](FINANCE_REDEMPTION_CHARGES_2026-10-19.md); actual validation/version
 belongs to CONTINUE.md. No formal Accounting/LGU acceptance or Finance GO.
 
 This is the side record for turning-point implementation decisions made during autonomous work. It supports the user's next review; it is not LGU policy approval or production acceptance. Routine edits and test output stay in the changelog and continuation notes.

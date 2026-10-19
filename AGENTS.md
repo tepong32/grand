@@ -64,8 +64,13 @@ Ordinary cheque redemptions may combine full principal with explicitly assessed
 charges under existing reviewed collection recipes. Retain separate amounts,
 applicable authority and assessment evidence; never infer rates or recognize
 principal as revenue again. Recheck recipes at review, pin them afterward, and
-preserve exact corrections and the original principal hold. Officer replacements
-remain principal-only. See [bounded contract](docs/FINANCE_REDEMPTION_CHARGES_2026-10-19.md).
+preserve exact corrections and the original principal hold. Officer combined
+replacements must keep the original advance component separate from whole
+instrument totals and charge receivables through deposits, repeated returns and
+exact corrections. Retired-history verification never authorizes a new receipt
+against a corrected return. See [ordinary contract](docs/FINANCE_REDEMPTION_CHARGES_2026-10-19.md)
+and [officer contract](docs/FINANCE_OFFICER_REDEMPTION_CHARGES.md); current validation
+and local checkpoint state belong to CONTINUE.md.
 
 Budget allotment/obligation writers must preserve capacity at every affected
 effective-date boundary under the existing appropriation-line lock. A later

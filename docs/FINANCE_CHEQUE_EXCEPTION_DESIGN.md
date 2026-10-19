@@ -7,7 +7,11 @@ Later checkpoints cover [principal redemption/internal custody](FINANCE_CHEQUE_R
 [mixed cash-purpose components](FINANCE_CHEQUE_COMPONENTS_IN_PROGRESS.md),
 [officer cheque reservations/clearing](FINANCE_OFFICER_CHEQUES_IN_PROGRESS.md) and
 [officer bank returns/corrections/replacement](FINANCE_OFFICER_CHEQUE_RETURNS_IN_PROGRESS.md).
-Combined fees/penalties and external physical delivery remain separate boundaries.
+October19 ordinary assessed charges are covered by the
+[retained-component contract](FINANCE_REDEMPTION_CHARGES_2026-10-19.md); the
+[officer extension](FINANCE_OFFICER_REDEMPTION_CHARGES.md) is implemented locally with
+separate whole-instrument and advance amounts. External physical delivery remains
+open. CONTINUE.md owns current validation and local checkpoint evidence.
 This does not establish LGU acceptance.
 
 The user has no local procedure to supply and authorizes research-led development.
