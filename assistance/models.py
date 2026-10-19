@@ -103,11 +103,8 @@ class AssistanceRequest(models.Model):
 
     @property
     def secure_edit_token(self) -> str:
-        return self.edit_code
-
-    @secure_edit_token.setter
-    def secure_edit_token(self, value):
-        self.edit_code = value
+        from assistance.services.access_service import make_private_token
+        return make_private_token(self)
 
     @property
     def program(self):
@@ -151,7 +148,7 @@ class AssistanceRequest(models.Model):
         return reverse("assistance:track_request", args=[self.reference_code])
 
     def get_edit_url(self):
-        return reverse("assistance:edit_request", args=[self.edit_code])
+        return reverse("assistance:edit_request", args=[self.secure_edit_token])
 
 
 class CitizenRequest(AssistanceRequest):

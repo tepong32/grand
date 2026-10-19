@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import re
 
+from django.http import Http404
 from assistance.models import AssistanceRequest
+from assistance.services.access_service import resolve_request_for_edit
 
 LINK_TOKEN_PATTERN = re.compile(r'^(?P<ref>.+?)\s*::\s*(?P<edit>.+?)$')
 
@@ -20,12 +22,9 @@ def parse_assistance_link_payload(text):
 
 def find_request_by_reference(ref_code, edit_code):
     try:
-        return AssistanceRequest.objects.get(
-            reference_code__iexact=ref_code,
-            edit_code=edit_code,
-            claimed_at__isnull=True,
-        )
-    except AssistanceRequest.DoesNotExist:
+        obj = resolve_request_for_edit(edit_code)
+        return obj if obj.reference_code.casefold() == ref_code.casefold() and obj.claimed_at is None else None
+    except Http404:
         return None
 
 

@@ -100,14 +100,14 @@
             <div class="border rounded p-2 mb-3 bg-light" id="doc-{{ doc.id }}">
               <p class="mb-1"><strong>{{ doc.get_document_type_display }}</strong></p>
               <p class="small text-muted text-truncate mb-2">
-                <a href="{{ doc.file.url }}" target="_blank">{{ doc.file.name|basename }}</a>
+                <a href="{% url 'assistance:mswd_document_download' doc_id=doc.pk %}" target="_blank">{{ doc.file.name|basename }}</a>
               </p>
 
               {% with filename=doc.file.name|lower %}
                 {% if ".pdf" in filename %}
-                  <iframe src="{{ doc.file.url }}#view=FitH" class="w-100 border rounded mb-2" style="height: 150px;" loading="lazy"></iframe>
+                  <iframe src="{% url 'assistance:mswd_document_download' doc_id=doc.pk %}#view=FitH" class="w-100 border rounded mb-2" style="height: 150px;" loading="lazy"></iframe>
                 {% elif ".jpg" in filename or ".jpeg" in filename or ".png" in filename or ".gif" in filename or ".webp" in filename %}
-                  <img src="{{ doc.file.url }}" alt="{{ doc.file.name }}" class="img-fluid rounded mb-2" style="max-height: 150px; width: 100%; object-fit: cover;">
+                  <img src="{% url 'assistance:mswd_document_download' doc_id=doc.pk %}" alt="{{ doc.file.name }}" class="img-fluid rounded mb-2" style="max-height: 150px; width: 100%; object-fit: cover;">
                 {% else %}
                   <div class="small text-muted mb-2">Preview not available for this file type.</div>
                 {% endif %}

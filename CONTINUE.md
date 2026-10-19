@@ -1,5 +1,91 @@
 # GRAND continuation handoff
 
+## Citizen private access — local v0.7.200 checkpoint, owner pause, 2026-10-19
+
+Latest owner instruction: **skip remaining and proceed with commit**, then pause.
+This checkpoint uses the installed Version Manager on `codex/citizen-private-access`,
+parent v0.7.199 / `dfa9dff11ff3792f435800fcc4b5e7eab3bc0a19`.
+Resolve the local `v0.7.200` tag for the exact resulting checkpoint commit.
+No merge, push, hosted CI or deployment is authorized for this slice. Published
+master remains v0.7.187 / `a116691a100ed9230b578f73692ed12add84205e`.
+Pause the interface goal after the local checkpoint; do not start another slice.
+Finance remains **NO-GO**. LGU/GSO acceptance and storage/recovery qualification
+remain separate requirements. Do not infer publication authority from autonomy.
+
+Implemented DECISION-OPS-005: request-specific signed seven-day links, registered-
+email renewal using existing shared default-store attempt counters, minimal public
+tracking, protected citizen/MSWD attachments and denial of four reviewed private
+namespaces in the DEBUG media handler. Edit/upload/remove/QR/confirmation and bot
+linking share the signed contract; no six-digit fallback. Ordinary edits/read/QR
+do not extend expiry. Approved/claimed reading and editing locks remain intact.
+No schema, migration, permission, database router, Finance workflow or historical
+code rewrite. See [the contract and validation](docs/CITIZEN_FILE_ACCESS_SECURITY_REVIEW.md).
+The five documentation files and 23 source/template/test files form the bounded
+payload; VM manages VERSION/CHANGELOG without rewriting historical release claims.
+Eight untracked browser PNGs and ignored disposable fixtures/logs are not committed.
+Original checkout, protected databases and all unrelated work are preserved.
+
+PASS final focused SQLite, all 23 frozen source files:
+`python -B .tmp/run_isolated.py test assistance telegram_bot records
+ gso_integration_tests.test_evidence_retirement
+ gso_integration_tests.test_packet_download_handles
+ gso_integration_tests.test_grand_office_records --noinput --verbosity 1`:
+157/157, 11.562s, zero skips; both disposable stores destroyed.
+
+PASS native MySQL 8.4.11: `python -B .tmp/native_private_access.py` invokes the
+existing fresh two-store `scripts/run_mysql_tests.py` runner for `assistance
+ telegram_bot records users.test_auth_concurrency`: 96/96, 14.618s, zero skips.
+It finished before cancellation could occur after the owner's skip instruction.
+Receipt exit_code=0; owned clone stopped and original system-only test-template
+hashes unchanged. Only exclusive synthetic schemas were used, never operator DBs.
+
+PASS earlier broader SQLite: `python -B .tmp/run_isolated.py test assistance
+ telegram_bot records reporting vouchers users profiles home
+ gso_integration_tests.test_evidence_retirement
+ gso_integration_tests.test_packet_download_handles
+ gso_integration_tests.test_grand_office_records --noinput --verbosity 1`:
+1227 tests, 1112.060s, OK with 101 explicit native-only skips. This preceded final
+response/throttle safeguards and test organization; reuse only unaffected module
+coverage. Final changed code is covered by the focused and native runs above.
+
+PASS red/green proof: `python -B .tmp/probe_private_access.py original-final`
+reproduces duplicate-code edit500, tracker attachment disclosure and raw-media200
+on unchanged199 (three assertion failures, zero errors). `corrected-final` runs
+all 28 AssistanceFlowTests successfully, 1.898s. The 24 new regression cases cover
+signed/expired/revoked/foreign/legacy access, locks, renewal recipients/throttling/
+fail-closed errors, private files/previews, path safety and minimal tracking.
+Original test identities/classes and all existing shard owners are preserved:
+discovery3023→3047, eight complete/distinct partitions; Form1 owner6 unchanged.
+No CI gate changed. Commands: isolated `discover` at parent and final sources,
+then `python -B .tmp/verify_private_discovery.py`.
+
+PASS isolated `check`, `makemigrations --check --dry-run`, `pip check`,
+`pip_audit -r requirements.txt` (no known vulnerabilities),
+`python -m unittest scripts.test_ci_test_runner -v` (9/9), source AST parsing and
+`git diff --check`. Final synthetic browser journeys cover submission, same-token
+edit, image upload/replacement/removal, staff image/PDF preview, minimal public
+tracking, expiry, locked reading and registered-email renewal. Final screenshots
+were inspected. Browser servers/sessions are stopped; no real email/Telegram.
+Original fixture pair/files and Finance-copy hashes remain unchanged.
+
+Investigated failures: initial isolated harness setup/URLconf and file-response
+double-close errors were corrected without weakening assertions. A new test class
+initially shifted an existing CI shard owner; moving new cases into the existing
+AssistanceFlowTests restored every prior owner. HTTP-development CSRF and PDF frame
+preview failures were corrected without exemptions. A single-threaded browser
+helper timed out on PDF keep-alive; only that helper was made threaded and final
+browser proof passed. Missing synthetic branding/avatar assets give known404s.
+
+NOT RUN — further/full/hosted candidate and published-master checks: owner skipped
+remaining work and requested a local checkpoint/pause. Prior v187 hosted CI is
+baseline evidence only, not validation of this unpublished source. Before any
+future publication, review the whole unpublished chain and run required exact-
+candidate and published-master CI; do not bypass release gates. Production HTTPS,
+private URL log handling, registered-mail delivery, legacy bot associations,
+other media namespaces and storage/recovery remain operational/privacy work.
+State-bound token revocation is not per-link cancellation; synchronous renewal
+is not constant-time account indistinguishability. No acceptance claim is made.
+
 ## Records linked-source downloads — 2026-10-19
 
 Previous goal turn made concrete progress: local VM198 /

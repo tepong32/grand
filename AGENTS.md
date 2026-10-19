@@ -111,6 +111,15 @@ to superseded outputs; shadow vouchers are not official filed outputs. Verify ac
 retained source checksums and official-report filing evidence. Assistance references
 its current replaceable attachment and has no retained hash/size baseline; enforce
 safe paths without inventing a historical integrity claim or altering its workflow.
+Citizen access and direct-media privacy remain unqualified: the confirmed
+[access review](docs/CITIZEN_FILE_ACCESS_SECURITY_REVIEW.md) and DECISION-OPS-005
+track the accepted short-code/legacy-link transition: request-scoped private links
+with configurable seven-day expiry, registered-email renewal, minimal public
+tracking and protected attachments. Retire weak paths together with clear recovery;
+preserve staff scope, case locks and original codes/history. Reuse shared default-
+store attempt counters for renewal; ordinary reading/editing must not extend link
+expiry. Development approval
+is not publication, deployment or private-storage operational qualification.
 Use actual retained metadata: accounting CSV sources have a hash without a size;
 disposal legacy downloads require their recorded size and explicit legacy policy.
 Never manufacture a missing integrity baseline or relax the strict hash/size row API.

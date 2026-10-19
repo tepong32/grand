@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title_ext %} - Private link unavailable{% endblock %}
+{% block content %}<div class="container py-5"><div class="card p-4 mx-auto" style="max-width: 600px;">
+<h1 class="h4">Open your request with a new private link</h1>
+<p>This link has expired or is no longer valid. Old six-digit codes and QR codes no longer open private details.</p>
+<p>Request a new link using the email you registered. If you cannot use that inbox, contact MSWD for help.</p>
+<a class="btn btn-primary" href="{% url 'assistance:assistance_landing' %}#renew-link">Request a new link</a>
+</div></div>{% endblock %}

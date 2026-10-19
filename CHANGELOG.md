@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.200] - 2026-10-19
+### Fixed
+- fix(assistance): protect citizen links and private files
+
 ## [0.7.199] - 2026-10-19
 ### Fixed
 - fix(records): check linked source downloads

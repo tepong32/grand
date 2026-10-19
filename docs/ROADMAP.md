@@ -1,5 +1,14 @@
 # GRAND product roadmap
 
+The 2026-10-19 [citizen/file-access review](CITIZEN_FILE_ACCESS_SECURITY_REVIEW.md)
+confirms development media bypass and ambiguous short-code access on synthetic
+data. DECISION-OPS-005 records a bounded secure-link/private-delivery proposal and
+its accepted legacy email/QR transition (owner approval 2026-10-19). The bounded workflow is implemented in local v0.7.200 with focused SQLite/native
+and synthetic browser validation; the owner requested a checkpoint and pause.
+Hosted publication gates, legacy transition support and operational/private-storage
+qualification remain open. This is not evidence of production exposure or formal
+acceptance. Preserve citizen/staff workflows and all Finance/operational gates.
+
 2026-10-19 native office-filing follow-up fixes an observed integrity gap in
 uploaded Records downloads: retained hashes/sizes and safe record-UUID paths are
 checked on the streaming handle before an audit event. Existing authority and

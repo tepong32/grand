@@ -144,6 +144,9 @@ STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 STATIC_URL = '/static/'
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 MEDIA_URL = '/media/'
+ASSISTANCE_PRIVATE_LINK_SECONDS = int(os.environ.get("ASSISTANCE_PRIVATE_LINK_SECONDS", 7 * 86400))
+if ASSISTANCE_PRIVATE_LINK_SECONDS <= 0:
+    raise ValueError("ASSISTANCE_PRIVATE_LINK_SECONDS must be positive.")
 # One portable tree for user-requested exports. Point this at the folder watched
 # by TraceSync in production; copying the whole root preserves all manifests.
 GRAND_EXPORT_ROOT = Path(os.environ.get('GRAND_EXPORT_ROOT', BASE_DIR / 'exports'))

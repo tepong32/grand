@@ -120,6 +120,29 @@ verification. Recommend retaining current gates until that dedicated review is
 authorized and validated. Feature development continues; no existing CI gate is
 changed, waived or treated as passed by this proposal.
 
+**DECISION-OPS-005 — Citizen/file access transition (development accepted, 2026-10-19).**
+The [confirmed synthetic review](CITIZEN_FILE_ACCESS_SECURITY_REVIEW.md) shows
+anonymous DEBUG media access bypassing controlled downloads, attachment links on
+reference-only tracking, and ambiguous six-digit-only citizen access. The current
+email/QR/edit/upload/preview flows depend on that access contract. Blocking files
+alone would break legitimate use; changing citizen access is broader than another
+download integrity check. Alternatives: develop the bounded secure-access change,
+or defer it explicitly while retaining the privacy/release blocker. Recommend
+account-free, request-scoped private links with configurable seven-day expiry,
+registered-email recovery, minimal public tracking and controlled file delivery,
+retiring six-digit-only authorization across all affected routes together. Preserve
+existing employee/Records/Finance authority and source history. No new account
+system, real email, operator-data change, deployment or publication is implied.
+The linked design records compatibility impact, verification and possible schema
+gates. The owner accepted the recommended secure-access workflow: develop the
+seven-day private-link, registered-email renewal, minimal public tracking and
+protected-attachment transition, retiring the short-code paths together. This
+approval is for development, not publication, deployment or operational acceptance.
+Do not request the same scope decision again. Existing Telegram linking must not
+remain a short-code bypass; no real external messages are authorized for testing.
+The bounded implementation is local v0.7.200; validation and the owner-requested
+checkpoint/pause belong to CONTINUE.md. Publication/operational gates remain open.
+
 **DECISION-GSO-003 — Independently approved maintenance corrections (development accepted).**
 Which corrected fields, evidence and review authority may replace the effective
 documentary values of a closed work record? The existing maintenance service

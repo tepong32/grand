@@ -30,8 +30,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     await message.reply_text(
         "Hello! To link your assistance request, reply with:\n\n"
-        "`your-refcode::editcode`\n\n"
-        "Example:\n`MSWD-01-2025-0001::123456`\n\n"
+        "`your-refcode::private-token`\n\n"
+        "Use the token at the end of your current private access link. Six-digit codes are no longer accepted.\n\n"
         "If you'd like to unlink this account later, send `/unlink`.",
         parse_mode="Markdown"
     )
@@ -61,7 +61,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         parsed = parse_assistance_link_payload(text)
         if not parsed:
             await message.reply_text(
-                "Invalid format. Send `reference::editcode`.",
+                "Invalid format. Send `reference::private-token`.",
                 parse_mode="Markdown"
             )
             return
