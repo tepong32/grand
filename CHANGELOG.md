@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.202] - 2026-10-19
+### Fixed
+- fix(assistance): protect retained legacy attachments
+
 ## [0.7.201] - 2026-10-19
 ### Fixed
 - fix(profiles): protect assignment memo workflow

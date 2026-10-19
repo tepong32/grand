@@ -286,3 +286,23 @@ class RecordSourceDownloadTests(TestCase):
                     self.client.get(self.url(association))
             self.assertEqual(len(handles), 1)
             self.assertTrue(handles[0].closed)
+
+    def test_legacy_assistance_source_download_retains_original_path_and_audit_scope(self):
+        from django.core.files.base import ContentFile
+        name = self.storage.save("assistance_uploads/2025/06/original.pdf", ContentFile(self.payload))
+        RequestDocument.objects.filter(pk=self.document.pk).update(file=name)
+        association = self.sources[2][2]
+        before = association.record.events.count()
+        with CaptureQueriesContext(connections["finance"]) as finance, \
+                patch.object(self.storage, "open", wraps=self.storage.open) as opened:
+            response = self.client.get(self.url(association))
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response["X-GRAND-File-Integrity"], "not-recorded")
+            self.assertEqual(b"".join(response.streaming_content), self.payload)
+            self.assertEqual(opened.call_count, 1)
+        self.assertEqual(len(finance), 0)
+        self.assertEqual(association.record.events.count(), before + 1)
+        self.document.refresh_from_db()
+        self.assertEqual(self.document.file.name, name)
+        with self.storage.open(name, "rb") as original:
+            self.assertEqual(original.read(), self.payload)

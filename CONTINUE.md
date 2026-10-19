@@ -1,5 +1,81 @@
 # GRAND continuation handoff
 
+## Legacy Assistance files — local v0.7.202 checkpoint, 2026-10-19
+
+Goal remains ACTIVE after the owner's **continue now** instruction; no new pause.
+Previous local checkpoint is v0.7.201 / `17c42230da02ed7fee694657f7f01578822f623a`.
+This isolated `codex/assistance-legacy-attachments` branch starts there. Remote
+master remains187 / `a116691a100ed9230b578f73692ed12add84205e`; no merge/push/hosted
+CI/deployment/production operations are authorized. Finance remains **NO-GO**.
+Original checkout, protected databases, unrelated changes and all older local
+history/screenshots remain preserved. Do not claim formal LGU/GSO acceptance.
+
+Implemented: controlled citizen/MSWD/Records readers accept the retained legacy
+assistance_uploads namespace alongside current assistance_docs. The shared path
+validator opens no file; readers keep their existing authorization, one streaming
+handle and audit rules. Raw legacy media is denied. Bad PNG CRC now downloads as
+protected binary rather than500. No schema/model/permission/query/router changes,
+file relocation or metadata rewrite. No retained checksum/size is invented.
+See [source trace and limits](docs/CITIZEN_FILE_ACCESS_SECURITY_REVIEW.md#retained-legacy-attachments--2026-10-19).
+
+PASS red proof: `python -B .tmp/probe_legacy.py original-v5`, unchanged201:
+four cases /six expected assertion failures /zero errors,1.651s. Raw legacy200,
+controlled citizen/staff/Records404 and corrupt PNG500 are genuine application
+defects. `corrected-final` passes all49 AssistanceFlow/RecordSourceDownload tests,
+4.198s, zero skips; original fixture and Finance-copy hashes are unchanged.
+Initial private proof attempts hit populated-fixture unique identities. Only the
+exclusive copied fixture names were isolated; repository fixtures/assertions and
+original source data were preserved. The browser receipt initially compared the
+public UUID to a numeric event FK; its read-only join was corrected, retaining
+the required exactly-one event assertion. No application/CI gate was weakened.
+
+PASS fresh frozen-source SQLite: `python -B .tmp/run_isolated.py test assistance
+ records profiles gso_integration_tests.test_evidence_retirement
+ gso_integration_tests.test_packet_download_handles
+ gso_integration_tests.test_grand_office_records --noinput --verbosity 1`:
+167/167, 13.925s, zero skips, exit0; both disposable aliases destroyed. Scope
+covers both source readers, private/public media and existing evidence handles.
+PASS isolated `check`, `makemigrations --check --dry-run` (no changes), AST/source
+hash checks and `git diff --check`. No original test/assertion/CI gate was changed.
+PASS isolated `discover` on parent201 and final source, followed by
+`python -B .tmp/verify_legacy_sources.py`:3056 to3060, four new methods in existing
+classes, every old ID/class/shard owner preserved and all eight partitions complete.
+Private verification/document helpers initially hit Windows console/default-file
+encoding limits; made messages ASCII and file reads explicit UTF-8, then reran.
+These failures were observation/helper failures, not passing application gates.
+
+PASS actual browser: private citizen and MSWD image previews load the retained
+800px PNG; raw legacy URL returns404. Native Records Download saves retained.png
+with the exact original SHA256 and one existing downloaded_source event. The
+row path and bytes remain unchanged. Mobile document375px/viewport390px;
+two screenshots inspected. Named browser closed, owned server2459 terminal0.
+`python -B .tmp/verify_legacy_browser.py` verifies actual downloaded bytes, retained
+row/path, event count, source pair/files and Finance-copy hashes. No real person,
+operator attachment or external mail used. Missing synthetic branding/avatar404s
+remain fixture limitations, not accepted operational rendering.
+
+NOT RUN — native database regression: this slice changes no model/persistence,
+SQL/query, transactions, locks, constraints or database configuration. Critical
+path safety, access, parsing, bytes and source-event behavior are tested directly
+on this Windows environment; native201 results are evidence only for unchanged
+profile/User persistence. No new native-current-source pass is claimed. Full
+hosted exact-candidate/master CI and production storage/recovery/privacy/LGU
+qualification remain required before later authorized publication/acceptance.
+
+Local VM202 uses the installed Version Manager with the historical-document
+adapter: ten intended code/test/document paths plus managed VERSION/CHANGELOG,
+two untracked synthetic PNGs excluded. Resolve local tag v0.7.202 for the exact
+checkpoint; parent is201. No merge, push or deployment. Full bounded diff reviewed;
+protected-checkout guards and remote identity checks remain mandatory. All owned
+browser/test processes are terminal.
+
+Next: continue the original Finance foundation/finite requirement roadmap and
+accepted research-led development; select an evidenced employee workflow rather
+than a new speculative module. Keep unconfirmed earmark/certificate/numerical
+rules disabled while inspecting applicable official sources and existing outputs.
+These private-file repairs do not authorize publication or complete production
+storage/recovery, formal Accounting/LGU acceptance or the wider goal.
+
 ## Resumed employee memo workflow — local v0.7.201 checkpoint, 2026-10-19
 
 The owner explicitly said **continue now** and resumed the goal in the interface.

@@ -219,3 +219,34 @@ explicit privacy-review work. Historical form/financial/LGU acceptance is unchan
 
 This development is not a complete privacy audit, production migration,
 publication/deployment authorization or formal acceptance. Finance remains NO-GO.
+
+## Retained legacy attachments — 2026-10-19
+
+After local201, source tracing found migration0002 stored RequestDocument files
+under `assistance_uploads/year/month`;0003 only altered upload_to to assistance_docs.
+It did not move old files. Both controlled Assistance and linked Records readers
+therefore rejected a retained valid legacy file while generic DEBUG media could
+still expose it. No actual historical/operator attachment was inspected.
+
+Four new tests reproduce six assertion failures/zero errors against unchanged201:
+raw legacy200 including case variants, citizen/staff/Records controlled404, and
+corrupt PNG500. The corrected shared namespace check accepts either retained root,
+then enforces existing containment/redirect/path rules. It opens no file itself;
+each reader validates/streams its same opened handle. Office, token, current-case,
+removal and native Records audit authority remain unchanged. No migration, file
+move, path rewrite, historical import or fabricated hash/size baseline.
+
+Pillow's explicit SyntaxError for an invalid PNG checksum now falls back to binary
+attachment delivery. No executable inline preview or artificial repaired image is
+created. The same policy already applies to unknown uploads. DEBUG raw delivery
+denies assistance_uploads as well as the previously reviewed confidential paths.
+Other legacy media and production web-server/storage qualification remain open.
+
+All49 Assistance-flow/linked-Records cases pass, including four new methods kept
+in existing classes. Real synthetic browser proof opens the same retained PNG in
+citizen/MSWD previews, rejects raw access with404 and saves its exact original
+bytes through the native Records Download action, with one audit event. Original
+source pair/file and copied Finance hashes remain unchanged; browser/server stopped.
+Screenshots were inspected. Missing fixture branding/avatar404s remain separate.
+Fresh dependent verification, commands, local version and remaining gates belong
+to [CONTINUE.md](../CONTINUE.md). This is not historical migration or LGU acceptance.

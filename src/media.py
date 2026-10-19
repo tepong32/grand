@@ -22,7 +22,7 @@ def serve_development_media(request, path):
                 or target.resolve() != target):
             raise ValueError
         target.relative_to(root)
-        if (normalized.split("/", 1)[0] in {"records", "vouchers", "assistance_docs"}
+        if (normalized.split("/", 1)[0] in {"records", "vouchers", "assistance_docs", "assistance_uploads"}
                 or normalized.startswith("reporting/outputs/")
                 or (len(components) > 3 and components[0] == 'users' and components[2] == 'memos')):
             raise ValueError

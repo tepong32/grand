@@ -568,6 +568,73 @@ class AssistanceFlowTests(TestCase):
         self.assertIn("sandbox", response["Content-Security-Policy"])
         self.assertEqual(b"".join(response.streaming_content), payload)
 
+    def test_legacy_retained_attachment_uses_private_citizen_and_staff_routes(self):
+        self.prepare_private_access()
+        name = "assistance_uploads/2025/06/retained.txt"
+        payload = b"synthetic retained legacy attachment"
+        path = Path(self.doc.file.storage.location) / name
+        path.parent.mkdir(parents=True)
+        path.write_bytes(payload)
+        RequestDocument.objects.filter(pk=self.doc.pk).update(file=name)
+        self.doc.refresh_from_db()
+        urls = [self.file_url(), reverse("assistance:mswd_document_download", args=[self.doc.pk])]
+        self.client.force_login(self.staff)
+        for url in urls:
+            with self.subTest(url=url):
+                with patch.object(self.doc.file.storage, "open", wraps=self.doc.file.storage.open) as opened:
+                    response = self.client.get(url)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response["X-GRAND-File-Integrity"], "not-recorded")
+                    self.assertIn("no-store", response["Cache-Control"])
+                    self.assertEqual(b"".join(response.streaming_content), payload)
+                    self.assertEqual(opened.call_count, 1)
+        self.assertEqual(self.client.get(self.file_url(self.other_req.secure_edit_token)).status_code, 404)
+        self.doc.refresh_from_db()
+        self.assertEqual(self.doc.file.name, name)
+        self.assertEqual(path.read_bytes(), payload)
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(urls[1]).status_code, 302)
+        self.client.force_login(self.staff)
+        for unsafe in ("assistance_uploads/../outside.txt", "assistance_uploads\\2025\\06\\retained.txt",
+                       "assistance_uploads/2025/06/retained.txt:other", "defaults/retained.txt"):
+            RequestDocument.objects.filter(pk=self.doc.pk).update(file=unsafe)
+            for url in urls:
+                self.assertEqual(self.client.get(url).status_code, 404)
+        RequestDocument.objects.filter(pk=self.doc.pk).update(file=name)
+        RequestDocument.objects.filter(pk=self.doc.pk).update(is_removed=True)
+        for url in urls:
+            self.assertEqual(self.client.get(url).status_code, 404)
+
+    def test_legacy_private_media_denied_without_moving_retained_bytes(self):
+        from django.http import Http404
+        from django.test import RequestFactory
+        from src.media import serve_development_media
+        self.prepare_private_access()
+        root = Path(self.doc.file.storage.location)
+        name = "assistance_uploads/2025/06/retained.txt"
+        path = root / name
+        path.parent.mkdir(parents=True)
+        path.write_bytes(b"private historical bytes")
+        for requested in (name, "ASSISTANCE_UPLOADS/2025/06/retained.txt"):
+            with self.subTest(path=requested), self.assertRaises(Http404):
+                response = serve_development_media(RequestFactory().get("/media/" + requested), requested)
+                response.file_to_stream.close()
+        self.assertEqual(path.read_bytes(), b"private historical bytes")
+
+    def test_corrupt_png_checksum_downloads_without_an_inline_preview_or_server_error(self):
+        self.prepare_private_access()
+        image = BytesIO()
+        Image.new("RGB", (2, 2), "blue").save(image, format="PNG")
+        corrupted = bytearray(image.getvalue())
+        corrupted[corrupted.index(b"IDAT") + 4] ^= 1
+        self.doc.file.save("damaged.png", SimpleUploadedFile("damaged.png", bytes(corrupted)))
+        response = self.client.get(self.file_url())
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/octet-stream")
+        self.assertTrue(response["Content-Disposition"].startswith("attachment;"))
+        self.assertEqual(b"".join(response.streaming_content), bytes(corrupted))
+
+
 class AssistanceRateLimitTests(TestCase):
     @classmethod
     def setUpTestData(cls):

@@ -7,9 +7,19 @@ from django.http import FileResponse, Http404
 from src.file_integrity import validate_file_namespace
 
 
+def validate_document_file(field):
+    # Migration0002 used the dated assistance_uploads root. Migration0003 only
+    # changed upload_to; it did not relocate previously retained attachments.
+    name = field.name or ""
+    parts = Path(name).parts
+    if not parts or parts[0] not in {"assistance_docs", "assistance_uploads"} or ":" in name:
+        raise ValidationError("Unsafe attachment path.")
+    validate_file_namespace(field, namespace=parts[0])
+
+
 def document_response(document):
     try:
-        validate_file_namespace(document.file, namespace="assistance_docs")
+        validate_document_file(document.file)
         source = document.file.open("rb")
     except (OSError, ValueError, RuntimeError, ValidationError):
         raise Http404("Attachment unavailable.") from None
@@ -29,7 +39,7 @@ def document_response(document):
                 image.verify()
                 allowed = {"JPEG": "image/jpeg", "PNG": "image/png", "GIF": "image/gif"}
                 content_type = allowed.get(image.format, content_type)
-            except (OSError, ValueError, UnidentifiedImageError, Image.DecompressionBombError):
+            except (OSError, ValueError, SyntaxError, UnidentifiedImageError, Image.DecompressionBombError):
                 pass
             finally:
                 source.seek(0)

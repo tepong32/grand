@@ -3,7 +3,7 @@ from pathlib import PurePosixPath
 
 from django.core.exceptions import ValidationError
 
-from src.file_integrity import open_checked_private_file, validate_file_namespace
+from src.file_integrity import open_checked_private_file
 
 
 def open_record_file(item):
@@ -49,7 +49,8 @@ def open_associated_file(association):
     elif isinstance(source, RequestDocument):
         # This source has no retained hash/size fields. It deliberately references
         # the current replaceable attachment, not an immutable filed copy.
-        validate_file_namespace(field, namespace="assistance_docs")
+        from assistance.files import validate_document_file
+        validate_document_file(field)
         return field.open("rb"), filename, None
     else:
         raise ValidationError("This linked source has no supported download.")

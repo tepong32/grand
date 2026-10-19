@@ -111,6 +111,9 @@ to superseded outputs; shadow vouchers are not official filed outputs. Verify ac
 retained source checksums and official-report filing evidence. Assistance references
 its current replaceable attachment and has no retained hash/size baseline; enforce
 safe paths without inventing a historical integrity claim or altering its workflow.
+Its controlled readers support both current assistance_docs and retained legacy
+assistance_uploads paths; DEBUG raw media must deny both. Do not relocate old bytes
+or rewrite retained paths merely to change the download allowlist.
 Citizen access and direct-media privacy remain unqualified: the confirmed
 [access review](docs/CITIZEN_FILE_ACCESS_SECURITY_REVIEW.md) and DECISION-OPS-005
 track the accepted short-code/legacy-link transition: request-scoped private links

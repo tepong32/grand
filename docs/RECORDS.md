@@ -94,7 +94,7 @@ access remain distinct.
 | --- | --- | --- |
 | Report output | Source SHA-256; an `official_source` must also match exactly one original report-filing event and its checksum | Original filed bytes remain readable after report supersession. Department/report slug renames do not rename or invalidate stored files. Missing or ambiguous filing evidence fails closed. |
 | Voucher output | Source SHA-256 and case/output-type/version path | Official or retained superseded outputs are readable; shadow outputs and missing release ownership are denied. No regeneration, posting or print acknowledgement is inferred. |
-| Assistance document | Safe `assistance_docs/` path only; its model retains no checksum or size | This is the current replaceable attachment. Removed/missing files are unavailable. No old content, recorded integrity baseline or immutable filed copy is invented. |
+| Assistance document | Safe `assistance_docs/` or retained legacy `assistance_uploads/` path; its model retains no checksum or size | This is the current replaceable attachment. Removed/missing files are unavailable. No old content, recorded integrity baseline or immutable filed copy is invented. Existing file paths/bytes are not migrated. |
 
 All three paths reject filesystem escapes and redirected directories, stream one
 opened handle, and use private/no-store responses. Checksum-bearing outputs must

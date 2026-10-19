@@ -1,5 +1,13 @@
 # GRAND product roadmap
 
+2026-10-19 legacy attachment follow-up supports the Assistance upload namespace
+retained by migration0002, which0003 did not relocate. Citizen/MSWD and native
+Records downloads share its safe-path check; raw development media denies both
+old and current namespaces. Corrupt PNGs remain protected binary downloads rather
+than server errors. No real historical import, file relocation, source approval or
+new integrity baseline is inferred. See the [privacy follow-up](CITIZEN_FILE_ACCESS_SECURITY_REVIEW.md#retained-legacy-attachments--2026-10-19)
+and CONTINUE.md for actual validation and unpublished checkpoint state.
+
 2026-10-19 owner resumed development after local v0.7.200. The bounded
 [employee assignment-memo workflow](EMPLOYEE_MEMO_ACCESS.md) repairs a reproduced
 upload500 and raw memo exposure while preserving existing owner/HR authority and
