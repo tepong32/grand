@@ -1,5 +1,10 @@
 # Supplies ledger and physical counts
 
+2026-10-19: [RPCI/RSMI working drafts](supplies-output-drafts.md) add supplied
+five-line entry/preview/print under stock-read scope. They remain distinct from
+the complete stored-movement/count working copies below: no live ledger facts,
+values, source dates, certification or approved valuation are inferred or changed.
+
 Ledger prerequisite published at cbece6c. See [CONTINUE](../CONTINUE.md)
 for release evidence. Reviewed current-day counts are published at3ec09d6;
 CONTINUE records release and CI evidence.

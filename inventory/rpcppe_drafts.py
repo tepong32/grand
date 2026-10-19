@@ -27,6 +27,7 @@ class RPCPPEHeaderForm(forms.Form):
 
 
 class RPCPPELineForm(forms.Form):
+    card_name = "property card"
     article = forms.CharField(required=False, max_length=180)
     description = forms.CharField(required=False, max_length=500, widget=forms.Textarea(attrs={"rows": 2}))
     property_number = forms.CharField(label="Property number (as supplied)", required=False, max_length=100)
@@ -46,7 +47,7 @@ class RPCPPELineForm(forms.Form):
                 context.prec = 40
                 expected = (counted - card) * unit_value
             if supplied != expected:
-                self.add_error("difference_value", "Check the supplied difference value against (physical count minus property card) × unit value. No rounding is inferred; leave the value blank if it needs Accounting review.")
+                self.add_error("difference_value", f"Check the supplied difference value against (physical count minus {self.card_name}) × unit value. No rounding is inferred; leave the value blank if it needs Accounting review.")
         return data
 
 

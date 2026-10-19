@@ -1,5 +1,13 @@
 # GSO completion audit
 
+2026-10-19 GRAND follow-up: supplied preparation sheets now exist for all six
+named PAR/ICS/SPC/RPCPPE/RPCI/RSMI outputs. The new
+[supplies draft contract](supplies-output-drafts.md) and
+[property draft contract](property-record-design.md#rpcppe-working-preparation--2026-10-19)
+describe bounded editable previews, not complete certified official reports or
+accepted local forms. This advances the placeholder engineering need; it does not
+close the official-output row below. CONTINUE owns exact local/publication evidence.
+
 GRAND follow-up, 2026-10-18: the source-baseline observations below are historical.
 The [GRAND handoff](../../CONTINUE.md) owns v0.7.176 integration and the current
 unpublished ICS/SPC preparation/source-worksheet work. Working drafts do not close

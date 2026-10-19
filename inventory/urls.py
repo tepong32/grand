@@ -16,6 +16,7 @@ from . import employee_custody_views
 from . import custody_review
 from . import custody_return_views
 from . import stock_count_views
+from . import supply_drafts
 from . import requisition_views
 from . import supply_return_views
 from . import hr_custody_review_views
@@ -60,6 +61,8 @@ urlpatterns = [
     path("receiving/quantity-corrections/<int:pk>/", receipt_quantity_views.detail, name="receipt-quantity-detail"),
     path("receiving/quantity-corrections/<int:pk>/evidence/", receipt_quantity_views.evidence, name="receipt-quantity-evidence"),
     path("stock-counts/", stock_count_views.count_list, name="stock-count-list"),
+    path("consumables/prepare-rpci/", supply_drafts.rpci_preparation, name="rpci-preparation"),
+    path("consumables/prepare-rsmi/", supply_drafts.rsmi_preparation, name="rsmi-preparation"),
     path("stock-counts/working-copy/", stock_count_views.count_working_copy, name="stock-count-working-copy"),
     path("consumables/<int:pk>/count/", stock_count_views.count_start, name="stock-count-start"),
     path("stock-counts/<int:pk>/", stock_count_views.count_detail, name="stock-count-detail"),

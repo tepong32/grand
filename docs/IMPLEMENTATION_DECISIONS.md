@@ -80,6 +80,11 @@ Resumed 2026-10-19 development adds a supplied five-line RPCPPE draft under the
 same placeholder direction. It does not adopt the BTr NGA form, infer counts or
 valuation, or close the local form/signature/completeness boundary. Larger complete
 reports and accepted issuance remain distinct from this nonpersistent preparation.
+The same direction now supplies RPCI/RSMI preparation under the separate existing
+GSO stock-read boundary. All six named forms have bounded supplied draft flows;
+this does not resolve accepted local layouts, complete report coverage, source
+population, valuation, numbering, signatures or archival issuance. Do not turn
+the earlier complete stock working copies into implicit official reports.
 
 **DECISION-GSO-002 — Real historical imports (deferred by owner).** Which source export, owners,
 identity mappings and discrepancy decisions should an eventual import retain?

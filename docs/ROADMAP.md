@@ -1,5 +1,12 @@
 # GRAND product roadmap
 
+2026-10-19 supplies follow-up adds RPCI/RSMI supplied draft entry, editable preview
+and printing for existing GSO stock readers, preserving unknowns/zeros and exact
+arithmetic without stock/Finance writes. The Supplies entry no longer requires
+asset-dashboard authority for its brand/Workspace navigation. See
+[the bounded output contract](gso/supplies-output-drafts.md); complete accepted
+reports, real source reconciliation and official valuation/issuance remain open.
+
 2026-10-19 resumed development adds an unsigned RPCPPE five-line preparation
 draft through the existing property-read boundary: supplied facts, unknown/zero
 distinction, explicit quantity difference, exact supplied-value checks and editable

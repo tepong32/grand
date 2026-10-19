@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.197] - 2026-10-19
+### Added
+- feat(gso): prepare unsigned RPCI and RSMI drafts
+
 ## [0.7.196] - 2026-10-19
 ### Added
 - feat(gso): prepare unsigned RPCPPE working drafts

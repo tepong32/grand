@@ -1,5 +1,105 @@
 # GRAND continuation handoff
 
+## RPCI / RSMI supplied preparation — 2026-10-19
+
+The wider goal remains ACTIVE. Isolated `codex/gso-supply-drafts` starts from
+local v0.7.196 / `6f08d308dc867c1e7b18e24de0c805fffeceae14` with a clean
+tracked tree. Published master remains v0.7.187 /
+`a116691a100ed9230b578f73692ed12add84205e`; new work from188 remains unpublished.
+No integration/push, deployment or production operation. Finance stays NO-GO.
+Prior pause/cleanup evidence below remains historical; the goal is resumed.
+
+The next documented placeholder-output gap was RPCI/RSMI, distinct from the
+already complete stored-movement/count working copies. Supplies now opens either
+five-line supplied draft, retains editable preview and browser Print / Save as PDF.
+Existing explicit GSO stock-read authority is rechecked on GET/POST, including the
+current office. No asset/export grant is needed because no stored records are
+copied. UAT read remains permitted. Dates, references, stock numbers and office/
+role labels stay supplied; unknown quantities/costs remain unknown and zero stays
+explicit. RPCI calculates count minus stock card only with both quantities; RSMI
+amounts remain supplied. Exact supplied arithmetic is checked without inventing
+rounding, valuation or unlike-item totals. No stock/asset/count/evidence/Finance
+writes, models, migrations, new permissions, source queries or archive are added.
+RPCI reuses RPCPPE line checks with a stock-card label; default property behavior
+is unchanged. See [the bounded contract](docs/gso/supplies-output-drafts.md).
+
+Authenticated original196 runtime confirms both new routes404 and an existing
+stock-only reader's Supplies Workspace link returning403. The Supplies brand and
+Workspace destination now use GRAND home, preserving separate asset authority.
+Corrected HTTP probes pass both drafts across seven roles: minimal stock reader,
+UAT, ordinary office, ungranted GSO, implicit superuser, export-only and property-only.
+They also check exact signed/zero/unknown/invalid arithmetic, empty source initials
+and reachable home. Seven stock/asset/audit snapshots, Finance-copy bytes and the
+original exclusively synthetic pair remain unchanged. Both original red proofs
+and corrected receipts remain in `.tmp/supply-*.log`; no operator databases used.
+
+PASS focused SQLite: `python -B .tmp/run_isolated.py test
+ gso_integration_tests.test_supply_drafts
+ gso_integration_tests.test_rpcppe_drafts
+ gso_integration_tests.test_grand_stock_authority
+ gso_integration_tests.test_stock_working_copy
+ gso_integration_tests.test_count_working_copy --noinput --verbosity 1`:
+35/35 in9.617s, zero skips; both disposable stores destroyed. Thirteen new methods
+cover minimal/current explicit stock authority, UAT, ordinary/property/export-only
+and implicit-superuser rejection, fresh office changes, no stock/evidence writes
+or Finance queries, unknown/zero/signed facts, source dates, exact arithmetic and
+nonfinite/precision/range limits, retained invalid input, formset bounds, XSS,
+CSRF/methods, private preview and reachable entry/home. All22 dependent RPCPPE,
+stock-service and stored-copy cases pass in this same final run. No assertions or
+application files changed during the run; six frozen hashes remain unchanged.
+
+PASS actual browser: stock-only Supplies → RPCI/RSMI → supplied facts → collapsed
+preview/Print, with no asset permission. RPCI retains card1/count0/−25 plus unknown
+count/unit-value0; RSMI retains supplied source date/RIS, quantity2.125/amount0 and
+another unknown amount despite quantity3/unit99.99. Each normal short example fits
+one A4-landscape page; both pages were rendered/inspected with five rows, unsigned
+role placeholders and draft warnings. Desktop/mobile screenshots were inspected.
+At390px each page stays390 with a950px table in312px horizontal scroll. Browser
+UAT GETs succeed and ordinary-office GETs deny403 for both; HTTP probes additionally
+exercise both preview POSTs and all seven roles. Browser/owned server are stopped;
+fixture favicon404 remains. Six synthetic artifacts remain untracked. Longer text
+may need more pages; actual local-form/printer acceptance is unperformed.
+
+PASS `python -B .tmp/run_isolated.py check` (no issues/zero silenced),
+`python -B .tmp/run_isolated.py makemigrations --check --dry-run` (no changes),
+`python -B .tmp/run_isolated.py discover` (2992 unique/420 GSO/eight complete
+partitions), `python -m pip check`, source/helper syntax, six frozen app/test hashes
+and `git diff --check`. Partition unit9/9 evidence from195 is reused only for the
+unchanged partition code/environment; no fresh full-suite/native/hosted pass implied.
+
+NOT RUN — OUT OF SCOPE: fresh native MySQL and broad Finance/hosted release CI.
+These are stateless Forms/Decimal/HTML over unchanged stock authorization, with no
+new database-dependent query/schema/transaction behavior. Focused checks cover new
+arithmetic, UAT/explicit/current-office denial, HTTP/CSRF, and read-only/no-Finance
+behavior plus dependent property math and stock copies/services. Prior native195
+stock predicate evidence is reused only for that unchanged contract, not as a new
+endpoint/native197 pass. Exact candidate/published-master gates remain required for
+any later publication. No duplicate regression suite was launched.
+
+Reused official-hosted QC RPCI and SSMI example bytes match their prior SHA256
+receipts; both were visually reinspected. They remain local examples, not accepted
+municipal templates or proof of applicable signatories/numbering/valuation. No QC
+names, mandatory roles or annex labels were adopted. Working preparations now exist
+for all six named PAR/ICS/SPC/RPCPPE/RPCI/RSMI forms, but bounded supplied lines do
+not establish complete certified reports or official parity. The completion audit
+now distinguishes that engineering progress from open acceptance requirements.
+
+The installed VM local target is196 →197; resolve local tag `v0.7.197` after the
+operation for the exact commit. Review/preview manifest: six implementation/test
+files plus this handoff, roadmap, decisions, stock contract, completion audit and
+new supplies-output contract. Only VERSION/CHANGELOG are managed automatically.
+Preserve historical release evidence,196 sources/receipts, prior cleanup, all
+unrelated/dirty work and protected databases. No new dependency/software installed.
+
+Continue the active goal by reconciling remaining actual employee/Finance workflow
+needs and source dependencies. Do not recreate the completed manual drafts or
+stored working copies, expand to an unrequested reporting framework, or declare
+formal acceptance from template/tests. Earmark/certificate semantics, valuation,
+post-use receipt reconciliation, applicable loss/relief process, representative
+historical records (real migration deferred), production storage/recovery and LGU/
+Accounting/GSO acceptance remain open at their documented boundaries. New work
+has no blanket publication authority; no deployment or production operations.
+
 ## Resumed: RPCPPE working preparation — 2026-10-19
 
 The goal tool confirms ACTIVE following the owner-requested pause. Prior pause/
