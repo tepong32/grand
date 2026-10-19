@@ -16,6 +16,67 @@ from . import test_grand_employee_custody
 class GrandHRCustodyReviewTests(TestCase):
     databases = {"default", "finance"}
 
+    def search_people(self, *, inactive=False):
+        from django.contrib.auth import get_user_model
+        from profiles.models import EmployeeProfile
+        from inventory.models import Asset
+        people = []
+        for number in range(28):
+            person = get_user_model().objects.create_user(username=f'hr-page-{number:03}',
+                email=f'hr-page-{number:03}@example.test', first_name='Repeated', last_name=f'Custodian{number:03}',
+                is_active=not inactive)
+            EmployeeProfile.objects.filter(user=person).update(assigned_department=self.other)
+            if inactive:
+                Asset.objects.create(department_id=self.gso.pk, asset_name=f'Historical custody {number}',
+                    custodian_user=person)
+            people.append(person)
+        return people
+
+    def test_employee_search_active_pages_are_separate_from_retained_review_pages(self):
+        from django.urls import reverse
+        people = self.search_people()
+        self.client.force_login(self.clerk)
+        response = self.client.get(reverse('inventory:hr-custody-review-list'),
+            {'q': 'hr-page', 'employee_page': 2, 'page': 1})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([person.pk for person in response.context['employees']], [person.pk for person in people[25:]])
+        self.assertEqual(response.context['page'].number, 1)
+        self.assertContains(response, reverse('inventory:hr-custody-review-create', args=[people[-1].pk]))
+
+    def test_employee_search_inactive_pages_keep_explicit_office_custody_links(self):
+        from django.contrib.auth import get_user_model
+        from django.urls import reverse
+        people = self.search_people(inactive=True)
+        unlinked = get_user_model().objects.create_user(username='hr-page-unlinked', email='hr-page-unlinked@example.test', is_active=False)
+        self.client.force_login(self.clerk)
+        url = reverse('inventory:hr-custody-review-list')
+        first = self.client.get(url, {'q': 'hr-page', 'employee_page': 1})
+        second = self.client.get(url, {'q': 'hr-page', 'employee_page': 2})
+        ids = [person.pk for response in (first, second) for person in response.context['employees']]
+        self.assertEqual(ids, [person.pk for person in people])
+        self.assertNotIn(unlinked.pk, ids)
+        self.assertContains(second, 'Inactive account with custody history')
+        self.assertContains(second, 'inactivity does not prove termination')
+        self.assertEqual(self.client.get(reverse('inventory:hr-custody-review-create', args=[people[-1].pk])).status_code, 200)
+
+    def test_employee_search_empty_and_uat_reads_do_not_offer_new_case_authority(self):
+        from django.db import connections
+        from django.test.utils import CaptureQueriesContext
+        from django.urls import reverse
+        self.search_people()
+        self.client.force_login(self.clerk)
+        url = reverse('inventory:hr-custody-review-list')
+        before = list(Review.objects.values())
+        with CaptureQueriesContext(connections['finance']) as finance:
+            response = self.client.get(url, {'employee_page': 2})
+        self.assertEqual(response.context['employees'], [])
+        self.assertEqual(len(finance), 0)
+        self.client.force_login(self.viewer)
+        response = self.client.get(url, {'q': 'hr-page', 'employee_page': 2})
+        self.assertFalse(response.context['can_record'])
+        self.assertEqual(response.context['employees'], [])
+        self.assertEqual(list(Review.objects.values()), before)
+
     def setUp(self):
         from tempfile import TemporaryDirectory
         from unittest.mock import patch

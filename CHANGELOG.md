@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.206] - 2026-10-19
+### Added
+- feat(inventory): page custody employee searches
+
 ## [0.7.205] - 2026-10-19
 ### Added
 - feat(inventory): print count reconciliation working copies

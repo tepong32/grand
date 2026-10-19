@@ -88,6 +88,65 @@ No payment deduction, salary hold, liability valuation or accounting posting fol
 automatically from custody or clearance. Finance can refer to explicit asset/custody
 identities later, subject to its own authority and source checks.
 
+## Employee search pages — 2026-10-19
+
+The handoff and HR-reference review selectors previously stopped after25 active
+matches (and25 linked inactive matches for reviews). A repeated/common-name
+search could not reach later eligible accounts. The handoff's POST choices also
+used only that first page. This was a lookup limitation, not a new eligibility rule.
+
+Both workflows now show25 accounts per employee page with complete authorized
+match counts and Previous/Next employees links. Active results retain the same
+minimal directory columns and `can_view_profile` predicate before counting or
+paging; hidden candidates cannot consume visible slots or leak through totals.
+The helper iterates the minimal matching rows to retain that per-profile policy;
+it does not claim production-scale performance. Empty search remains empty.
+
+The handoff carries its employee page through form validation and restricts a
+submitted ID to that page's current choices. Invalid details retain the selected
+employee and entered facts. A changed selection asks the clerk to search again.
+Page metadata is not custody authority: the existing signed actor/asset preview,
+native employee snapshot, expiry, source revalidation, idempotent request and
+independent recipient acknowledgment remain unchanged. No assignment changes on
+search, preview or request creation; acknowledgment owns the existing custody write.
+
+HR-reference employee pages retain the existing active-profile visibility and
+inactive-with-explicit-owning-office-custody-history policy. No unlinked inactive
+account is added. Inactivity is still an account fact, not termination or clearance.
+Employee paging is separate from retained-review paging; both preserve the query
+and the other page. The create view rechecks the selected native identity as before.
+Read-only UAT users do not gain record/selection authority. No new permission,
+model, migration, Finance rule, source identity or automatic grant.
+
+Ten cases in the two existing HTTP/review classes cover all53 active matches,
+later-page signed handoff/acknowledgment and retry, invalid form retention,
+off-page IDs, source changes, eligibility, profile visibility before totals,
+all28 linked inactive accounts and UAT/empty-search boundaries. Unchanged205:
+10 tests,9 expected assertion failures/zero errors,3.604s. Corrected frozen proof:
+10/10 pass,4.023s,zero skips. One positive fixture initially got the correct403
+because it lacked asset-view authority; only its test grants were corrected.
+No authorization check or assertion was weakened.
+
+Actual browser proof selects an employee on page2 of3, creates one pending request
+without changing custody, then independently acknowledges it as the synthetic
+recipient. Exactly one transfer, one audit event and the expected asset custody
+fields result. Prior transfers/audits, all other assets, HR cases/events and exact
+Finance bytes remain unchanged. A page2 inactive custodian also reaches the HR
+request form without a new case. Three screenshots inspected; mobile390 viewport
+has375px document width. Original paired fixture/files are untouched and the
+browser/owned loopback server are stopped. Synthetic branding/favicon404s and a
+private-server idle socket timeout remain fixture limits.
+
+Fresh broad GSO SQLite:439 discovered,408 passed/31 existing native-only skips,
+87.788s,exit0; both aliases destroyed, all old identities/classes/shard owners and
+seven frozen source hashes verified. No new search case is skipped. Framework and
+migration-drift checks pass. A new native run is out of scope for selector/form
+paging over unchanged domain writers, models, source identities, locks and routing;
+the skipped scenarios are not claimed as passes. Exact commands and local206
+checkpoint are in [CONTINUE.md](../../CONTINUE.md). This is not an HR event, official clearance,
+financial liability finding, production migration or LGU acceptance. No deployment;
+Finance remains **NO-GO** and operational/formal acceptance gates remain open.
+
 ## Validation checkpoint
 
 Standalone SQLite: 69 discovered, 60 executed, nine native-only skips; PASS9.882s.

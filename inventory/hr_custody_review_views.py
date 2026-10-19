@@ -62,11 +62,12 @@ def review_list(request):
             Q(pk__in=historical_ids) | Q(pk__in=history.values("source_custodian_user_id"))
             | Q(pk__in=history.values("destination_custodian_user_id"))).filter(
             Q(username__icontains=query) | Q(first_name__icontains=query) | Q(last_name__icontains=query)
-        ).only("pk", "username", "first_name", "middle_name", "last_name", "ext_name", "is_active").order_by("pk")[:25]
+        ).only("pk", "username", "first_name", "middle_name", "last_name", "ext_name", "is_active").order_by("pk")
         employees.extend(historical)
+    employee_page = Paginator(employees, 25).get_page(request.GET.get("employee_page"))
     return render(request, "inventory/hr_custody_review_list.html", {
         "page": Paginator(rows, 25).get_page(request.GET.get("page")), "query": query,
-        "can_record": record, "employees": employees})
+        "can_record": record, "employees": list(employee_page.object_list), "employee_page": employee_page})
 
 
 @never_cache

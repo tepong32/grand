@@ -1,5 +1,80 @@
 # GRAND continuation handoff
 
+## Custody employee search — local v0.7.206 checkpoint, 2026-10-19
+
+Goal ACTIVE. Previous goal turn retained local VM205 /
+`3317d4502c100cb4bfea4cccdad0eb3eca588a2a`. New isolated
+`codex/custody-employee-search` starts clean there. Published master remains187 /
+`a116691a100ed9230b578f73692ed12add84205e`; no remote branch/tag206. No merge,
+push, hosted CI, deployment or production operations. Finance **NO-GO**; no formal
+Accounting/LGU/GSO operational acceptance. Original checkout/protected stores,
+all prior unpublished history/artifacts and unrelated work remain preserved.
+No coding agent was launched.
+
+Implemented complete25-account employee pages for existing named handoffs and
+HR-reference reviews, replacing the first25-only selectors. Existing minimal
+directory/profile visibility runs before page counts. Historical inactive choices
+still require explicit owning-office custody links. Handoff page/selected values
+survive invalid details; server choices belong to the submitted page. Existing
+signed preview/source checks, expiry, retry and independent acknowledgment are
+unchanged. HR employee and review pages remain separate. No model, migration,
+permission, domain-service, source-identity, routing or Finance changes. See the
+[bounded contract](docs/gso/employee-custody-design.md#employee-search-pages--2026-10-19).
+
+PASS exact unchanged205 proof: `python -B .tmp/probe_search.py original-complete`,
+10 tests,9 expected assertion failures/zero errors,3.604s. Final frozen proof:
+`python -B .tmp/probe_search.py corrected-frozen`,10/10,4.023s,zero skips. The
+positive empty/UAT test already passes on the parent. An earlier positive fixture
+initially failed403 because it lacked the existing recipient asset-view grant;
+corrected the test data only, preserving the application check and assertions.
+Only disposable fixture names were adapted; source pair/files and Finance bytes
+are unchanged. This is synthetic testing, not a historical migration.
+
+PASS actual browser: clerk chooses page2 employee, sends one pending request with
+original custody intact; separate synthetic recipient acknowledges exactly that
+handoff. One transfer/one audit and only expected custody fields change. All prior
+transfers/audits/other assets and HR cases/events remain unchanged. Page2 of the
+inactive-linked search reaches the correct HR request form without creating a case.
+Three screenshots inspected; mobile390/document375. Original source pair/files and
+exact Finance copy hash unchanged. Browser closed/owned server terminal0; receipt
+`.tmp/search-browser-verified.json`. Synthetic branding/favicon404s and a private
+server idle socket timeout are fixture limits, not acceptance or application500s.
+
+Full discovery3089→3099 and GSO429→439; ten added methods stay in two existing
+classes. Frozen source manifest has seven controller/form/template/test paths.
+
+PASS fresh frozen-source broad scope: `python -B .tmp/run_isolated.py test
+gso_integration_tests --noinput --verbosity 1`:439 discovered,408 passed/31 existing
+native-only skips,87.788s,exit0; both aliases destroyed. Actual command discovery
+matches all439 IDs; all31 skips require native MySQL/row locks and none is a new
+search case. Every old full-suite identity/class/shard owner is retained; eight
+complete/distinct partitions. PASS framework check (zero issues), migration-drift
+(no changes), source/AST, documentation links and whitespace. Full3099 platform
+suite/current hosted CI NOT RUN - OUT OF SCOPE/UNAUTHORIZED respectively.
+
+Fresh native NOT RUN - OUT OF SCOPE: paging/form metadata reuse unchanged domain
+writers, source identity, transaction locks and database fields; no Finance or
+persistence contract changes. Fresh SQLite source/identity/acknowledgment tests
+and actual synthetic browser custody/audit/Finance hashes verify the changed UI
+integration. Existing native-only races remain distinct, not inferred passes.
+Full-platform/current hosted CI, production/recovery and formal acceptance stay open.
+
+Complete final diff reviewed: seven controller/form/template/test files and six
+appropriate documentation paths, plus managed VERSION/CHANGELOG. Installed VM
+inspect/preview/actual local206 uses the historical-document adapter; root metadata
+only, preserving historical docs and the changelog tail. Resolve local tag
+`v0.7.206` for the exact revision; `.tmp/search-checkpoint206-verified.json` retains
+base, manifest and tested hashes. Three browser PNGs remain untracked; private
+helpers, paired synthetic stores and logs are ignored/excluded. Tracked worktree
+should be clean after the checkpoint. No merge/push/hosted CI/deployment.
+The protected-original/publication guard remains required at final verification.
+
+Next: reconcile remaining documented functional gaps against source/evidence and
+select a useful independent slice. Do not repeat completed selectors/count output
+or invent official HR/clearance/Finance rules to avoid a genuine external input.
+Production/recovery, actual source/form qualification and formal acceptance remain
+open; no Finance GO or historical migration readiness. The goal remains ACTIVE.
+
 ## Physical-count working copy — local v0.7.205 checkpoint, 2026-10-19
 
 Goal ACTIVE. Previous turn made concrete progress with local VM204 /

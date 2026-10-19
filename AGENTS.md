@@ -83,6 +83,11 @@ owns these accepted choices; do not ask them again.
 
 ## Project context and documentation map
 
+Custody employee search applies existing profile/historical-link visibility before
+page counts. Page metadata never authorizes custody: retain signed source review,
+current native identity and independent acknowledgment. See
+[employee search](docs/gso/employee-custody-design.md#employee-search-pages--2026-10-19).
+
 Physical-count working copies reuse retained count/import facts and existing
 verification read authority; keep sources and unknown/zero amounts distinct.
 They do not establish an official RPCPPE, valuation or approval. See the

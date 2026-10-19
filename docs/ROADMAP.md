@@ -1,5 +1,11 @@
 # GRAND product roadmap
 
+2026-10-19 custody lookup follow-up makes every authorized employee search match
+reachable in bounded pages for named handoffs and HR-reference reviews. It retains
+profile visibility, explicit inactive custody links, invalid-form state and the
+existing signed/independent acknowledgment flow. See [contract](gso/employee-custody-design.md#employee-search-pages--2026-10-19)
+and CONTINUE.md; no HR event, clearance or financial authority is created.
+
 2026-10-19 physical-count follow-up adds a source-backed printable working
 reconciliation beside the existing comparison/CSV. It retains every comparison
 group, current office/read scope and unknown/zero distinction without source,

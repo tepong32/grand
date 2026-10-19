@@ -159,6 +159,11 @@ Add a simple repair/work record attached to an asset: reported problem, date, se
 
 ### 4. Employee movement and exit clearance
 
+Local employee selection now has [complete scoped search pages](employee-custody-design.md#employee-search-pages--2026-10-19)
+for the existing handoff and HR-reference workflows. Native identity, source
+revalidation, independent acknowledgment and inactive-history rules remain intact;
+this does not implement official clearance. Actual validation/version is in CONTINUE.
+
 Named employee custody is published at236c5e1; see
 [verified HR boundary and selected relationships](employee-custody-design.md).
 GRAND currently provides employee identity/current department, but no verified

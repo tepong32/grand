@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core import signing
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
@@ -28,8 +29,10 @@ def employee_results(actor, query):
         ).select_related("employeeprofile__assigned_department").only(
             "pk", "username", "is_active", "first_name", "middle_name", "last_name", "ext_name",
             "employeeprofile__id", "employeeprofile__user_id", "employeeprofile__assigned_department__id",
-            "employeeprofile__assigned_department__name").order_by("last_name", "first_name", "pk")[:25]
-    return [row for row in matches if can_view_profile(actor, row)]
+            "employeeprofile__assigned_department__name").order_by("last_name", "first_name", "pk")
+    # Apply native profile visibility before counts/page selection, so hidden
+    # candidates cannot consume a page or appear in its totals.
+    return [row for row in matches.iterator(chunk_size=200) if can_view_profile(actor, row)]
 
 
 @never_cache
@@ -44,9 +47,11 @@ def employee_handoff(request, pk):
         rows = rows.filter(department_id=gso_department_for_user(request.user).pk)
     asset = get_object_or_404(rows, pk=pk)
     query = (request.POST.get("query", "") if request.method == "POST" else request.GET.get("q", "")).strip()[:100]
-    employees = list(employee_results(request.user, query))
+    employee_page = Paginator(employee_results(request.user, query), 25).get_page(
+        request.POST.get("employee_page") if request.method == "POST" else request.GET.get("employee_page"))
+    employees = list(employee_page.object_list)
     form = EmployeeHandoffForm(request.POST if request.method == "POST" else None,
-                               employees=employees, initial={"query": query})
+                               employees=employees, initial={"query": query, "employee_page": employee_page.number})
     preview, confirmation = None, None
     if request.method == "POST" and request.POST.get("action") == "confirm":
         confirmation = ConfirmEmployeeHandoffForm(request.POST)
@@ -77,5 +82,5 @@ def employee_handoff(request, pk):
         except ValidationError as error:
             form.add_error(None, " ".join(error.messages))
     return render(request, "inventory/employee_handoff.html", {
-        "asset": asset, "query": query, "form": form, "employees": employees,
+        "asset": asset, "query": query, "form": form, "employees": employees, "employee_page": employee_page,
         "preview": preview, "confirmation": confirmation})

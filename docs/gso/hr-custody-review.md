@@ -46,6 +46,10 @@ The implementation includes owner-scoped list/search/create/detail screens,
 actor-bound signed request/submission forms, private downloads, findings/submission,
 independent review/return, cancellation and retained event history. The
 `check_custody_review_evidence` command checks files without modifying them.
+The local [employee search pages](employee-custody-design.md#employee-search-pages--2026-10-19)
+remove the25-match ceiling while preserving active-profile visibility, explicit
+inactive custody links and separate retained-review pages. They change no HR case
+or clearance authority; the current handoff owns actual verification/version state.
 Published code204df28 uses migration0021 for default-store case/event tables. It does not install
 roles or permissions onto users. Current tests/release status remain in CONTINUE;
 do not treat this branch as deployed or formally accepted.
