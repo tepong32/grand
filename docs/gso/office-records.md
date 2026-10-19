@@ -44,6 +44,14 @@ media/recovery acceptance remain GRAND responsibilities; navigation tests do not
 claim a full security audit of that module. Finance production remains NO-GO as
 stated by its own handoff. No Finance code or deployment changed here.
 
+The 2026-10-19 native upload-download follow-up enforces existing retained hash,
+size and safe record-UUID paths before recording a verified download start. It
+reuses the same checked filesystem handle as Inventory, through a shared utility;
+it adds no GSO association, filing registry, loss/relief decision or implicit
+Records grant. See [the upload contract](../RECORDS.md#controlled-download-and-audit-behavior)
+and current CONTINUE for exact validation and local checkpoint state. Linked
+operational-source downloads and production storage qualification remain separate.
+
 ## Validation scope
 
 Verify absent standalone route, current native grant/revocation, no cross-office

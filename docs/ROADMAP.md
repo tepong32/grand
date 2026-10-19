@@ -1,5 +1,12 @@
 # GRAND product roadmap
 
+2026-10-19 native office-filing follow-up fixes an observed integrity gap in
+uploaded Records downloads: retained hashes/sizes and safe record-UUID paths are
+checked on the streaming handle before an audit event. Existing authority and
+separate linked-source exports are preserved. This supports the existing office
+workflow; it creates no loss/relief registry, financial treatment or acceptance.
+See [Records](RECORDS.md#controlled-download-and-audit-behavior) and CONTINUE.
+
 2026-10-19 supplies follow-up adds RPCI/RSMI supplied draft entry, editable preview
 and printing for existing GSO stock readers, preserving unknowns/zeros and exact
 arithmetic without stock/Finance writes. The Supplies entry no longer requires

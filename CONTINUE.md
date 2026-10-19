@@ -1,5 +1,118 @@
 # GRAND continuation handoff
 
+## Resumed: verified native Records uploads — 2026-10-19
+
+The goal tool confirms ACTIVE again after the owner-requested pause below. The
+previous turn completed pause/cleanup; this turn resumes safe local development.
+Isolated `codex/records-file-integrity` starts from local v0.7.197 /
+`ba6bdc42d56a4d804e230c0cdf68f913ba78e539`. Its only initial tracked change was a
+copy of the known, uncommitted pause handoff; the source worktree stays unchanged.
+Published master remains v0.7.187 / `a116691a100ed9230b578f73692ed12add84205e`.
+No new publication/integration/push or deployment. Finance remains NO-GO.
+
+Native Records already supports correspondence, files, review, retention and
+legal holds; do not duplicate it with a speculative loss/relief document registry.
+Inspection found a concrete defect in its uploaded-file download: retained hash
+and size were recorded on upload but not checked before bytes were served and a
+download event was written. This follow-up verifies the existing employee workflow.
+
+Implemented: an uploaded RecordFile must have its retained hash/size and a safe
+filesystem path in its record-UUID namespace. Original department-folder spelling
+survives slug renames without weakening current assigned-office/confidentiality
+checks. Corrupt/missing/unsafe/unverifiable files return404 before a success event.
+Valid downloads retain attachment handling, add private/no-store and stream the
+same verified open handle. Read/check/audit failures close it. The low-level
+filesystem function moves unchanged to `src.file_integrity`; Inventory reexports
+it and retains its unchanged strict row wrapper. AST comparison proves both
+function bodies are unchanged. No new model/migration/permission/storage backend,
+Finance query or source-export workflow. See [the contract](docs/RECORDS.md#controlled-download-and-audit-behavior).
+
+Regression proof uses exclusive clones of the retained synthetic197 pair, never
+operator databases. Against unchanged197, the two new corruption/size checks fail
+with actual200 responses (2tests/2assertion failures/zero errors,1.719s). Against the
+fix, the initial12 cases pass2.044s. Original-pair and Finance-copy hashes remain
+unchanged. Two additional cases cover read failure and unsupported storage; these
+are included in the frozen fresh suite below. Initial private probes had new-fixture
+unique-email and Client stream-cleanup errors; both were corrected without weakening
+integrity assertions. All logs remain in `.tmp/{original*,corrected*}-records.log`.
+
+PASS fresh focused SQLite: `python -B .tmp/run_isolated.py test records
+ gso_integration_tests.test_evidence_retirement
+ gso_integration_tests.test_packet_download_handles
+ gso_integration_tests.test_grand_office_records --noinput --verbosity 1`:
+92/92 in6.388s, zero skips (14new and78 dependent). Both disposable stores destroyed;
+all five frozen source/test hashes match after the terminal successful run. No
+assertion or application edits during the run. PASS isolated `check` (no issues),
+`makemigrations --check --dry-run` (no changes), `python -m pip check`, AST/syntax
+and `git diff --check`. Discovery retains3006 unique tests across eight complete
+partitions, including420 GSO. No duplicate regression suite was launched.
+
+The14 new cases cover valid byte-exact download, one opened handle, existing event
+identity/metadata, no Finance query, same-size corruption, retained size/hash,
+missing files, unsafe/cross-record paths, directory redirection, read/check/audit
+cleanup, unsupported storage, current office/confidentiality/download grants,
+disposition/active state, slug rename and retained zero bytes. Existing Records,
+GSO entry and checked-evidence/packet regressions are selected because the utility
+is shared; this is security verification, not an official office/form acceptance.
+
+NOT RUN — OUT OF SCOPE: new Finance/native persistence/concurrency or full hosted
+publication suites. No database query/schema/transaction/financial calculation
+contract changes; the shared checking algorithm is unchanged. The focused suite
+exercises actual scoped ORM/authenticated downloads and the prior Inventory API.
+No new browser layout/journey is introduced; authenticated client streaming/error
+regressions cover this existing link. Production storage/recovery, linked-source
+export security and formal LGU acceptance are not established by this checkpoint.
+Uploads still use MEDIA_ROOT, and development DEBUG media serving can bypass
+this endpoint for a known file URL. Private media/storage qualification remains
+a production blocker; no storage or file migration was performed.
+Protected storage must prevent concurrent in-place writes; a checked open handle
+prevents reopening different bytes but is not an immutable-storage guarantee.
+
+VM target: local197 →198, installed Version Manager with the established historical
+document adapter and explicit intended manifest; only VERSION/CHANGELOG managed.
+Resolve local tag `v0.7.198` after execution for exact SHA. No remote tag/branch or
+master change is authorized here. Preserve the197 pause, its cleanup receipts,
+all protected stores, dirty work, historical sources and synthetic test evidence.
+Continue the wider active goal after this coherent checkpoint; remaining policy,
+real data, output acceptance and operational boundaries stay explicit. Do not
+infer a loss/relief process, valuation or official financial rule from research.
+
+## Owner-requested pause — 2026-10-19
+
+The owner requested a safe checkpoint, branch cleanup and a pause. Stop autonomous
+progress until explicitly resumed. The last VM checkpoint remains **v0.7.197** /
+`ba6bdc42d56a4d804e230c0cdf68f913ba78e539` on `codex/gso-supply-drafts`.
+No unfinished implementation needs another critical checkpoint; do not create a
+documentation-only version or merge the unpublished batch merely to pause.
+This pause note was intentionally left **uncommitted at197**, with VERSION and
+CHANGELOG unchanged; resumed development preserves this historical handoff.
+Older ACTIVE instructions below describe historical work and do not resume it.
+
+Pause verification: the checkpoint/tag, implementation/test hashes and prior
+focused SQLite evidence (35/35, zero skips, 9.617s) match. That focused result is
+reused, not rerun. Fresh isolated Django `check`, `pip check`, `git show --check`
+and `git diff --check` pass. Published master remains v0.7.187 /
+`a116691a100ed9230b578f73692ed12add84205e`. Both existing published187 CI receipts
+and protected-work/database checks were reverified; no new197 hosted/native/full
+suite pass or publication is claimed. Exact-candidate publication gates remain open.
+
+Cleanup removed only `codex/finance-payment-presentations`, locally and remotely:
+its tip `ec3bad4ffa86c47810649a10b0196d382325c6c5` is included in published master,
+with no attached worktree or open PR. All tags, 51 open PR heads, unpublished
+checkpoints and all40 worktree heads/statuses were preserved. Remote prune dry-run
+found no stale tracking refs. Branch-ref cleanup provides negligible disk savings;
+no worktree, database, retained evidence or shared history was removed. Prior
+v195 cleanup receipts below remain historical, not repeated cleanup this session.
+Detailed plans/results are retained privately in `.tmp/pause197-branch-*.json`.
+
+Only this pause note and the six retained synthetic supply-draft output artifacts
+are outside the committed checkpoint. No new application code was written after197.
+The ignored loss-source research remains preliminary; no new loss/relief workflow,
+local authority, legal deadline or valuation rule was implemented. Resume from this
+worktree/handoff only after owner direction; do not rerun already executed VM or
+cleanup helpers. Preserve all other work and outstanding acceptance gates.
+**Finance remains NO-GO. No deployment or production operations occurred.**
+
 ## RPCI / RSMI supplied preparation — 2026-10-19
 
 The wider goal remains ACTIVE. Isolated `codex/gso-supply-drafts` starts from

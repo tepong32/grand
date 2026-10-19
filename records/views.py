@@ -19,6 +19,7 @@ from .access import (
     records_access_required, records_permission_required,
 )
 from .forms import DepartmentRecordForm, RecordFileForm, RetentionForm
+from .files import open_record_file
 from .models import DepartmentRecord, RecordEvent, RecordFile
 from .services import (
     RecordWorkflowError, add_record_file, association_file, association_label, association_url,
@@ -205,8 +206,18 @@ def download_file(request, public_id, file_id):
     if not can_download_records(request.user) or record.status == DepartmentRecord.DISPOSED:
         raise PermissionDenied
     item = get_object_or_404(RecordFile, pk=file_id, record=record, is_active=True)
-    RecordEvent.objects.create(record=record, actor=request.user, action="downloaded_file", from_status=record.status, to_status=record.status, note=f"Downloaded {item.display_name}.", metadata={"file_id": item.pk, "checksum": item.checksum})
-    return FileResponse(item.file.open("rb"), as_attachment=True, filename=item.display_name)
+    try:
+        source = open_record_file(item)
+    except (OSError, ValueError, ValidationError, NotImplementedError, AttributeError):
+        raise Http404("The retained document is unavailable.")
+    try:
+        response = FileResponse(source, as_attachment=True, filename=item.display_name)
+        RecordEvent.objects.create(record=record, actor=request.user, action="downloaded_file", from_status=record.status, to_status=record.status, note=f"Downloaded {item.display_name}.", metadata={"file_id": item.pk, "checksum": item.checksum})
+    except Exception:
+        source.close()
+        raise
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 @records_access_required

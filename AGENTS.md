@@ -101,6 +101,11 @@ governs continued development and bounded publication.
 Private downloads must check path safety and retained hash/size on the actual
 streaming handle. Preserve additional case-wide checks; never replace them with
 a closed-file check followed by an unchecked reopen.
+The filesystem verifier lives in `src.file_integrity`; Inventory retains its strict
+row wrapper and compatible imports. Native Records uploads require their retained
+hash/size and record-UUID namespace before an audited download starts. Keep native
+Records authority distinct from GSO grants and linked-source export authority;
+see [Records downloads](docs/RECORDS.md#controlled-download-and-audit-behavior).
 Use actual retained metadata: accounting CSV sources have a hash without a size;
 disposal legacy downloads require their recorded size and explicit legacy policy.
 Never manufacture a missing integrity baseline or relax the strict hash/size row API.

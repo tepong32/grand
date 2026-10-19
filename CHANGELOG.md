@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.198] - 2026-10-19
+### Fixed
+- fix(records): verify retained upload downloads
+
 ## [0.7.197] - 2026-10-19
 ### Added
 - feat(gso): prepare unsigned RPCI and RSMI drafts

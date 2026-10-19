@@ -46,6 +46,37 @@ Department heads/OICs and superusers receive equivalent authority within the sam
 
 Downloads do not expose media paths directly. GRAND checks department, confidentiality, download permission, active-file state, and disposition status, then records the actor, time, record state, file/source identity, and checksum where available.
 
+For separately uploaded `RecordFile` documents, the download also requires the
+retained SHA-256 and size, a safe path beneath the configured filesystem storage
+root, and the owning record's UUID namespace. The original department folder is
+retained across department-slug renames; it does not grant cross-office access.
+The shared `src.file_integrity` function checks and rewinds the same open handle
+that is passed to `FileResponse`. Inventory's existing strict row API remains
+compatible. No integrity baseline is invented for legacy or altered metadata.
+
+Missing, modified, unsafe or unverifiable uploads return an unavailable-document
+404 before any successful-download event. A valid response retains attachment
+filename/type/length handling and adds `Cache-Control: private, no-store`. The
+existing event describes a verified download starting, not proof of delivery or
+client receipt. Verification or audit failures close the opened file. Approved,
+archived and superseded records retain the same visibility rules; disposed records
+remain denied. No permission, retention, approval or financial workflow changes.
+
+This checked-upload path requires a qualified local filesystem storage root.
+Other storage backends fail closed pending their own integrity/recovery design.
+Reading and streaming one handle prevents an unchecked reopen; it does not make
+storage immutable against concurrent in-place writes. Protected storage and
+production recovery qualification remain operational requirements. Linked
+operational-source downloads are a separate existing route; this upload fix does
+not establish a security audit or change export policy for Reports, Vouchers or
+Assistance. No Finance readiness or formal acceptance follows from these tests.
+Uploads still use the existing `MEDIA_ROOT`; the development URL configuration
+serves media when DEBUG is enabled. This endpoint check does not protect a known
+file URL served directly by a web server. Excluding confidential Records uploads
+from unauthenticated media serving and qualifying their storage/recovery remain
+explicit production blockers; no deployment configuration or file migration is
+performed by this change.
+
 The append-only event view records creation, file additions, review transitions, approvals, retention changes, downloads, archival, supersession, and disposition. Database administrators should protect this history with the same backup and access controls as the source records.
 
 ## Retention governance
