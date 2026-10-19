@@ -699,6 +699,25 @@ def asset_verification_reconciliation_export(request, pk):
     return response
 
 
+@never_cache
+@require_http_methods(["GET", "HEAD"])
+@asset_access_required("view")
+def asset_verification_reconciliation_copy(request, pk):
+    if not any(can_manage_asset_verification(request.user, action, read_only=True)
+               for action in ("start", "record", "close", "import")):
+        raise PermissionDenied
+    verification_round = get_object_or_404(_verification_round_queryset(request.user), pk=pk)
+    accounting_import = verification_round.accounting_imports.first()
+    response = render(request, "inventory/asset_verification_working_copy.html", {
+        "verification_round": verification_round,
+        "accounting_import": accounting_import,
+        "comparison": _verification_reconciliation_data(verification_round, accounting_import),
+        "generated_at": timezone.now(),
+    })
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
 def _disposal_queryset(user):
     cases = AssetDisposalCase.objects.select_related("asset", "submitted_by", "reviewed_by", "completed_by")
     if can_review_asset_disposal(user, read_only=True):

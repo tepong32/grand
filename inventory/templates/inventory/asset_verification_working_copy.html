@@ -1,0 +1,45 @@
+{% extends "inventory/base.html" %}
+{% block title %}Physical count reconciliation - working copy{% endblock %}
+{% block content %}
+<style>
+.reconciliation-copy{background:#fff;color:#111;padding:24px;border:1px solid #aaa;overflow-wrap:anywhere}
+.reconciliation-copy h1{font-size:24px}.reconciliation-copy h2{font-size:18px;margin-top:24px}
+.reconciliation-copy table{width:100%;table-layout:fixed;min-width:950px;font-size:12px}
+.reconciliation-copy th,.reconciliation-copy td{border:1px solid #aaa;padding:8px;vertical-align:top;white-space:normal;overflow-wrap:anywhere}
+.reconciliation-copy tbody tr:last-child td{border-bottom:1px solid #aaa}.reconciliation-copy .source-detail{margin:5px 0}
+.reconciliation-scroll{overflow-x:auto}.reconciliation-copy .working-notice{border:2px solid #555;padding:10px}
+@media print{.topbar,.footer,.copy-controls,.messages{display:none!important}body{background:white}main{width:100%;padding:0;margin:0}.reconciliation-copy{border:0;margin:0;padding:0;font-size:12px;line-height:1.3}.reconciliation-copy h1{font-size:20px}.reconciliation-copy h2{font-size:15px;break-after:avoid}.reconciliation-copy table{min-width:0;font-size:12px}.reconciliation-copy th,.reconciliation-copy td{padding:5px}.reconciliation-copy thead{display:table-header-group}.reconciliation-copy tr{break-inside:avoid}.reconciliation-scroll{overflow:visible}@page{size:A4 landscape;margin:12mm 12mm 16mm;@bottom-left{content:"Working copy - Round {{ verification_round.pk }} - {{ verification_round.as_of_date|date:'Y-m-d' }}";font:8pt Arial,sans-serif}@bottom-right{content:"Page " counter(page) " of " counter(pages);font:8pt Arial,sans-serif}}}
+</style>
+<nav class="quick-links copy-controls"><a href="{% url 'inventory:asset-verification-reconcile' verification_round.pk %}">Back to comparison</a><button type="button" class="button primary" onclick="window.print()">Print / Save as PDF</button></nav>
+<article class="reconciliation-copy">
+<h1>Physical count reconciliation - working copy</h1>
+<p><strong>{{ verification_round.title }}</strong> · {{ verification_round.department_label }} · Round {{ verification_round.pk }}</p>
+<p>Count as of <strong>{{ verification_round.as_of_date|date:"M j, Y" }}</strong> · {% if verification_round.closed_at %}Round closed {{ verification_round.closed_at|date:"M j, Y, g:i a" }}{% else %}Round open{% endif %}<br>Working copy generated {{ generated_at|date:"M j, Y, g:i a" }}. Later checks or reviews may change the comparison.</p>
+<p class="working-notice"><strong>For review - not an official RPCPPE or approval.</strong> This copy covers the selected round only. Recorded amounts are shown separately for each source; missing facts remain “Not recorded”. No valuation, clearance or change to the register is made by printing.</p>
+{% if accounting_import %}<p><strong>Accounting snapshot:</strong> {{ accounting_import.source_filename }} · {{ accounting_import.line_count }} supplied rows · Imported {{ accounting_import.imported_at|date:"M j, Y, g:i a" }} · Snapshot {{ accounting_import.pk }}. These are the retained imported rows, not a live Finance balance.</p>{% else %}<p><strong>No Accounting snapshot selected.</strong> The GSO count records remain below; Accounting agreement has not been established.</p>{% endif %}
+<p><strong>Comparison groups:</strong> {{ comparison.matched|length }} matched by unique tag · {{ comparison.register_only|length }} GSO only · {{ comparison.accounting_only|length }} Accounting only · {{ comparison.ambiguous|length }} ambiguous Accounting tags · {{ comparison.findings|length }} unregistered findings. These are comparison rows, not a certified quantity or value total.</p>
+<h2>Matched by unique property tag</h2>
+<p>A tag match does not approve the differences or resolve a physical-count finding.</p>
+<div class="reconciliation-scroll" role="region" aria-label="Matched source comparison" tabindex="0"><table><thead><tr><th>GSO count snapshot</th><th>Accounting snapshot</th><th>Physical check</th><th>Review and notes</th></tr></thead><tbody>
+{% for row in comparison.matched %}{% include "inventory/partials/verification_copy_row.html" with record=row.record accounting=row.line differences=row.differences row_type="matched" only %}{% empty %}<tr><td colspan="4">No uniquely matched rows.</td></tr>{% endfor %}
+</tbody></table></div>
+<h2>GSO register only</h2>
+<div class="reconciliation-scroll" role="region" aria-label="GSO-only count records" tabindex="0"><table><thead><tr><th>GSO count snapshot</th><th>Accounting snapshot</th><th>Physical check</th><th>Review and notes</th></tr></thead><tbody>
+{% for record in comparison.register_only %}{% include "inventory/partials/verification_copy_row.html" with record=record row_type="register_only" only %}{% empty %}<tr><td colspan="4">No GSO-only rows.</td></tr>{% endfor %}
+</tbody></table></div>
+<h2>Accounting only</h2>
+<div class="reconciliation-scroll" role="region" aria-label="Accounting-only rows" tabindex="0"><table><thead><tr><th>GSO count snapshot</th><th>Accounting snapshot</th><th>Physical check</th><th>Review and notes</th></tr></thead><tbody>
+{% for accounting in comparison.accounting_only %}{% include "inventory/partials/verification_copy_row.html" with accounting=accounting row_type="accounting_only" only %}{% empty %}<tr><td colspan="4">No Accounting-only rows.</td></tr>{% endfor %}
+</tbody></table></div>
+<h2>Ambiguous Accounting tags</h2>
+<p>More than one GSO record shares each tag below. No GSO record has been selected on behalf of the reviewer; its records remain in the GSO-only group.</p>
+<div class="reconciliation-scroll" role="region" aria-label="Ambiguous Accounting tags" tabindex="0"><table><thead><tr><th>GSO count snapshot</th><th>Accounting snapshot</th><th>Physical check</th><th>Review and notes</th></tr></thead><tbody>
+{% for accounting in comparison.ambiguous %}{% include "inventory/partials/verification_copy_row.html" with accounting=accounting row_type="ambiguous_register_tag" only %}{% empty %}<tr><td colspan="4">No ambiguous Accounting tags.</td></tr>{% endfor %}
+</tbody></table></div>
+<h2>Items found outside the count snapshot</h2>
+<div class="reconciliation-scroll" role="region" aria-label="Unregistered findings" tabindex="0"><table><thead><tr><th>Observed item</th><th>Where found / condition</th><th>Review</th><th>Notes</th></tr></thead><tbody>
+{% for finding in comparison.findings %}<tr data-row-type="found_but_unregistered" data-finding-id="{{ finding.pk }}"><td><strong>{{ finding.asset_name }}</strong><br>Tag: {{ finding.property_tag|default:"Not recorded" }}<br>Serial: {{ finding.serial_number|default:"Not recorded" }}</td><td>{{ finding.found_department|default:"Department not recorded" }}<br>{{ finding.found_office|default:"Office not recorded" }}<br>{{ finding.get_condition_display|default:"Not assessed" }}</td><td>{{ finding.get_status_display }}<br>{{ finding.resolution_note|default:"No review note recorded" }}{% if finding.reviewed_at %}<br>Reviewed {{ finding.reviewed_at|date:"M j, Y, g:i a" }}{% endif %}</td><td>{{ finding.notes|default:"No observation note recorded" }}</td></tr>{% empty %}<tr><td colspan="4">No unregistered findings recorded.</td></tr>{% endfor %}
+</tbody></table></div>
+<p><strong>Working copy only.</strong> Outstanding checks and follow-ups still require review. This copy does not replace the prescribed local form, signatures, Accounting reconciliation or formal acceptance.</p>
+</article>
+{% endblock %}

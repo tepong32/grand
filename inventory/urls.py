@@ -108,6 +108,7 @@ urlpatterns = [
     path("verifications/accounting-template.csv", views.asset_accounting_template, name="asset-accounting-template"),
     path("verifications/accounting-snapshots/<int:pk>/", views.asset_accounting_source_download, name="asset-accounting-source-download"),
     path("verifications/<int:pk>/reconciliation.csv", views.asset_verification_reconciliation_export, name="asset-verification-reconciliation-export"),
+    path("verifications/<int:pk>/working-copy/", views.asset_verification_reconciliation_copy, name="asset-verification-reconciliation-copy"),
     path("export/assets.csv", views.asset_export, name="asset-export"),
     path("consumables/", views.consumable_list, name="consumable-list"),
     path("consumables/movements/", views.stock_history, name="stock-history"),

@@ -31,6 +31,12 @@ system requirements while separating development integration from production acc
 
 ## Current foundation
 
+2026-10-19 local follow-up adds a [printable working reconciliation](physical-count-working-copy.md)
+from the existing count/Accounting comparison, retaining all groups and explicit
+unknowns without source or Finance writes. This does not replace the separate
+supplied RPCPPE draft or establish official form/valuation acceptance. Actual
+verification/checkpoint state belongs to GRAND CONTINUE.md.
+
 The app supports an asset register with department scope and permissions, optional FIFO for consumables, asset handoffs, disposal requests with protected evidence, and GSO physical verification rounds with immutable check history. The physical-count reconciliation baseline (`64e458a`) includes count dates, unregistered findings, private Accounting CSV snapshots, variance review, and a working reconciliation export. Official RPCPPE form generation remains out of scope until the LGU Accountant validates the local format and sign-off process.
 
 ## Alignment checkpoint — 2026-10-16

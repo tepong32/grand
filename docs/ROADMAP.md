@@ -1,5 +1,12 @@
 # GRAND product roadmap
 
+2026-10-19 physical-count follow-up adds a source-backed printable working
+reconciliation beside the existing comparison/CSV. It retains every comparison
+group, current office/read scope and unknown/zero distinction without source,
+custody or Finance writes. See [contract and print limits](gso/physical-count-working-copy.md)
+and CONTINUE.md for actual validation/local checkpoint. Official RPCPPE and
+operational/LGU acceptance remain separate; Finance stays NO-GO.
+
 2026-10-19 Budget service follow-up enforces the existing obligation-line rules
 inside submission and certification, closing direct-service malformed-line
 bypasses without inventing policy or changing forms, permissions or schema.

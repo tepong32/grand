@@ -83,6 +83,11 @@ owns these accepted choices; do not ask them again.
 
 ## Project context and documentation map
 
+Physical-count working copies reuse retained count/import facts and existing
+verification read authority; keep sources and unknown/zero amounts distinct.
+They do not establish an official RPCPPE, valuation or approval. See the
+[working-copy contract](docs/gso/physical-count-working-copy.md).
+
 Asset-cost worksheets divide explicit documentary amounts, not official valuation.
 Retain accepted receipt/source evidence, exact component quantities/units/amounts,
 allocation basis and independent explicitly authorized Accounting review. No

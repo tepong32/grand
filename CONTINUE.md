@@ -1,5 +1,79 @@
 # GRAND continuation handoff
 
+## Physical-count working copy — local v0.7.205 checkpoint, 2026-10-19
+
+Goal ACTIVE. Previous turn made concrete progress with local VM204 /
+`f1b32ff7c95e0f60804ba3b6feec835788be8c05`. New isolated
+`codex/physical-count-working-copy` starts clean there. Published master stays187 /
+`a116691a100ed9230b578f73692ed12add84205e`; no remote branch/tag205. No merge,
+push, hosted CI, deployment or production operations. Finance **NO-GO**; formal
+Accounting/LGU/GSO operational acceptance remains separate. Original dirty checkout,
+protected stores and all prior unpublished work/history/artifacts are preserved.
+No coding agent was launched.
+
+Implemented a source-backed **Print working reconciliation** link/GET+HEAD view,
+separate from the manually supplied RPCPPE preparation. Reuses the exact existing
+comparison helper, latest selected Accounting import and read/office authority.
+No row cap; all five groups, count snapshots and independent Accounting facts,
+zero versus unknown, physical checks/follow-ups and findings remain visible.
+No source writes, new grants, schema, model, routing, file delivery or Finance
+query. Private/no-store/nosniff; POST405. See
+[contract](docs/gso/physical-count-working-copy.md).
+
+PASS actual missing-feature proof: `python -B .tmp/probe_count.py original-v3`,
+unchanged204:9 expected assertion failures/zero errors,1.504s. Final corrected:
+`python -B .tmp/probe_count.py corrected-final`,9/9,2.315s,zero skips. Existing
+RPCPPE class retains every old test; full discovery3080→3089, GSO420→429.
+Frozen source manifest has six implementation/test/template files.
+
+Initial private proof attempts v1/v2 failed during setup (zero tests) because the
+retained synthetic source already had fixed department/user names. Only the
+exclusive default clone's prior names were adjusted; no production/source pair,
+Finance bytes, repository fixture, assertion or gate was changed. Final proof
+preserves original source pair/files and exact disposable Finance bytes.
+
+PASS actual clerk/UAT browser and five-page A4 PDF: every rendered page inspected,
+all source markers and round/date/page footers present. Print uses readable type,
+wrapped rows and repeated table heads; mobile390 viewport/document375 with internal
+table scrolling. Source Inventory rows and exact Finance bytes unchanged. Browser
+closed; owned server terminal0. `.tmp/count-browser-verified.json` retains hashes.
+Initial CLI PDF defaulted to Letter; explicit CSS-size export and private-server
+restart loaded the final styles. Intermediates are not final source proof.
+Synthetic branding/favicon404s and an idle private-server socket timeout are
+fixture limits, not printer/LGU acceptance. Browser/print files stay untracked.
+
+PASS fresh frozen-source broad scope: `python -B .tmp/run_isolated.py test
+gso_integration_tests --noinput --verbosity 1`:429 discovered,398 passed/31
+native-only skips,85.834s,exit0; both aliases destroyed. Actual command-scope
+discovery matches all429 IDs; the31 existing skips require MySQL/row locks, and
+none is a new working-copy case. Every old full-suite identity/class/shard owner
+is preserved, with eight complete/distinct partitions. No CI policy or inherited
+test migration. PASS isolated check, migration-drift (no changes), source/AST,
+documentation links and whitespace; full3089 platform suite NOT RUN - OUT OF SCOPE.
+
+Fresh native NOT RUN - OUT OF SCOPE: this is a read-only view/template/route over
+the unchanged existing comparison, with no Finance read, persistence, lock,
+conditional identity, model, migration or routing change. Fresh SQLite auth/data
+integrity cases plus actual browser/source/Finance hashes cover the changed reader.
+The204 native285/285 result applies only to its unchanged Budget/Finance contracts,
+not as a native execution claim for this copy. Full-platform/hosted gates remain.
+
+Complete final diff reviewed: six implementation/test/template files and five
+appropriate documentation files, plus managed VERSION/CHANGELOG. Installed VM
+inspect/preview/actual local205 uses the established historical-document adapter;
+no historical release claims or changelog tail are rewritten. Resolve local tag
+`v0.7.205` for its exact revision; `.tmp/count-checkpoint205-verified.json` retains
+the base, manifest and tested source hashes. Four browser/PDF artifacts stay
+untracked; private helpers/fixtures/logs/renders are ignored and excluded. Tracked
+worktree should be clean after this checkpoint. No merge/push/hosted CI/deployment.
+The protected-original/publication guard is required before final reporting.
+
+Next: reconcile the remaining documented employee workflows against their actual
+source, then take one coherent safe slice. Do not repeat completed print/Budget
+repairs or invent official form, valuation, clearance, source approval or production
+acceptance. Formal gates and unresolved local decisions remain tracked; continue
+independent development while progress is possible. The goal remains ACTIVE.
+
 ## Obligation service validation — local v0.7.204 checkpoint, 2026-10-19
 
 Goal ACTIVE; previous turn made concrete progress with local VM203. New isolated

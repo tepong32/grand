@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.205] - 2026-10-19
+### Added
+- feat(inventory): print count reconciliation working copies
+
 ## [0.7.204] - 2026-10-19
 ### Fixed
 - fix(budget): validate obligation lines before posting
