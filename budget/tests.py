@@ -46,6 +46,112 @@ from .services import (
 class AnnualBudgetPreparationTests(TestCase):
     databases = {"default", "finance"}
 
+    def assert_obligation_line_rejected(self, request, action, actor, message):
+        before = (request.status, request.state_version, request.obligation_number, request.snapshot_checksum,
+                  BudgetAuditEvent.objects.count(), list(ObligationMovement.objects.order_by('pk').values()))
+        with self.assertRaisesMessage(ValidationError, message):
+            transition_obligation_request(request, action, actor, 'Independent line validation review', 'OBR-LINE-BLOCKED')
+        request.refresh_from_db()
+        self.assertEqual((request.status, request.state_version, request.obligation_number, request.snapshot_checksum,
+                          BudgetAuditEvent.objects.count(), list(ObligationMovement.objects.order_by('pk').values())), before)
+
+    def foreign_executable_authority(self):
+        authority = self.make_authorized_appropriation('1000', suffix='FOREIGN-LINE')
+        self.dated_allotment(authority, 'ARO-FOREIGN-LINE', 5, '1000')
+        return authority
+
+    def test_obligation_service_rejects_a_line_from_another_authorized_appropriation(self):
+        authority = self.make_executable_authority(amount='1000', release='1000')
+        foreign = self.foreign_executable_authority()
+        request = self.make_obligation_request(authority, total='100')
+        line = self.add_obligation_line(request, '100')
+        line.appropriation_line = foreign.schedule_lines.get()
+        line.save(update_fields=['appropriation_line'])
+        self.assert_obligation_line_rejected(request, 'submit', self.requester, 'exact authorized appropriation')
+
+    def test_obligation_service_rejects_a_line_owned_by_another_budget_office(self):
+        authority = self.make_executable_authority(amount='1000', release='1000')
+        request = self.make_obligation_request(authority, total='100')
+        line = self.add_obligation_line(request, '100')
+        line.department_id = self.other_office.pk
+        line.save(update_fields=['department_id'])
+        self.assert_obligation_line_rejected(request, 'submit', self.requester, 'same Budget office')
+
+    def test_obligation_service_rejects_zero_and_negative_line_amounts(self):
+        authority = self.make_executable_authority(amount='1000', release='1000')
+        self.dated_obligation(authority, 'LINE-AMOUNT-BASE', 15, '500')
+        for amount in ('0', '-100'):
+            with self.subTest(amount=amount):
+                request = self.make_obligation_request(authority, reference='INVALID-AMOUNT-' + amount, total=amount)
+                self.add_obligation_line(request, amount)
+                self.assert_obligation_line_rejected(request, 'submit', self.requester, 'greater than zero')
+
+    def test_original_obligation_cannot_reduce_an_unlinked_existing_obligation(self):
+        authority = self.make_executable_authority(amount='1000', release='1000')
+        original = self.dated_obligation(authority, 'LINE-UNLINKED-BASE', 15, '500')
+        before = list(original.movements.values())
+        request = self.make_obligation_request(authority, reference='UNLINKED-REDUCTION', total='-100')
+        self.add_obligation_line(request, '100', ObligationRequestLine.REDUCE)
+        self.assert_obligation_line_rejected(request, 'submit', self.requester, 'original request may only create')
+        self.assertEqual(list(original.movements.values()), before)
+
+    def test_obligation_service_rejects_unknown_line_movement_types(self):
+        authority = self.make_executable_authority(amount='1000', release='1000')
+        self.dated_obligation(authority, 'LINE-CHOICE-BASE', 15, '500')
+        request = self.make_obligation_request(authority, reference='UNKNOWN-LINE-TYPE', total='-100')
+        self.add_obligation_line(request, '100', 'unknown')
+        self.assert_obligation_line_rejected(request, 'submit', self.requester, 'valid choice')
+
+    def test_obligation_returns_and_cancellations_cannot_increase_the_linked_obligation(self):
+        authority = self.make_executable_authority(amount='1000', release='1000')
+        original = self.dated_obligation(authority, 'LINE-RETURN-BASE', 15, '500')
+        for kind in (ObligationRequest.RETURN, ObligationRequest.CANCELLATION):
+            with self.subTest(kind=kind):
+                request = self.make_obligation_request(authority, reference='INVALID-DIRECTION-' + kind,
+                    total='100', kind=kind, corrects=original)
+                self.add_obligation_line(request, '100', ObligationRequestLine.OBLIGATE)
+                self.assert_obligation_line_rejected(request, 'submit', self.requester, 'may only reduce')
+
+    def test_certification_rechecks_stored_line_office_before_any_financial_write(self):
+        authority = self.make_executable_authority(amount='1000', release='1000')
+        request = self.dated_obligation(authority, 'PENDING-LINE-OFFICE', 15, '100', certify=False)
+        request = transition_obligation_request(request, 'submit', self.requester)
+        # Deliberately invalid retained data: bypass draft editing to exercise the
+        # final writer's own validation, rather than relying on the form or save.
+        request.lines.update(department_id=self.other_office.pk)
+        self.assert_obligation_line_rejected(request, 'certify', self.certifier, 'same Budget office')
+
+    def test_certification_and_http_recheck_stored_line_authority(self):
+        authority = self.make_executable_authority(amount='1000', release='1000')
+        foreign = self.foreign_executable_authority()
+        request = self.dated_obligation(authority, 'PENDING-LINE-AUTHORITY', 15, '100', certify=False)
+        request = transition_obligation_request(request, 'submit', self.requester)
+        request.lines.update(appropriation_line=foreign.schedule_lines.get())
+        self.assert_obligation_line_rejected(request, 'certify', self.certifier, 'exact authorized appropriation')
+        self.client.force_login(self.certifier)
+        response = self.client.post(reverse('budget:obligation_action', args=(request.public_id, 'certify')),
+            {'reason': 'Independent line authority review', 'obligation_number': 'OBR-LINE-HTTP-BLOCKED'})
+        self.assertEqual(response.status_code, 302)
+        from django.contrib.messages import get_messages
+        self.assertTrue(any('exact authorized appropriation' in str(message) for message in get_messages(response.wsgi_request)))
+        request.refresh_from_db()
+        self.assertEqual(request.status, ObligationRequest.FOR_CERTIFICATION)
+        self.assertEqual(request.obligation_number, '')
+        self.assertFalse(request.movements.exists())
+
+    def test_valid_obligation_lines_keep_linked_corrections_and_original_history(self):
+        authority = self.make_executable_authority(amount='1000', release='1000')
+        original = self.dated_obligation(authority, 'VALID-LINE-BASE', 15, '200')
+        before = list(original.movements.values())
+        reduction = self.dated_obligation(authority, 'VALID-LINE-REDUCTION', 16, '-75', corrects=original)
+        increase = self.dated_obligation(authority, 'VALID-LINE-INCREASE', 17, '25', corrects=original)
+        for request in (original, reduction, increase):
+            self.assertEqual(request.status, ObligationRequest.CERTIFIED)
+            self.assertTrue(request.snapshot_checksum)
+            self.assertEqual(request.movements.count(), 1)
+        self.assertEqual(obligation_line_balance(authority.schedule_lines.get())['obligated'], Decimal('150'))
+        self.assertEqual(list(original.movements.values()), before)
+
     def dated_allotment(self, authorization, number, day, amount, movement_type=AllotmentOrderLine.RELEASE,
                         kind=AllotmentReleaseOrder.LATER, corrects=None, post=True):
         order = self.make_allotment_order(authorization, number=number, total=str(amount), kind=kind, corrects=corrects)

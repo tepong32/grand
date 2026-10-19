@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.204] - 2026-10-19
+### Fixed
+- fix(budget): validate obligation lines before posting
+
 ## [0.7.203] - 2026-10-19
 ### Fixed
 - fix(budget): preserve dated allotment capacity

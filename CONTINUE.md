@@ -1,5 +1,91 @@
 # GRAND continuation handoff
 
+## Obligation service validation — local v0.7.204 checkpoint, 2026-10-19
+
+Goal ACTIVE; previous turn made concrete progress with local VM203. New isolated
+`codex/budget-obligation-validation` starts clean at203 /
+`5ad07d052324b744332164cd894592fa597b64d5`. Published master remains187 /
+`a116691a100ed9230b578f73692ed12add84205e`; no remote feature branch/tag204.
+No merge/push/hosted CI/deployment or production operations. Finance **NO-GO**;
+no formal Accounting/LGU acceptance. Protected original checkout, databases,
+unrelated work, prior local branches/tags/screenshots are preserved. No coding agent.
+
+Confirmed HIGH service gap: form/model line rules were absent from obligation
+submission/certification. Synthetic direct calls accepted wrong source/office,
+invalid amount/type/direction and malformed retained lines at the final writer.
+One added `item.full_clean()` reuses the model's existing rules. No model,
+migration, routing, permission, form or journal changes. Old dated-capacity,
+independent authority, UAT, source history and correction/issuance boundaries remain.
+See [contract](docs/FINANCE_OBLIGATION_LINE_VALIDATION_2026-10-19.md), FIN-GAP-040.
+
+PASS red proof: `python -B .tmp/probe_lines.py original-final`, unchanged203:
+9 tests,10 expected assertion failures,zero errors,2.684s. PASS corrected proof:
+`python -B .tmp/probe_lines.py corrected-final`,9/9,3.724s,zero skips. Extra red
+failures are amount/direction subcases; the positive linked-correction case passes
+on both. Source two-store/file hashes are unchanged and the disposable Finance
+copy returns to original bytes after rollback. No operator store or external mail.
+
+Nine new tests stay in AnnualBudgetPreparationTests: full discovery3071→3080,
+all prior IDs/classes/shard owners retained, eight complete/distinct partitions.
+Frozen source manifest has exactly budget/services.py and budget/tests.py.
+Direct/authenticated HTTP cases verify unchanged pending state/number/version,
+original movements and audit count on rejection; positive originals/reductions/
+adjustments retain approval, checksums and exact original movement history.
+
+PASS fresh frozen-source SQLite: `python -B .tmp/run_isolated.py test budget.tests
+ budget.test_quarterly budget.test_quarterly_concurrency budget.test_payable_handoff
+ budget.test_schedule_office_identity vouchers.tests
+ vouchers.test_advance_recognition_corrections
+ vouchers.test_advance_recognition_correction_concurrency
+ vouchers.test_cancelled_advance_corrections vouchers.test_returned_advance_corrections
+ --noinput --verbosity 1`:285 discovered,273 passed/12 native-only skips,
+182.061s,exit0; both aliases destroyed. This broadens the prior scope for source
+handoff and office identity; no skipped race is a pass.
+
+Coverage correction: initial prefix-only selection counted273. Discovering the
+actual ten Django labels includes12 imported HistoricalForecastTests as well,
+giving285 unique IDs, all in full discovery. These are additional existing tests,
+not duplicates/new methods or an application failure. The receipt now retains
+all285 IDs and the12 imported cases; no inherited class or CI owner changed.
+
+PASS fresh native: `python -B .tmp/native_lines.py` invokes
+`python -B scripts/run_mysql_tests.py` with the same ten labels and `--verbosity 1`:
+285/285,319.677s,zero skips,exit0, including all12 native races. Both fresh aliases
+destroyed; verified owned MySQL8.4.11/strict-mode system-only loopback clone
+stopped. Original stopped fixture hashes and both frozen source hashes unchanged.
+Receipt: `.tmp/lines-native-receipt.json`. No operator server/schema was used.
+
+PASS isolated `check` (zero issues), `makemigrations --check --dry-run` (no
+changes), frozen-source/AST, new contract links and whitespace. Complete final
+diff reviewed for correctness/security/scope: one service call, nine tests and
+appropriate durable/handoff documentation; no accidental unrelated changes or
+new secrets. Installed VM inspect/preview/actual local204 uses the established
+historical-document adapter, managing root VERSION/CHANGELOG only. Eight reviewed
+implementation/test/documentation paths plus those two metadata files. Resolve
+local tag `v0.7.204` for the exact commit; private receipt
+`.tmp/lines-checkpoint204-verified.json` retains base, manifest and tested hashes.
+Ignored helpers, synthetic fixtures and logs are excluded; no generated artifact
+is in the payload. No merge/push/hosted CI/deployment.
+
+New actual browser run NOT RUN - OUT OF SCOPE: no UI/template/error-handler change.
+The authenticated HTTP regression covers the new field error. The prior203 real
+synthetic browser result is reused only for its unchanged action/error layout,
+not as proof of this service change. No printer/clerk/operational acceptance.
+
+NOT RUN - OUT OF SCOPE: full3080 suite and new hosted CI. Critical dependent
+Finance/service/data-integrity scope has fresh SQLite/native verification; older
+hosted receipts establish only their own published187 revision. Whole-chain
+publication, unknown local rules and operational/recovery/formal acceptance stay
+open. The protected-original/publication guard remains required at checkpoint.
+
+Next usable slice: inspect and add a printable working physical-count
+reconciliation through the existing Inventory comparison projection/permissions.
+Source inspection found comparison HTML/CSV but no dedicated working print route;
+reuse `_verification_reconciliation_data` and the existing stock-count print
+conventions. Preserve all rows, unknown/zero distinction, scope and original
+records; no official RPCPPE, valuation, signatures or Finance/custody mutation.
+This is proposed next work, not implemented by204. The wider goal remains ACTIVE.
+
 ## Dated Budget capacity — local v0.7.203 checkpoint, 2026-10-19
 
 Goal ACTIVE. Isolated `codex/budget-dated-capacity` starts at local202 /

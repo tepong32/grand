@@ -1,5 +1,12 @@
 # GRAND product roadmap
 
+2026-10-19 Budget service follow-up enforces the existing obligation-line rules
+inside submission and certification, closing direct-service malformed-line
+bypasses without inventing policy or changing forms, permissions or schema.
+[Bounded contract](FINANCE_OBLIGATION_LINE_VALIDATION_2026-10-19.md) and CONTINUE.md
+separate actual validation/local checkpoint from publication and formal acceptance.
+Finance remains NO-GO.
+
 2026-10-19 Finance control follow-up repairs a reproduced dated-capacity gap in
 existing Budget allotment and obligation services: a later restoration must not
 hide an intervening overcommitment. It reuses the current financial definitions

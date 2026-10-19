@@ -1,5 +1,29 @@
 # Finance gap register
 
+## FIN-GAP-040 - Obligation services omit retained line validation
+
+- Severity: **HIGH**, reproduced on unchanged local v0.7.203. Submission and final
+  certification validate headers/financial totals but omit existing line rules.
+  Direct calls accept foreign appropriation links, mismatched office ownership,
+  invalid amount/type/direction and malformed stored lines at certification.
+  No production misuse or ordinary-form bypass is asserted.
+- Repair: call the existing model `full_clean` for each line in the shared
+  validator before projecting effects. Keep existing locks, transactions,
+  independent authority, immutable original history and store routing. No schema,
+  permission, financial recipe or local policy change.
+- Evidence: nine new cases give ten expected assertion failures/zero errors on
+  unchanged203 and9/9 corrected passes. Positive linked corrections retain their
+  original movements. The authenticated HTTP route rejects invalid stored source
+  links without certification. Fresh dependent SQLite285:273 pass/12 native-only
+  skips,182.061s. Fresh native285/285 pass,319.677s,zero skips, including all12
+  races. Both aliases destroyed, owned server stopped and original template/source
+  hashes unchanged. **REPAIRED AND VERIFIED LOCALLY**, v0.7.204 checkpoint;
+  exact commands/revision are owned by [CONTINUE.md](../CONTINUE.md). See the
+  [contract and limits](FINANCE_OBLIGATION_LINE_VALIDATION_2026-10-19.md).
+- Closure remains bounded to these existing service rules. Whole-chain hosted CI,
+  publication, unconfirmed local semantics, recovery/operations and formal
+  acceptance stay open. Finance remains **NO-GO**; no deployment.
+
 ## FIN-GAP-039 - Backdated Budget changes miss intervening capacity breaches
 
 - Severity: **HIGH**, confirmed existing financial-control defect on local v0.7.202.

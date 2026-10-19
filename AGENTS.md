@@ -65,6 +65,9 @@ effective-date boundary under the existing appropriation-line lock. A later
 return, release or cancellation cannot fund an earlier shortfall; latest balance
 alone is insufficient. Preserve original movements and valid backdating. See
 [dated Budget control](docs/FINANCE_DATED_BUDGET_CAPACITY_2026-10-19.md).
+Obligation services must also validate every retained line against its existing
+model rules at submission and final certification; form validation alone is not
+the financial boundary. See [line validation](docs/FINANCE_OBLIGATION_LINE_VALIDATION_2026-10-19.md).
 
 The same decision authorizes research-led Finance development using applicable
 official COA/DBM and other official sources, documented interpretations and explicit

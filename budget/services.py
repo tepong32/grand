@@ -645,6 +645,7 @@ def validate_obligation_request(request, *, lock_lines=False):
     locked = {item.pk: item for item in queryset}
     projected = defaultdict(lambda: Decimal("0"))
     for item in lines:
+        item.full_clean()
         if item.appropriation_line_id not in locked:
             raise ValidationError("An obligation line no longer resolves to its authorized appropriation.")
         projected[item.appropriation_line_id] += item.effect

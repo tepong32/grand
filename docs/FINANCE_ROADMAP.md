@@ -1,5 +1,11 @@
 # GRAND Finance complete-cycle roadmap
 
+October19 obligation-service follow-up applies existing model line validation at
+submission/certification: exact appropriation/office, positive amount and valid
+movement direction. See [contract](FINANCE_OBLIGATION_LINE_VALIDATION_2026-10-19.md)
+and CONTINUE.md for direct red/green proof and required dependent native results.
+This adds no earmark policy or formal Finance acceptance.
+
 October19 local control repair: [dated Budget capacity](FINANCE_DATED_BUDGET_CAPACITY_2026-10-19.md)
 reproduces and blocks intervening allotment/obligation breaches hidden by later
 returns/cancellations. Existing authority, store routing, permissions and posted
