@@ -99,7 +99,7 @@ and must not be presented as interchangeable expenditure or remaining-cash figur
 | Budget release planning and authority | Quarterly plan, appropriation authorization, allotment register and individual ARO exports | Exact quarterly/ARO presentation and local certification. A quarterly plan is not spending authority. Earmark capacity basis remains unconfirmed. |
 | Budget obligations and accountability | OBR registry/control register; Reporting Budget accountability and Budget versus Posted Actual datasets | Exact local accountability form and period; ambiguous PPA/account mappings require source resolution. The candidate schedule is not an accepted LBAc form. |
 | Accounting posting and ledger work | Journal control register, ledger and trial-balance exports; governed posted general-ledger/trial-balance report starters | Required journal/JEV presentation, grouping, signatures and full signed output reproduction. Source CSV alone does not establish form parity. |
-| Accounting liabilities and advances | Payable claim/subsidiary controls and officer advance exports; posted payable/withholding schedules | Local ageing, attribution, classifications and signatories. An advance dataset exists, but no advance starter is currently seeded in `reporting/presets.py`. |
+| Accounting liabilities and advances | Payable claim/subsidiary controls and officer advance exports; posted payable/withholding schedules; local October21 recognized-advance starter through the existing governed report workflow | Local ageing, attribution, classifications and signatories. Advance debit balances are cumulative posted recognition, not proof of actual disbursement or available liquidation capacity. Current validation/publication belongs to CONTINUE.md. |
 | Accounting financial statements | Four governed statement starters and retained statement-note bundle | Approved local fields, comparatives, source completeness, notes, signatures and exact accepted package reproduction. Existing calculation controls do not establish local acceptance. |
 | Accounting bank reconciliation | Reconciliation register and individual reconciliation export | Accepted statement layout, reconciling-item classification, cut-offs and witness/signature requirements. |
 | Treasury payments | Payment instrument/disbursement report starter, case payment register, bank advice and cash-position exports | Local issue/release reporting, cancelled/replaced instruments, bank presentation and official output layout. Issuance is not proof of physical release. |
@@ -253,6 +253,13 @@ and retains unsigned office/fund copies with separate coverage/designation revie
 It does not establish physical signatures or joint Form 1 certification.
 
 ## Report-run retrieval repair
+
+October21 local collection-output follow-up adds a complete filtered printable
+working copy beside the Treasury register/CSV. It reuses original source rows,
+current read/export scope, deposit availability and journal-request states, with
+no new monetary total or reporting dataset. The output is live and unarchived;
+official receipt/form, accountable-form coverage and local acceptance remain open.
+CONTINUE.md records actual validation and unpublished branch state.
 
 The reporting workspace previously counted all matching runs but displayed only
 the first 100, with no route to older matches. It now pages 50 matching runs at a

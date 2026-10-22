@@ -2,7 +2,7 @@ amqp==5.2.0
 anyio==4.14.2
 asgiref==3.8.1
 billiard==4.2.1
-certifi==2024.8.30
+certifi==2026.10.19
 cffi==2.1.1
 charset-normalizer==3.4.0
 click==8.3.3
@@ -29,12 +29,12 @@ httpx==0.28.1
 idna==3.18
 kombu==5.4.2
 openpyxl==3.1.5
-pillow==12.3.0
+pillow==13.0.0
 prompt_toolkit==3.0.48
 pycparser==2.22
 PyJWT==2.15.1
 PyMySQL==1.1.1
-pypdf==6.19.0
+pypdf==6.21.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
 python-telegram-bot==22.8

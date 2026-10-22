@@ -25,6 +25,23 @@ The covered-period register contains every line of every posted JEV for the Acco
 
 The as-of schedule aggregates immutable posted payable subsidiary movements by fund, mapped control account, governed payee identity, and source code. Review is allowed only when the subsidiary credit balance agrees exactly with the mapped general-ledger payable balance. Missing control-account setup is an exception, not a zero-balance approval.
 
+### Recognized Officer Advances - Posted Balances
+
+October21 development adds an Accounting starter for the existing posted-advance
+dataset. It reads cumulative posted subsidiary debits and credits through the
+selected end date, retaining fund, control account, officer reference and source
+code. The debit balance must reconcile to its general-ledger asset control;
+missing explicit subsidiary evidence or a mismatch blocks review.
+
+Recognition is not proof of actual officer cash release or remaining liquidation
+capacity. Both the starter description and printed header retain this distinction.
+The existing governed definition/template/run/export services own generation and
+immutable evidence. The seed operation preserves existing locally edited
+definitions/templates. Applicability stays candidate and the native template
+stays a preview; local form, ageing, signatories and official acceptance remain
+unconfirmed. No posting, account mapping, financial formula or permission changes.
+CONTINUE.md owns current validation and unpublished state.
+
 ### Posted Withholding Liability Schedule
 
 The as-of schedule applies the same posted subsidiary-to-GL control to deduction/withholding liabilities by agency or deduction identity. It is working Accounting evidence only. It is not a BIR return, attachment, alphalist, certificate, filing confirmation, or automatic assertion of tax applicability.

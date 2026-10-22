@@ -1,12 +1,16 @@
 from hashlib import sha256
 from io import BytesIO
+import re
 from zipfile import ZipFile
 
 from django.contrib.auth.models import Group, Permission
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
+from pypdf import PdfReader
+from pypdf.errors import LimitReachedError
 
 from accounting.models import JournalEntry
 from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
@@ -19,6 +23,36 @@ ISSUER = 'Budget Form 1 Signed Copy Verifier and Issuer'
 
 
 class Form1SignedViewTests(fixtures.Form1SignedFixture):
+    def test_pdf_parser_limit_is_a_controlled_error_and_valid_return_still_works(self):
+        copy = self.release_copy(self.unsigned_preparation())
+        original = bytes(copy.document)
+        self.copy_role_only(self.preparer,RECORDER)
+        self.client.force_login(self.preparer)
+        history = reverse('budget:form1_signed_history',args=[copy.public_id])
+        data = self.receipt_data(copy)
+        raw = data['upload'].read()
+        malformed,changes = re.subn(rb'(?m)^(0) (\d+)\r?\n',rb'\1 999999999999\n',raw,count=1)
+        self.assertEqual(changes,1)
+        with self.assertRaises(LimitReachedError):
+            PdfReader(BytesIO(malformed),strict=True)
+        data['upload'] = SimpleUploadedFile('synthetic-invalid-xref.pdf',malformed,content_type='application/pdf')
+        before = list(BudgetAuditEvent.objects.values())
+        journals = list(JournalEntry.objects.values())
+        self.client.raise_request_exception = False
+        response = self.client.post(history,data)
+        self.assertContains(response,'Use a readable PDF of the complete returned Form 1.',status_code=409)
+        self.assertFalse(Receipt.objects.exists())
+        self.assertFalse(Review.objects.exists())
+        self.assertFalse(Issue.objects.exists())
+        self.assertEqual(list(BudgetAuditEvent.objects.values()),before)
+        self.assertEqual(list(JournalEntry.objects.values()),journals)
+        copy.refresh_from_db();self.assertEqual(bytes(copy.document),original)
+        self.assertEqual(self.client.post(history,self.receipt_data(copy)).status_code,302)
+        self.assertEqual(Receipt.objects.filter(copy=copy).count(),1)
+        self.assertFalse(Review.objects.exists())
+        self.assertFalse(Issue.objects.exists())
+        self.assertEqual(list(JournalEntry.objects.values()),journals)
+
     def receipt_data(self,copy,*,latest=0,predecessor=None,missing=False):
         data = dict(expected_latest=latest,predecessor=str(predecessor.public_id) if predecessor else '',
             upload=self.signed_upload(copy),received_on=timezone.localtime().date().isoformat(),

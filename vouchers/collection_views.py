@@ -11,6 +11,8 @@ from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
+from django.views.decorators.cache import never_cache
+from django.utils import timezone
 
 from finance.models import FinanceConfigurationItem, FinanceTransactionVariant, FinancePostingRule
 from .access import department_for_user, has_explicit_permission
@@ -394,6 +396,27 @@ def export(request):
             source.proposal.get('original_cheque',{}).get('deposit',''),
             source.proposal.get('applicability_reference',''),
             '; '.join(f"{item['reference']} {item['date']} {item['amount']} {item['status']} [{item['checksum']}]" for item in return_history)])
+    return response
+
+
+@never_cache
+@login_required
+@require_GET
+def register_working_copy(request):
+    if not has_explicit_permission(request.user, 'finance.export_finance_work'):
+        raise PermissionDenied
+    scope = visible_sources(request.user)
+    filters = CollectionRegisterForm(request.GET, scope=scope)
+    sources = filters.apply(scope)
+    if not filters.is_valid():
+        return HttpResponse('Invalid register filters. Correct the filters in the collection register.', status=400)
+    query = request.GET.copy()
+    query.pop('page', None)
+    response = render(request, 'vouchers/collections/working_copy.html', {
+        'rows': _register_rows(sources), 'filters': filters,
+        'page_query': query.urlencode(), 'generated_at': timezone.now(),
+    })
+    response['X-Content-Type-Options'] = 'nosniff'
     return response
 
 

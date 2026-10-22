@@ -63,6 +63,33 @@ class AssetCostAllocationTests(TestCase):
     def upload(self):
         return SimpleUploadedFile('allocation.pdf', self.body, content_type='application/pdf')
 
+    def test_http_omission_defers_to_server_checks_and_preserves_review_boundary(self):
+        self.client.force_login(self.clerk)
+        url = reverse('inventory_finance:asset-cost-propose', args=[self.line.pk])
+        page = self.client.get(url)
+        self.assertContains(page, 'enctype="multipart/form-data" novalidate')
+        data = {'source_token': page.context['form'].initial['source_token'],
+                'finance_department': self.finance.pk, 'allocation_basis': 'Documented component amounts',
+                'components-TOTAL_FORMS': '3', 'components-INITIAL_FORMS': '0'}
+        for i, entry in enumerate(self.entries() + [dict(label='Mistaken row', quantity='1', unit='unit', amount='-1', reference='Omitted source')]):
+            data.update({f'components-{i}-{key}': raw for key, raw in entry.items()})
+        result = self.client.post(url, {**data, 'upload': self.upload()})
+        self.assertEqual(result.status_code, 200)
+        self.assertTrue(result.context['lines'].forms[2].errors)
+        self.assertEqual(Allocation.objects.count(), 0)
+        data['components-2-DELETE'] = 'on'
+        data['components-1-amount'] = '29.00'
+        result = self.client.post(url, {**data, 'upload': self.upload()})
+        self.assertEqual(result.status_code, 200)
+        self.assertContains(result, 'must equal the documented source total exactly')
+        self.assertEqual(Allocation.objects.count(), 0)
+        data['components-1-amount'] = '30.00'
+        self.assertEqual(self.client.post(url, {**data, 'upload': self.upload()}).status_code, 302)
+        row = Allocation.objects.get()
+        self.assertEqual(row.status, 'proposed')
+        self.assertEqual(row.components, service.components(self.entries()))
+        self.assertEqual(row.events.count(), 1)
+
     def accept(self, cost='100.00'):
         receipt = receiving.create_receipt(actor=self.clerk, data=fixtures.GrandReceivingAuthorityTests.data(self))
         receiving.save_receipt_line(actor=self.clerk, receipt=receipt, expected_version=1, data={

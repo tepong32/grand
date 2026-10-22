@@ -395,6 +395,7 @@ def asset_verification_list(request):
 
 @asset_access_required("view")
 def asset_verification_detail(request, pk):
+    from .property_determinations import can_act as can_prepare_property
     if not any(can_manage_asset_verification(request.user, action, read_only=True) for action in ("start", "record", "close")):
         raise PermissionDenied
     verification_round = get_object_or_404(_verification_round_queryset(request.user), pk=pk)
@@ -418,6 +419,7 @@ def asset_verification_detail(request, pk):
         return redirect("inventory:asset-verification-detail", pk=verification_round.pk)
     return render(request, "inventory/asset_verification_detail.html", {
         "verification_round": verification_round, "records": records,
+        "can_prepare_rpcppe": can_prepare_property(request.user, 'view'),
         "counts": counts, "can_record": can_manage_asset_verification(request.user, "record"),
         "can_close": can_manage_asset_verification(request.user, "close"),
         "findings": findings, "pending_findings": pending_findings,
@@ -881,6 +883,8 @@ def _stock_history_selection(request):
     if not form.is_valid():
         return form, movements.none(), ""
     data = form.cleaned_data
+    if data.get("q"):
+        movements = movements.filter(Q(item__name__icontains=data["q"]) | Q(reference__icontains=data["q"]))
     if data.get("from_date"):
         movements = movements.filter(occurred_at__date__gte=data["from_date"])
     if data.get("to_date"):

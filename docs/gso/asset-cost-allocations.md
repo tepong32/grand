@@ -46,6 +46,15 @@ separate. Finance stays **NO-GO**; no deployment.
 
 ## Finding shared worksheets
 
+October21 form follow-up: proposal validation uses the existing server formset
+and service checks. Browser numeric constraints previously prevented submitting
+an explicitly omitted component containing an invalid amount. The proposal form
+now defers validation to the server, preserving entered values, independent review,
+positive quantities, nonnegative included amounts and exact allocation totals.
+Omitting a row does not excuse invalid included rows or an incomplete source total.
+No allocation/posting service, permission, schema or valuation policy changed.
+CONTINUE.md records the actual browser regression and focused test evidence.
+
 The employee starting page uses the same explicit module permission and current
 office/shared-Accounting visibility as the existing workbench. Its counts describe
 awaiting review, reviewed history and rejected proposals; they are not valuation,

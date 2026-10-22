@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.209] - 2026-10-23
+### Added
+- feat(office): prepare inventory drafts, working reports and update dependencies
+
 ## [0.7.208] - 2026-10-20
 ### Added
 - feat(finance): separate officer principal from redemption charges

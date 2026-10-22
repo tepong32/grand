@@ -946,6 +946,115 @@ class FinanceAccountabilityReportingTests(TestCase):
         self.assertEqual(source.source_reference, self.entry.reference)
         self.assertEqual(len(source.snapshot["lines"]), 2)
 
+    def test_advance_starter_is_candidate_scoped_and_preserves_local_edits_on_reseed(self):
+        definition = ReportDefinition.objects.get(department=self.accounting, slug="posted-officer-advances")
+        self.assertEqual(definition.dataset_key, "finance_posted_advance_schedule")
+        self.assertEqual(definition.applicability_status, ReportDefinition.APPLICABILITY_CANDIDATE)
+        self.assertFalse(ReportDefinition.objects.filter(department=self.budget, slug=definition.slug).exists())
+        template = definition.current_template
+        self.assertIn("Not proof of cash release or available liquidation capacity", template.header_text)
+        self.assertNotEqual(template.fidelity_status, ReportTemplateVersion.OFFICIAL)
+        definition.description = "Locally retained draft instructions"
+        definition.save(update_fields=("description",))
+        before = list(definition.template_versions.values())
+        seed_finance_presets()
+        definition.refresh_from_db()
+        self.assertEqual(definition.description, "Locally retained draft instructions")
+        self.assertEqual(list(definition.template_versions.values()), before)
+        self.client.force_login(self.accounting_preparer)
+        self.assertContains(self.client.get(reverse("reporting:workspace")), definition.name)
+
+    def test_advance_starter_preserves_asof_debit_balances_sources_and_original_outputs(self):
+        from openpyxl import load_workbook
+
+        owner = {"department_id": self.accounting.pk, "department_label": self.accounting.name}
+        account = LedgerAccount.objects.create(**owner, code="10305010", title="Synthetic officer advances",
+                                              account_type="asset", normal_balance="debit")
+
+        def movement(reference, day, debit="0.00", credit="0.00", *, posted=True, subsidiary=True):
+            entry = JournalEntry.objects.create(**owner, reference=reference, entry_date=day,
+                period=self.period, fund=self.fund, source_type="manual", description="Synthetic advance evidence",
+                status=JournalEntry.DRAFT, created_by_id=self.accounting_preparer.pk,
+                created_by_label=self.accounting_preparer.username,
+                posted_by_id=self.accounting_reviewer.pk, posted_by_label=self.accounting_reviewer.username,
+                posted_at=timezone.now())
+            line = JournalLine.objects.create(entry=entry, sequence=1, account=account,
+                                               debit=Decimal(debit), credit=Decimal(credit))
+            JournalLine.objects.create(entry=entry, sequence=2, account=self.cash,
+                                       debit=Decimal(credit), credit=Decimal(debit))
+            if subsidiary:
+                JournalSubsidiaryLine.objects.create(entry=entry, journal_line=line,
+                    category=JournalSubsidiaryLine.ADVANCE, reference_key="synthetic-officer",
+                    reference_label="Synthetic Officer", source_code="synthetic-advance",
+                    source_reference=reference, debit=Decimal(debit), credit=Decimal(credit))
+            if posted:
+                JournalEntry.objects.filter(pk=entry.pk).update(status=JournalEntry.POSTED)
+            return entry
+
+        original = movement("ADV-ORIGINAL", date(2027, 1, 5), debit="1000.00")
+        applied = movement("ADV-APPLIED", date(2027, 1, 20), credit="250.00")
+        movement("ADV-LATER", date(2027, 2, 5), credit="100.00")
+        movement("ADV-DRAFT", date(2027, 1, 25), debit="500.00", posted=False)
+        definition = ReportDefinition.objects.get(department=self.accounting, slug="posted-officer-advances")
+        models = (JournalEntry, JournalLine, JournalSubsidiaryLine)
+        before = [list(model.objects.order_by("pk").values()) for model in models]
+        # A late period start must not discard the earlier recognition in this as-of schedule.
+        run = create_manual_run(definition, definition.current_template, "xlsx",
+                                date(2027, 1, 19), date(2027, 1, 31), {}, self.accounting_preparer)
+        self.assertEqual(run.control_status, ReportRun.CONTROL_RECONCILED)
+        self.assertEqual(run.control_totals["subsidiary_balance"], "750.00")
+        self.assertEqual(run.control_totals["gl_control_balance"], "750.00")
+        self.assertEqual(set(run.source_records.values_list("source_reference", flat=True)),
+                         {original.reference, applied.reference})
+        self.assertEqual(Decimal(str(run.dataset_snapshot["rows"][0]["balance"])), Decimal("750.00"))
+        with run.output_file.open("rb") as stream:
+            retained = stream.read()
+        workbook = load_workbook(run.output_file.path, data_only=True)
+        try:
+            cells = [cell.value for row in workbook.active for cell in row]
+            self.assertIn("Debit balance", cells)
+            self.assertIn("Synthetic Officer", cells)
+            self.assertIn(750, cells)
+        finally:
+            workbook.close()
+        pdf = create_manual_run(definition, definition.current_template, "pdf",
+                                date(2027, 1, 19), date(2027, 1, 31), {}, self.accounting_preparer)
+        self.assertEqual(pdf.control_totals, run.control_totals)
+        transition_run(run, "review", self.accounting_reviewer, "Synthetic source comparison")
+        with self.assertRaises(ValueError):
+            transition_run(run, "approve", self.accounting_reviewer)
+        self.assertEqual([list(model.objects.order_by("pk").values()) for model in models], before)
+        movement("ADV-MISSING-DETAIL", date(2027, 1, 30), debit="10.00", subsidiary=False)
+        broken = create_manual_run(definition, definition.current_template, "xlsx",
+                                  date(2027, 1, 19), date(2027, 1, 31), {}, self.accounting_preparer)
+        self.assertEqual(broken.control_status, ReportRun.CONTROL_EXCEPTION)
+        self.assertEqual(broken.control_totals["difference"], "10.00")
+        with self.assertRaisesMessage(ValueError, "must reconcile"):
+            transition_run(broken, "review", self.accounting_reviewer)
+        with run.output_file.open("rb") as stream:
+            self.assertEqual(stream.read(), retained)
+
+    def test_advance_starter_missing_sources_and_generation_authority_fail_closed(self):
+        from django.contrib.auth.models import Group
+        from vouchers.roles import FINANCE_UAT_VIEWER_GROUP
+
+        definition = ReportDefinition.objects.get(department=self.accounting, slug="posted-officer-advances")
+        def generate(actor):
+            return create_manual_run(definition, definition.current_template, "xlsx",
+                                     date(2027, 1, 1), date(2027, 1, 31), {}, actor)
+        run = generate(self.accounting_preparer)
+        self.assertEqual(run.control_status, ReportRun.CONTROL_EXCEPTION)
+        self.assertIn("No explicit advance subsidiary source", run.control_message)
+        with self.assertRaisesMessage(ValueError, "must reconcile"):
+            transition_run(run, "review", self.accounting_reviewer)
+        before = ReportRun.objects.count()
+        with self.assertRaises(PermissionDenied):
+            generate(self.budget_preparer)
+        self.accounting_preparer.groups.add(Group.objects.get_or_create(name=FINANCE_UAT_VIEWER_GROUP)[0])
+        with self.assertRaises(PermissionDenied):
+            generate(self.accounting_preparer)
+        self.assertEqual(ReportRun.objects.count(), before)
+
     def test_payable_schedule_must_reconcile_to_its_mapped_gl_control(self):
         owner = {"department_id": self.accounting.pk, "department_label": self.accounting.name}
         payable = LedgerAccount.objects.create(

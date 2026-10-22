@@ -31,6 +31,11 @@ gates remain mandatory. Report passed, failed, deferred, skipped and unavailable
 checks accurately with reasons; investigate failures without weakening gates.
 Propose costly CI-policy duplication separately, with evidence, not inside a feature.
 
+Owner testing preference, 2026-10-20: defer optional intermediate checks and broad
+repeats, especially when pausing. Run full applicable suites at vm-commit
+checkpoints. Retain the critical Finance, security and data-integrity verification
+above whenever affected; never treat deferred checks as passing evidence.
+
 Make routine implementation decisions independently. Consolidate owner decisions in
 the existing [decision log](docs/IMPLEMENTATION_DECISIONS.md), using stable
 `DECISION-FIN/GSO/UX/OPS-NNN` identifiers. Each open entry records the question,
@@ -38,6 +43,13 @@ importance, evidence/unknowns, alternatives, recommendation, safe provisional wo
 and precise blocking boundary. Ask once in a batch when needed. Keep uncertain
 values at replaceable form/template/mapping boundaries; unknown stays unknown.
 Drafts are not official forms, signatures, approvals, numbering or authority.
+Source-started supply drafts require current stock-read/export and item ownership;
+retain original observations/issues separately from editable lines, pin the selected
+cohort and reject changed sources without inferring inventory completeness or value.
+See [reviewed-count preparation](docs/gso/supplies-output-drafts.md).
+Property-count draft starters additionally require property-document and count
+read authority; observation results and acquisition costs do not establish numeric
+quantities, PPE classification or unit values. Keep unknowns explicit.
 Fail safely wherever an unresolved critical rule affects correctness.
 
 Persistent memory has distinct owners: this file holds durable rules; roadmaps

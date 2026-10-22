@@ -10,7 +10,7 @@
 {{ filters.non_field_errors }}
 <div class="row">{% for field in filters %}<div class="form-group col-md-4"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}</div>
 <div class="d-flex flex-wrap gap-2"><button class="btn btn-primary" type="submit">Apply filters</button><a class="btn btn-outline-secondary" href="{% url 'vouchers:collection_register' %}">Clear</a>
-{% if can_export %}<button class="btn btn-outline-secondary" type="submit" formaction="{% url 'vouchers:collection_export' %}">Export all matching records</button>{% endif %}</div>
+{% if can_export %}<button class="btn btn-outline-secondary" type="submit" formaction="{% url 'vouchers:collection_export' %}">Export all matching records</button><button class="btn btn-outline-secondary" type="submit" formaction="{% url 'vouchers:collection_working_copy' %}">Open printable copy</button>{% endif %}</div>
 <p class="small text-muted mt-2 mb-0">Dates include both endpoints. Search matches receipt/deposit references, books and payers. Export includes all matching pages in your current office scope. Deposit availability still accounts for all pending and posted allocations, including records outside these filters.</p>
 </form>
 <p>Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }} matching records</p>

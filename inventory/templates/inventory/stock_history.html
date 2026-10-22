@@ -4,10 +4,11 @@
 {% block title %}Supply movement history{% endblock %}
 {% block content %}
 <header class="hero"><div><p class="eyebrow">GSO workspace · Supplies</p><h1>Supply movement history</h1><p>Review recorded receipts, issues, returns and adjustments across supply items.</p></div></header>
-<nav class="quick-links"><a href="{% url 'inventory:consumable-list' %}">Back to supplies</a>{% if can_export and not form.errors %}<a href="{% url 'inventory:stock-working-copy' %}?{{ query_string }}">Open printable copy</a><a href="{% url 'inventory:stock-export' %}?{{ query_string }}">Export selected movements</a>{% endif %}</nav>
+<nav class="quick-links"><a href="{% url 'inventory:consumable-list' %}">Back to supplies</a>{% if can_export and not form.errors %}<a href="{% url 'inventory:stock-working-copy' %}?{{ query_string }}">Open printable copy</a><a href="{% url 'inventory:stock-export' %}?{{ query_string }}">Export selected movements</a>{% if form.cleaned_data.kind == 'issue' %}<a href="{% url 'inventory:issue-rsmi-preparation' %}?{{ query_string }}">Start RSMI draft from these issues</a>{% endif %}{% endif %}</nav>
 <section class="panel">
   <h2>Choose movements</h2>
   <p>For an issues list, choose Issued and the recording dates. Dates describe when GRAND recorded a movement, which may differ from the date on its source document.</p>
+  {% if can_export %}<p>To start an RSMI draft, choose Issued and narrow the selection by recording dates, supply item or source reference (up to 50 issues). Original quantities stay separate from returns and adjustments.</p>{% endif %}
   <form method="get" class="toolbar"><div class="filters">{% for field in form %}<div>{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}<button class="button primary" type="submit">Apply filters</button><a class="button" href="{% url 'inventory:stock-history' %}">Clear filters</a></div></form>
   {% if form.errors %}<p role="alert">Check the highlighted filters. No movements have been selected.</p>{% else %}
   <h2>{{ page.paginator.count }} recorded movement{{ page.paginator.count|pluralize }}</h2>

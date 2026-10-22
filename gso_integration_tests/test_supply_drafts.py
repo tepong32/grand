@@ -31,6 +31,73 @@ class SupplyDraftTests(TestCase):
     def url(self, kind):
         return reverse(f"inventory:{kind}-preparation")
 
+    def test_longer_supplied_reports_retain_every_line_in_order(self):
+        self.client.force_login(self.clerk)
+        for kind in ("rpci", "rsmi"):
+            values = {"lines-TOTAL_FORMS": "50", "header-office": "Supply office"}
+            values.update({f"lines-{i}-description": f"Source item {i + 1}" for i in range(50)})
+            response = self.client.post(self.url(kind), self.fields(**values))
+            self.assertTrue(response.context["ready"])
+            self.assertEqual([row["description"] for row in response.context["print_lines"]],
+                             [f"Source item {i + 1}" for i in range(50)])
+
+    def test_add_lines_keeps_invalid_inputs_and_requires_preview_before_printing(self):
+        self.client.force_login(self.clerk)
+        for kind in ("rpci", "rsmi"):
+            values = self.fields(**{"action": "add_lines", "header-office": "Keep office",
+                                    "lines-4-description": "Keep last row", "lines-0-unit_value": "invalid",
+                                    "lines-0-amount": "invalid"})
+            response = self.client.post(self.url(kind), values)
+            self.assertEqual(len(response.context["lines"].forms), 10)
+            self.assertFalse(response.context["ready"])
+            self.assertContains(response, "Keep office")
+            self.assertContains(response, "Keep last row")
+            self.assertContains(response, 'value="invalid"')
+            self.assertNotContains(response, 'onclick="window.print()"')
+
+    def test_add_lines_rechecks_authority_and_does_not_write_stock_or_finance(self):
+        for kind in ("rpci", "rsmi"):
+            self.client.force_login(self.clerk)
+            with CaptureQueriesContext(connections["finance"]) as finance, CaptureQueriesContext(connections["default"]) as default:
+                response = self.client.post(self.url(kind), self.fields(**{"action": "add_lines"}))
+            self.assertEqual(len(response.context["lines"].forms), 10)
+            self.assertEqual(len(finance), 0)
+            self.assertFalse(any(q["sql"].lstrip().upper().startswith(("INSERT", "UPDATE", "DELETE")) for q in default))
+            self.client.force_login(self.outsider)
+            self.assertEqual(self.client.post(self.url(kind), self.fields(**{"action": "add_lines"})).status_code, 403)
+
+    def test_excluded_line_keeps_values_for_undo_and_does_not_hide_other_errors(self):
+        self.client.force_login(self.clerk)
+        for kind, amount in (("rpci", "unit_value"), ("rsmi", "amount")):
+            values = self.fields(**{"lines-0-description": "Keep first", "lines-1-description": "Undo me",
+                                    f"lines-1-{amount}": "invalid", "lines-1-DELETE": "on",
+                                    "lines-4-description": "Keep last"})
+            response = self.client.post(self.url(kind), values)
+            self.assertTrue(response.context["ready"])
+            self.assertNotIn("Undo me", [row.get("description") for row in response.context["print_lines"]])
+            self.assertContains(response, 'value="invalid"')
+            values.pop("lines-1-DELETE")
+            self.assertFalse(self.client.post(self.url(kind), values).context["ready"])
+            values["lines-1-DELETE"] = "on"
+            values[f"lines-4-{amount}"] = "invalid"
+            self.assertFalse(self.client.post(self.url(kind), values).context["ready"])
+
+    def test_invalid_line_counts_and_add_at_limit_do_not_silently_preview(self):
+        self.client.force_login(self.clerk)
+        for kind in ("rpci", "rsmi"):
+            for count in ("-1", "51", "100000", "invalid"):
+                for action in ("preview", "add_lines"):
+                    response = self.client.post(self.url(kind), self.fields(**{
+                        "lines-TOTAL_FORMS": count, "action": action}))
+                    self.assertFalse(response.context["ready"])
+                    self.assertTrue(response.context["lines"].non_form_errors())
+                    self.assertLessEqual(len(response.context["lines"].forms), 50)
+            response = self.client.post(self.url(kind), self.fields(**{
+                "lines-TOTAL_FORMS": "50", "action": "add_lines", "lines-49-description": "Last retained"}))
+            self.assertEqual(len(response.context["lines"].forms), 50)
+            self.assertContains(response, "Last retained")
+            self.assertFalse(response.context["ready"])
+
     def test_minimal_stock_reader_and_uat_can_prepare_both_without_asset_or_export_grants(self):
         for actor in (self.clerk, self.viewer):
             self.client.force_login(actor)
@@ -146,7 +213,7 @@ class SupplyDraftTests(TestCase):
         protected = Client(enforce_csrf_checks=True)
         protected.force_login(self.clerk)
         for kind in ("rpci", "rsmi"):
-            bad = self.client.post(self.url(kind), {**self.fields(), "lines-TOTAL_FORMS": "6", "lines-5-description": "Must not be silently omitted"})
+            bad = self.client.post(self.url(kind), {**self.fields(), "lines-TOTAL_FORMS": "51", "lines-50-description": "Must not be silently omitted"})
             self.assertFalse(bad.context["ready"])
             self.assertTrue(bad.context["lines"].non_form_errors())
             self.assertFalse(self.client.post(self.url(kind), {}).context["ready"])

@@ -4,14 +4,22 @@
 {% block workspace_link %}{% endblock %}
 {% block content %}
 <style>
+.draft-line input[type="checkbox"]{width:auto;min-width:20px;min-height:20px}.draft-line label:has(input[type="checkbox"]){display:flex;align-items:center;gap:10px}
 .supply-sheet{background:white;color:#111;padding:24px;border:1px solid #aaa;margin-top:24px;overflow-wrap:anywhere}.draft-scroll{overflow-x:auto}.supply-sheet table{width:100%;table-layout:fixed;min-width:950px;font-size:11px}.supply-sheet th,.supply-sheet td{border:1px solid #777;padding:6px;white-space:normal;overflow-wrap:anywhere;vertical-align:top}.supply-sheet tbody tr:last-child td{border-bottom:1px solid #777}.supply-sheet td{height:32px}.draft-signatures{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:18px}.draft-signatures p{border-top:1px solid #777;padding-top:6px}.draft-line{border-top:1px solid #ddd;padding-top:12px}.draft-editor summary{cursor:pointer;font-weight:650}.draft-editor summary:focus-visible,.draft-scroll:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 @media print{.topbar,.footer,.hero,.draft-controls,.draft-editor,.messages{display:none!important}body{background:white}main{width:100%;padding:0;margin:0}.supply-sheet{padding:0;margin:0;border:0;font-size:11px;line-height:1.3}.supply-sheet h2{font-size:18px;margin:8px 0}.supply-sheet p{margin:6px 0}.supply-sheet table{min-width:0;font-size:10px}.supply-sheet th,.supply-sheet td{padding:4px}.draft-scroll{overflow:visible}.supply-sheet thead{display:table-header-group}.supply-sheet tr,.draft-signatures{break-inside:avoid}@page{size:A4 landscape;margin:12mm}}
 </style>
 <header class="hero"><div><h1>{{ kind }} preparation sheet</h1><p>Enter supplied facts, review the draft, then Print / Save as PDF.</p></div></header>
 <nav class="quick-links draft-controls"><a class="button" href="{% url 'inventory:consumable-list' %}">Back to supplies</a>{% if ready %}<button class="button primary" type="button" onclick="window.print()">Print / Save as PDF</button>{% endif %}</nav>
+{% if from_counts %}<nav class="quick-links draft-controls"><a href="{% url 'inventory:stock-count-list' %}?status=approved">Return to reviewed counts (starts a new draft)</a></nav>{% endif %}
+{% if from_issues %}<nav class="quick-links draft-controls"><a href="{% url 'inventory:stock-history' %}?kind=issue">Return to issued movements (starts a new draft)</a></nav>{% endif %}
+{% if source_error %}<p class="errorlist" role="alert">{{ source_error }}</p>{% endif %}
+{% if count_sources and not ready %}{% include 'inventory/count_draft_sources.html' %}{% endif %}
+{% if issue_sources and not ready %}{% include 'inventory/issue_draft_sources.html' %}{% endif %}
 <details class="panel draft-editor"{% if not ready %} open{% endif %}><summary>{% if ready %}Change draft details{% else %}Enter draft details{% endif %}</summary>
-<form method="post">{% csrf_token %}
-<p>These five-line entries are not saved or copied from the live stock ledger. Preview, then save a copy in approved office storage if needed. Unknown facts may remain blank.</p>
+<form method="post" novalidate>{% csrf_token %}
+{% if from_counts %}<input type="hidden" name="count_source_token" value="{{ count_source_token }}">{% endif %}
+{% if from_issues %}<input type="hidden" name="issue_source_token" value="{{ issue_source_token }}">{% endif %}
+<p>Enter up to 50 supplied lines. Add five lines at a time as needed. These entries are not saved.{% if from_counts %} Starting quantities come from the selected observations, not today's ledger. Editing or excluding a line changes only this draft.{% elif from_issues %} Starting quantities and any unit costs are copied as recorded. Returns are not subtracted and recorded costs do not establish approved valuation. Editing or excluding a line changes only this draft.{% else %} Entries are not copied from the live stock ledger.{% endif %} Preview, then save a copy in approved office storage if needed. Unknown facts may remain blank.</p>
 <p>This unsigned preparation does not certify a complete report, establish valuation, assign official numbers or record stock movements. Confirm the applicable local form, evidence and review before official use.</p>
 {% if invalid %}<p role="alert">Check the highlighted fields. Your entries are retained below.</p>{% endif %}
 <h2>Office, report dates and supplied names</h2><div class="form-grid">{{ header.as_p }}</div>
@@ -19,7 +27,10 @@
 {% if kind == 'RPCI' %}<p>Count minus stock card is calculated only when both quantities are supplied. Blank counts stay unknown. Difference values remain supplied, not calculated.</p>{% else %}<p>Supply the issue quantities, source dates and references from your documents. Amounts remain supplied, not calculated. A GRAND recording date does not establish the physical issue date.</p>{% endif %}
 <p>When all relevant quantities and values are supplied, the draft checks their exact arithmetic. No rounding or unlike-item total is inferred; leave unresolved monetary amounts blank for Accounting review.</p>
 {{ lines.management_form }}{{ lines.non_form_errors }}{% for line in lines %}<fieldset class="draft-line"><legend>Supply {{ forloop.counter }}</legend><div class="form-grid">{{ line.as_p }}</div></fieldset>{% endfor %}
-<button class="button primary" type="submit">Preview preparation sheet</button>
+<p>To omit a line, check “Leave this line out of the preview”. Its values stay here so you can include it again.</p>
+{% if line_notice %}<p role="status">{{ line_notice }}</p>{% endif %}
+<div class="actions">{% if can_add_lines %}<button class="button" type="submit" name="action" value="add_lines" formnovalidate>Add 5 lines</button>{% endif %}
+<button class="button primary" type="submit" name="action" value="preview">Preview preparation sheet</button></div>
 </form></details>
 {% if ready %}<section class="supply-sheet" aria-label="{{ kind }} draft preview">
 <p><strong>DRAFT — FOR COMPLETION AND REVIEW</strong></p><h2>{{ title }} · preparation sheet</h2>
@@ -38,5 +49,7 @@
 {% endif %}</tbody></table></div>
 <div class="draft-signatures"><p>Prepared by: {{ details.prepared_by|default:"[Name / designation]" }}<br>Signature / date: ____________________</p><p>Review / approval: {{ details.reviewed_by|default:"[Supplied name / designation]" }}<br>Signature / date: ____________________</p></div>
 <p><strong>Unsigned preparation.</strong> Supplied names are placeholders, not approvals. This is not an accepted local form, approved Accounting valuation or issued report. No unlike-item quantity or value total is inferred.</p>
+{% if count_sources %}{% include 'inventory/count_draft_sources.html' %}{% endif %}
+{% if issue_sources %}{% include 'inventory/issue_draft_sources.html' %}{% endif %}
 </section>{% endif %}
 {% endblock %}

@@ -11,6 +11,7 @@
 <nav class="quick-links copy-controls">{% if can_view_history %}<a href="{% url 'inventory:stock-history' %}?{{ query_string }}">Back to movement history</a>{% else %}<a href="{% url 'department_dashboard' %}">GRAND home</a>{% endif %}<button class="button primary" type="button" onclick="window.print()">Print / Save as PDF</button></nav>
 <article class="stock-copy">
   <h1>Supply movements - working copy</h1>
+  {% if selection.q %}<p>Supply item / source reference search: {{ selection.q }}</p>{% endif %}
   <p><strong>{{ movements|length }} recorded movement{{ movements|length|pluralize }}</strong> · {{ movement_label }} · Recorded from: {{ selection.from_date|date:"Y-m-d"|default:"Any date" }} · Recorded through: {{ selection.to_date|date:"Y-m-d"|default:"Any date" }}</p>
   <p>Generated {{ generated_at|date:"Y-m-d H:i T" }} by {{ request.user }}. Includes all selected pages. This live copy is not saved by GRAND; later exports may include newly recorded movements.</p>
   <p><strong>Working copy only.</strong> Not an official RSMI/SSMI, stock-count certification or approved Accounting valuation. Dates are GRAND recording dates, not inferred physical-event dates. Quantities retain each item's unit; returns and adjustments do not erase original issues. No quantities across unlike items are added. Confirm original documents and the applicable local form before official use.</p>

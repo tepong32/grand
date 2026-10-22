@@ -1,4 +1,4 @@
-"""Unsigned supplied supplies reports; never copy or alter the live stock ledger."""
+"""Unsigned editable supplies reports; never alter the live stock ledger."""
 from decimal import localcontext
 
 from django import forms
@@ -11,6 +11,7 @@ from django.views.decorators.http import require_http_methods
 
 from .access import can_stock, in_gso_scope
 from .rpcppe_drafts import RPCPPELineForm
+from .draft_lines import MAX_DRAFT_LINES, DraftLines as SupplyLines, add_lines
 
 
 class SupplyHeaderForm(forms.Form):
@@ -58,7 +59,7 @@ class RSMILineForm(forms.Form):
     stock_number = forms.CharField(label="Stock number (as supplied)", required=False, max_length=100)
     description = forms.CharField(required=False, max_length=500, widget=forms.Textarea(attrs={"rows": 2}))
     unit = forms.CharField(required=False, max_length=30)
-    recipient_office = forms.CharField(label="Receiving office / recipient (as supplied)", required=False, max_length=180)
+    recipient_office = forms.CharField(label="Receiving office / recipient (as supplied)", required=False, max_length=323)
     quantity = forms.DecimalField(label="Quantity issued (as supplied)", required=False, min_value=0, max_digits=12, decimal_places=3)
     unit_cost = forms.DecimalField(label="Unit cost (as supplied)", required=False, min_value=0, max_digits=18, decimal_places=2)
     amount = forms.DecimalField(label="Line amount (as supplied; not calculated)", required=False, min_value=0, max_digits=18, decimal_places=2)
@@ -76,28 +77,40 @@ class RSMILineForm(forms.Form):
         return data
 
 
-RPCILines = formset_factory(RPCILineForm, extra=5, max_num=5, validate_max=True, absolute_max=5)
-RSMILines = formset_factory(RSMILineForm, extra=5, max_num=5, validate_max=True, absolute_max=5)
+RPCILines = formset_factory(RPCILineForm, formset=SupplyLines, extra=5, max_num=MAX_DRAFT_LINES,
+                           validate_max=True, absolute_max=MAX_DRAFT_LINES, can_delete=True)
+RSMILines = formset_factory(RSMILineForm, formset=SupplyLines, extra=5, max_num=MAX_DRAFT_LINES,
+                           validate_max=True, absolute_max=MAX_DRAFT_LINES, can_delete=True)
 
 
-def _prepare(request, *, kind, title, header_class, line_set):
+def _prepare(request, *, kind, title, header_class, line_set, initial_data=None, source_context=None):
     if not in_gso_scope(request.user) or not can_stock(request.user, "view"):
         raise PermissionDenied
     data = request.POST if request.method == "POST" else None
     header = header_class(data, prefix="header")
-    lines = line_set(data, prefix="lines")
-    ready = request.method == "POST" and header.is_valid() and lines.is_valid()
+    lines = line_set(data if data is not None else initial_data, prefix="lines")
+    source_context = source_context or {}
+    adding = request.method == "POST" and request.POST.get("action") == "add_lines"
+    notice = ""
+    if adding:
+        lines, notice = add_lines(request.POST, line_set)
+    valid = request.method == "POST" and header.is_valid() and lines.is_valid()
+    ready = valid and not adding and not source_context.get("source_error")
     rows = []
     if ready:
         for form in lines:
+            if form.cleaned_data.get("DELETE"):
+                continue
             row = {name: form.cleaned_data.get(name) for name in form.fields}
             if kind == "RPCI":
                 card, counted = row["card_quantity"], row["counted_quantity"]
                 row["difference"] = counted - card if card is not None and counted is not None else None
             rows.append(row)
     return render(request, "inventory/supply_preparation.html", {"kind": kind, "title": title,
-        "header": header, "lines": lines, "ready": ready, "invalid": request.method == "POST" and not ready,
-        "details": header.cleaned_data if ready else {}, "print_lines": rows})
+        "header": header, "lines": lines, "ready": ready, "invalid": request.method == "POST" and not valid,
+        "line_notice": notice, "can_add_lines": lines.total_form_count() < MAX_DRAFT_LINES,
+        "details": header.cleaned_data if ready else {}, "print_lines": rows, **source_context},
+        status=400 if source_context.get("source_error") else 200)
 
 
 @never_cache

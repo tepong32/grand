@@ -10,6 +10,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
 
 from .property_determinations import can_act
+from .draft_lines import MAX_DRAFT_LINES, DraftLines, add_lines
 
 
 class RPCPPEHeaderForm(forms.Form):
@@ -51,28 +52,42 @@ class RPCPPELineForm(forms.Form):
         return data
 
 
-RPCPPELines = formset_factory(RPCPPELineForm, extra=5, max_num=5, validate_max=True, absolute_max=5)
+RPCPPELines = formset_factory(RPCPPELineForm, formset=DraftLines, extra=5, max_num=MAX_DRAFT_LINES,
+                            validate_max=True, absolute_max=MAX_DRAFT_LINES, can_delete=True)
 
 
 @never_cache
 @login_required
 @require_http_methods(["GET", "POST"])
 def preparation(request):
+    return prepare(request)
+
+
+def prepare(request, *, initial_data=None, source_context=None):
     if not can_act(request.user, "view"):
         raise PermissionDenied
     data = request.POST if request.method == "POST" else None
     header = RPCPPEHeaderForm(data, prefix="header")
-    lines = RPCPPELines(data, prefix="lines")
-    ready = request.method == "POST" and header.is_valid() and lines.is_valid()
+    lines = RPCPPELines(data if data is not None else initial_data, prefix="lines")
+    source_context = source_context or {}
+    adding = request.method == "POST" and request.POST.get("action") == "add_lines"
+    notice = ""
+    if adding:
+        lines, notice = add_lines(request.POST, RPCPPELines)
+    valid = request.method == "POST" and header.is_valid() and lines.is_valid()
+    ready = valid and not adding and not source_context.get('source_error')
     rows = []
     if ready:
         for form in lines:
+            if form.cleaned_data.get("DELETE"):
+                continue
             row = {name: form.cleaned_data.get(name) for name in form.fields}
             card, counted = row["card_quantity"], row["counted_quantity"]
             row["difference"] = counted - card if card is not None and counted is not None else None
             rows.append(row)
     return render(request, "inventory/rpcppe_preparation.html", {
         "header": header, "lines": lines, "ready": ready,
-        "invalid": request.method == "POST" and not ready,
-        "details": header.cleaned_data if ready else {}, "print_lines": rows,
-    })
+        "invalid": request.method == "POST" and not valid,
+        "line_notice": notice, "can_add_lines": lines.total_form_count() < MAX_DRAFT_LINES,
+        "details": header.cleaned_data if ready else {}, "print_lines": rows, **source_context,
+    }, status=400 if source_context.get('source_error') else 200)

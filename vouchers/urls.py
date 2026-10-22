@@ -22,6 +22,7 @@ urlpatterns = [
     path('collections/new/', collection_views.receipt_create, name='collection_create'),
     path('collections/deposits/new/', collection_views.deposit_create, name='collection_deposit_create'),
     path('collections/export/', collection_views.export, name='collection_export'),
+    path('collections/working-copy/', collection_views.register_working_copy, name='collection_working_copy'),
     path('collections/<uuid:public_id>/', collection_views.detail, name='collection_detail'),
     path('collections/<uuid:public_id>/clearing/new/', cheque_clearing_views.create, name='cheque_clearing_create'),
     path('collections/<uuid:public_id>/clearing/<uuid:clearance_id>/review/', cheque_clearing_views.review, name='cheque_clearing_review'),

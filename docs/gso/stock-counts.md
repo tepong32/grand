@@ -1,9 +1,13 @@
 # Supplies ledger and physical counts
 
-2026-10-19: [RPCI/RSMI working drafts](supplies-output-drafts.md) add supplied
-five-line entry/preview/print under stock-read scope. They remain distinct from
+2026-10-21: [RPCI/RSMI working drafts](supplies-output-drafts.md) support supplied
+entry/preview/print up to50 lines under stock-read scope. Reviewed count selections
+can now start an editable RPCI draft under additional stock-export authority,
+with retained original observations and fresh source/ownership checks. Filtered
+original issues similarly start RSMI preparation without netting returns or
+inferring source-event dates or Accounting valuation. These remain distinct from
 the complete stored-movement/count working copies below: no live ledger facts,
-values, source dates, certification or approved valuation are inferred or changed.
+values, certification or approved valuation are inferred or changed.
 
 Ledger prerequisite published at cbece6c. See [CONTINUE](../CONTINUE.md)
 for release evidence. Reviewed current-day counts are published at3ec09d6;
@@ -76,7 +80,9 @@ writes do not roll back with database transactions; investigate any orphan findi
 ## Movement-history preparation
 
 The bounded retrieval slice joins existing retained movement rows across
-supply items, with optional recorded-date and movement-type filters. Reuse the
+supply items, with optional recorded-date, movement-type and item-name/source-reference
+filters. History, CSV, printable copy and the RSMI starter share the validated
+selection. Reuse the
 current stock read/export grants and item ownership; department readers see only
 their own movements of otherwise visible items. CSV selection must match the
 screen selection across all pages, while export continues to require its separate

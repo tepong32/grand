@@ -1,5 +1,543 @@
 # GRAND continuation handoff
 
+## Office-output checkpoint v0.7.209 — local only, 2026-10-23
+
+Goal ACTIVE; continue safe independent development while the owner is unattended.
+Skip tasks needing manual/local decisions. Finance **NO-GO**; no master merge,
+push, remote publication, deployment, production operations or formal acceptance.
+
+This checkpoint assembles the reviewed office-output slices on
+`codex/office-output-checkpoint`, parent local208 /
+`ec5a640aa4bba1581c033d0cc5be6bf8ff252d75`. The original dirty checkout, both source
+worktrees, their uncommitted work and QA remain hash/status-verified unchanged.
+Remote master was reverified at187 / `a116691a100ed9230b578f73692ed12add84205e`;
+the checkpoint branch/tag have not been published. VERSION/CHANGELOG are VM-owned.
+
+Implemented scope: bounded50-line RPCI/RSMI/RPCPPE preparation; actor-bound,
+eight-hour, source-checked count/issue/property-observation starters with original
+provenance; the allocation omitted-row browser repair; a recognized-officer-
+advance report starter using existing source/GL controls; and the complete
+filtered Treasury collection/deposit working copy. No models, migrations,
+database routing, permission definitions or financial calculation changes.
+The per-slice sections below retain original development and browser evidence;
+their earlier branch/uncommitted statements are historical, not current status.
+
+Security-gate follow-up pins Pillow13.0.0, certifi2026.10.19 and pypdf6.21.2.
+The PDF update exposed a signed-return parser exception: an authenticated real
+xref-limit regression failed500 vs409 before the bounded catch, then passed with
+unchanged prior copy/audit/journals and a valid retry. Limits remain intact; no
+automatic review/issuance. See [sources and failures](docs/DEPENDENCY_SECURITY_2026-10-21.md).
+
+Final local validation, Python3.11.5 / the fresh checkpoint209 PDF environment:
+
+- PASS five prechecks: `python -m pip check`, `python -m pip_audit -r requirements.txt`
+  (no known advisories), `python -B .tmp/run_isolated.py check`, the same runner's
+  `makemigrations --check --dry-run`, and
+  `python -m unittest scripts.test_ci_test_runner -v` (9/9).
+- PASS full SQLite:3,162 discovered exactly once;2,923 passed,239 native-only
+  skips. All8 whole-class partitions and both-alias cleanup verified.
+- PASS full MySQL8.4.11 / strict mode:3,162 passed,zero skips across all8
+  partitions. Every owned isolated server stopped; both schemas cleaned;
+  original stopped system-schema template and candidate source unchanged.
+- PASS separate mocked Telegram job:5/5,zero skips; no external messages.
+- PASS retained focused/browser evidence and32 added regression identities;
+  original test identities/classes/decorators preserved. See slice sections.
+- PASS complete diff/scope review, `git diff --check` and source preservation.
+- NOT RUN — OUT OF SCOPE: hosted candidate/master CI and publication (local-only
+  authorization); production, recovery, physical/printer and LGU acceptance.
+
+Full commands: `python -B .tmp/checkpoint_shards.py sqlite --index N` and
+`python -B .tmp/native_shard.py N` for N0–7, sequentially, followed by
+`aggregate-sqlite` / `aggregate-native` and `verify-sqlite` / `verify-native`.
+The native wrapper invokes unchanged `scripts/run_mysql_tests.py --ci-shard`;
+SQLite uses unchanged `scripts.ci_test_runner.ShardedDiscoverRunner`.
+The committed `scripts/verify_ci_coverage.py --count 8 --revision <parent208>`
+requires complete identities; native adds `--native` and rejects skips.
+These are LOCAL dirty-candidate checks, not hosted CI for a new commit.
+
+Exact runtime/helper/installed-environment fingerprint:
+`02d4eaf509c98b9b8b8e5192dc6f6f5237d295a0eb6ddc842578377e6fdf13fe`.
+Private terminal receipts: `.tmp/batch-full-sqlite-verified.json`,
+`.tmp/batch-full-native-verified.json`, `.tmp/batch-telegram-verified.json`;
+per-partition raw/coverage hashes under `.tmp/checkpoint209-shards-02d4eaf509c9/`,
+with `.tmp/native-shard-owner-N.json` retaining actual shutdown/template proof.
+The runtime code/environment match exactly. SQLite partition0's successful raw
+run was revalidated after two local buffered-header analysis regex fixes, without
+rerunning tests; both execution/verification fingerprints and original logs remain.
+No committed gate or test was weakened.
+
+Preserved unsuccessful evidence: October21 interrupted3,161-case run (not passed),
+initial Pillow/certifi and resumed pypdf audit failures, cancelled pre-parser-fix
+partition0 (not credited), the red parser regression and local checker failures.
+The pre-finalization handoff and raw receipts remain ignored; no failures are
+relabeled passes. Earlier environments, source worktrees and protected stores
+were not upgraded, reset, cleaned or silently incorporated.
+
+Installed Version Manager procedure, previewed against the exact47-path manifest:
+`.tmp/vm_local_checkpoint.py`, then `--execute` after all guards pass. It calls
+the installed `version_manager.py` with supported `preview patch` / `release patch`,
+category feature, explicit reviewed staging and no `--push`. Expected local
+transition208→209; message:
+`Release v0.7.209: feat(office): prepare inventory drafts, working reports and update dependencies`.
+Automatic edits are VERSION/CHANGELOG only (49 resulting paths); local lightweight
+tag `v0.7.209`; no release artifact or deployment. Verify the actual tag/HEAD and
+`.tmp/vm-local-receipt.json` before resuming; do not infer execution from this plan.
+
+Next safe slice: extend the remaining PAR/ICS/SPC five-row draft editors using the
+existing bounded controls, preserving source prefill, omission/undo, exact supplied
+arithmetic, current access and no custody/Finance writes. Local earmark rules,
+unsupported numerical treatments, accepted forms/signatures, real historical
+imports, production storage/recovery and formal Accounting/LGU acceptance remain
+open. Do not rebuild already completed ordinary clerk replays or invent rules.
+
+## Descriptive physical-count RPCPPE starter — active development, 2026-10-21
+
+Goal ACTIVE; manual/local policy decisions remain deferred while the owner is
+unattended. Work stays uncommitted on `codex/supply-draft-lines`, based on local208 /
+`ec5a640aa4bba1581c033d0cc5be6bf8ff252d75`. Earlier supplies and allocation form
+changes remain preserved; the separate Accounting/Treasury branch is untouched.
+No commit, integration, push, publication, deployment or production operations.
+VERSION/CHANGELOG remain208; Finance **NO-GO**, official/formal acceptance open.
+
+Implemented [listed-count RPCPPE preparation](docs/gso/property-record-design.md#start-from-listed-physical-count-records--2026-10-21-development):
+physical count → Start RPCPPE draft → optional pinned name/tag search → descriptive
+prefill → edit/preview/print. Require both existing property-document and physical
+verification read authority/current owning-count scope on every request. Select
+all matching listed observations up to50; empty/larger/overlong searches fail.
+Copy pinned name/serial and result/tag remarks only. No numeric quantities, unit
+values, official number, PPE classification, report date or fund are inferred.
+Unregistered findings and Accounting-only rows remain outside the selected cohort.
+The original count/record facts remain separately printable after edits/exclusion.
+Actor-bound eight-hour selection/digest detects source changes; later matches do
+not expand an open draft. No Inventory/Finance writes or schema/permission changes.
+
+Validation, documented Python3.11 isolated two-store runner:
+
+- PASS `python -B .tmp/run_isolated.py test
+  gso_integration_tests.test_rpcppe_drafts gso_integration_tests.test_supply_drafts
+  --noinput --verbosity 1`:42/42,19.204s test execution excluding setup,zero skips,
+  exit0. Framework checks pass; both aliases destroyed and process terminal.
+  Four new methods cover descriptive/unknown facts, original snapshots and escaping,
+  changed source/invalid tokens, both grants/current office/UAT/CSRF/methods,
+  name/tag search, bounds and edit/add/exclusion retention. Existing supplied and
+  physical-reconciliation tests retain their identities/assertions. Expected
+  denial logs are assertions, no failures/retries. Log
+  `.tmp/property-count-starter-focused.log`. No original-code failing run claimed
+  for this previously absent endpoint.
+- PASS actual authenticated count-detail link → prefill → edited preview → exclude/
+  undo. Explicitly checked blank quantities, unit values and official numbers for
+  found/not-found/not-checked observations, including zero snapshot acquisition
+  cost. Desktop/mobile screenshots inspected. Initial PDF split an appendix note;
+  after a print-only spacing/keep-together adjustment, final one-page A4 landscape
+  PDF was regenerated, rendered with Poppler and visually inspected. Follow-up
+  display matches the existing count screen (discrepancy/missing-item results only).
+  Owned preview restarted for final template; final full browser flow reran.
+  QA `output/playwright/property-count-starter/`. Browser/servers terminal;
+  fixture logo/favicon404s remain unrelated. Private helpers/cookies ignored `.tmp`.
+- PASS `python -B .tmp/verify_property_count.py`: original synthetic pair, clone
+  Finance bytes and all count-record snapshots unchanged; all3 originals retained
+  after edits and follow-up shown only for the relevant missing observation.
+- PASS `git diff --check`. Full/native suites, migration rehearsal and hosted CI
+  NOT RUN — OUT OF SCOPE for a read-only descriptive adapter without Finance
+  persistence/calculation/schema change. Full applicable suites remain due at the
+  next authorized vm-commit checkpoint; no publication/official acceptance inferred.
+
+Next: reassess the remaining Finance/GSO roadmap from actual code. Complete
+inventory qualification, property classification/valuation, official forms and
+issued archives, production storage/recovery and LGU acceptance remain open.
+
+## Allocation component omission form repair — active development, 2026-10-21
+
+Service-boundary review of accepted maintenance-correction/allocation work found
+no new authorization/policy bypass in the inspected paths. Maintenance's original
+basis verifies closed outcome/history before proposal; allocation checks original
+acceptance, reviewed source successors, exact totals and independent authority.
+This is a bounded source inspection, not a security/completion certification.
+
+Confirmed an actual proposal-form defect: browser min-value validation blocks
+submission even when an invalid component is explicitly omitted. One template
+attribute now defers validation to the existing server formset/services. No
+financial or inventory service, model, permission, migration or policy changes.
+New authenticated regression verifies included negative amount rejection, omitted
+negative row with wrong total rejection, and valid remaining components creating
+only a proposed worksheet/one proposal event. Independent approval remains required.
+See [contract](docs/gso/asset-cost-allocations.md#finding-shared-worksheets).
+
+Focused command: `python -B .tmp/run_isolated.py test
+gso_integration_tests.test_asset_cost_allocations --noinput --verbosity 1`.
+PASS24/24,4.117s test execution excluding database setup,zero skips,exit0.
+System checks passed and both aliases were destroyed; test process is terminal.
+Log `.tmp/allocation-omit-focused.log`. No failures or retries occurred.
+The established Python3.11 runner uses temporary isolated default/Finance stores.
+
+PASS authenticated browser before/fixed on a fresh clone of the earlier synthetic
+allocation fixture: before, omitted negative amount has native rangeUnderflow and
+no POST reaches the server; fixed, POST returns200 with server errors for the
+missing upload and preserves the negative value/omission. No allocation is created
+by this browser check. Server regression exercises actual valid upload/submission.
+Screenshot `output/playwright/allocation-omission.png`. Owned browser/server are
+terminal; private helpers/cookies remain ignored `.tmp`. Fixture logo/favicon404s
+remain unrelated. PASS `python -B .tmp/verify_allocation_omit.py`: original fixture
+files/pair, clone Finance bytes and every inventory/allocation table unchanged.
+`git diff --check` passes.
+
+Full/native suites and CI NOT RUN — OUT OF SCOPE for this template-only validation
+handoff without changed persistence, monetary calculation, schema or approval
+behavior. Full applicable suites remain required at the next authorized vm-commit.
+Work stays uncommitted on `codex/supply-draft-lines`, based on local208; prior work
+and separate Accounting/Treasury branch remain preserved. Goal ACTIVE, Finance
+**NO-GO**; no publication, deployment, production work or formal acceptance.
+
+## Longer RPCPPE preparation — active development, 2026-10-21
+
+Continued independent work while the owner is unattended. Goal ACTIVE; manual
+policy/acceptance inputs remain deferred. Same uncommitted branch
+`codex/supply-draft-lines`, local208 / `ec5a640aa4bba1581c033d0cc5be6bf8ff252d75`.
+Earlier supplies/source-starter work is preserved, as is the separate Accounting/
+Treasury output branch `codex/advance-report-starter`. No merge, push, publication,
+deployment or production work. Finance **NO-GO**; VERSION/CHANGELOG remain208.
+
+Implemented the documented larger RPCPPE draft-entry gap: start with5, Add5 up to50,
+retain invalid values, explicitly exclude/undo and revalidate included rows before
+preview. Unknown quantities/values and exact Decimal arithmetic remain unchanged.
+The existing supplies formset/growth controls moved without behavioral changes
+into `inventory/draft_lines.py`, now shared by RPCPPE/RPCI/RSMI. Authorization still
+uses the original property-document boundary. No source, custody, stock, Finance,
+model, migration or permission changes. See [contract](docs/gso/property-record-design.md#rpcppe-working-preparation--2026-10-19).
+
+Focused command (documented Python3.11, isolated temporary two-store runner):
+`python -B .tmp/run_isolated.py test gso_integration_tests.test_rpcppe_drafts
+gso_integration_tests.test_supply_drafts gso_integration_tests.test_count_drafts
+gso_integration_tests.test_issue_drafts --noinput --verbosity 1`.
+PASS50/50,25.120s test execution excluding database setup,zero skips,exit0.
+System checks passed; both aliases destroyed and the process is terminal.
+Log `.tmp/rpcppe-lines-focused.log`. Three new property methods cover
+50-line order/unknowns, input retention/exclusion/invalid undo and malformed bounds/
+growth authority. Prior six-line rejection test now rejects51; all existing test
+identities and assertion families remain. Shared behavior is rerun with both source
+starters. Expected denial logs are assertions; no failures or retries occurred.
+
+PASS real authenticated browser Add5 nine times to50 → preview → exclusion49 →
+invalid undo blocks preview → correction restores50. Native browser PDF includes
+all50 unique item identities once in order over four A4 landscape pages; all four
+rendered with Poppler and visually inspected. Repeated table/draft headings and
+last-page signature placeholders are retained. QA `output/playwright/rpcppe-lines/`.
+PASS `python -B .tmp/verify_rpcppe_lines.py`: original208 formset rejects6 while
+current retains6; source synthetic pair, clone Finance bytes and asset/count/event
+snapshots unchanged. Private helpers/cookies ignored under `.tmp`; owned browser
+and preview server are terminal. Fixture logo/favicon404s remain unrelated.
+
+Full/native suites and CI NOT RUN — OUT OF SCOPE for bounded nonpersistent entry
+with no Finance persistence/schema change. Full applicable suites remain required
+at the next authorized vm-commit. Larger/qualified complete cohorts, automatic
+RPCPPE source population, local forms, official issuance and production/formal
+acceptance remain open; the50-line bound does not certify a complete inventory.
+
+## Recorded-issue RSMI starter — active development, 2026-10-21
+
+The owner is leaving GRAND unattended for at least an hour and asks to skip work
+requiring manual input. Continue safe independent tasks; record decision-bound
+items once without inventing answers or bypassing critical checks. Goal ACTIVE.
+Current branch remains `codex/supply-draft-lines`, local208 /
+`ec5a640aa4bba1581c033d0cc5be6bf8ff252d75`, with the earlier longer-draft and count
+starter work preserved uncommitted. Separate officer-report starter work remains
+in `codex/advance-report-starter`. No publication, merge, push, deployment,
+production operations or Finance GO. VERSION/CHANGELOG remain208.
+
+Implemented [recorded-issue RSMI preparation](docs/gso/supplies-output-drafts.md#start-rsmi-from-recorded-issues--2026-10-21-development):
+Movement history → Issued → recording-date/item/reference filters → Start RSMI.
+The search is shared by list, CSV, complete printable copy and source start.
+Copy original quantities, recipients/references and optional recorded costs;
+preserve explicit zero versus unknown. Leave event dates, report period, amounts,
+official stock numbers and signatories unknown. Returns never net original issue
+quantities. The separately retained source appendix survives draft edits/exclusion.
+Both draft starters share a small actor-bound signed-selection guard with distinct
+salts, current read/export/ownership checks, explicit50-row bounds and changed-
+source rejection. No stock/FIFO/Finance/schema/permission writes are introduced.
+
+Validation:
+
+- PASS `python -B .tmp/run_isolated.py test
+  gso_integration_tests.test_issue_drafts
+  gso_integration_tests.test_count_drafts
+  gso_integration_tests.test_supply_drafts
+  gso_integration_tests.test_stock_movement_history
+  gso_integration_tests.test_stock_working_copy --noinput --verbosity 1`:
+  42/42,21.884s test execution excluding two-store setup,zero skips,exit0.
+  System checks pass, both temporary aliases destroyed. Six new tests exercise
+  recorded/unknown values, original gross issues despite returns, full323-character
+  office/recipient retention, local date boundaries, matching search across all
+  outputs, invalid filters/empty/oversized cohorts, signed selection expiry/
+  tampering/cross-workflow/actor checks, ownership/access loss, edit/add/exclude,
+  escaping, no default writes or Finance queries, CSRF and method boundaries.
+  Existing count starter and affected supplied/history/copy tests reran unchanged.
+  Expected denial logs are assertions; there were no test failures or retries.
+  Log `.tmp/issue-drafts-focused.log`; no failing original-code run claimed for a
+  previously absent workflow.
+- PASS actual Playwright search/type selection → RSMI start → preview → exclude/
+  undo. A fresh exclusive synthetic clone used existing stock services to create
+  a receipt, three issues and a return before preview. The returned amount was
+  not subtracted; costs5.00/0.00/unknown stayed distinct and dates/amounts blank.
+  Desktop/mobile screenshots inspected; native browser PDF has two A4 landscape
+  pages, both rendered with Poppler and inspected. Original issue appendix retained.
+  QA `output/playwright/issue-drafts/`. Fixture-only missing logo/favicon404s are
+  unrelated to this flow; no production data or real report approval was used.
+- PASS `python -B .tmp/verify_issue_browser.py`: all retained fixture movements,
+  original synthetic database pair and clone Finance bytes unchanged. Source/
+  template/test hashes saved in `.tmp/issue-drafts-validated-sources.json`.
+- PASS `git diff --check`. Browser/session and owned loopback preview are stopped;
+  focused test process is terminal. Private cookies/scripts remain ignored `.tmp`.
+- NOT RUN — OUT OF SCOPE: full project/native suites, migrations and hosted CI.
+  This is read-only source preparation and filter reuse, with no Finance
+  persistence/calculation or schema change. Full applicable suites remain due at
+  the next authorized vm-commit checkpoint. Historical CI is not current evidence.
+
+This focused source-workflow evidence does not establish approved local forms,
+complete inventory/monthly report coverage, archival issuance, production storage/
+recovery or LGU acceptance. Those remain explicit open gates. Next reassess the
+wider Finance/GSO required-output roadmap for an evidenced functional gap; do not
+replay completed Form1/JEV workflows or invent local rules merely to stay busy.
+
+## Reviewed-count RPCI starter — resumed development, 2026-10-21
+
+Owner explicitly continued after the short overnight pause; goal tracking is
+verified ACTIVE again. Work continues on `codex/supply-draft-lines` at unchanged
+local208 / `ec5a640aa4bba1581c033d0cc5be6bf8ff252d75`, preserving the prior uncommitted
+longer-draft work below. The separate uncommitted `codex/advance-report-starter`
+checkout remains preserved. No commit, integration, push, release or deployment;
+VERSION/CHANGELOG remain208. Finance **NO-GO**; no operational/LGU acceptance.
+
+Implemented [reviewed-count source preparation](docs/gso/supplies-output-drafts.md#start-rpci-from-reviewed-counts--2026-10-21-development):
+Reviewed counts → item/count-sheet search → Start RPCI draft. Every matching
+reviewed observation across pages is selected, up to50; empty/larger/invalid
+selections fail explicitly. The draft copies pinned name/unit/card quantity and
+observed quantity, retains source date/reference, and leaves valuation, official
+numbers, report date and signatories unknown. Repeated observations remain
+separate. Originals are collapsible in the editor and retained in the printable
+appendix even when draft rows are edited/excluded. Source scope/content is
+rechecked on every POST using an actor-bound, eight-hour signed cohort. Source
+changes block preview while keeping entries. No source, stock or Finance writes.
+
+Validation (documented Python3.11 environment; exclusive temporary two-store runner):
+
+- PASS `python -B .tmp/run_isolated.py test
+  gso_integration_tests.test_count_drafts
+  gso_integration_tests.test_count_working_copy
+  gso_integration_tests.test_supply_drafts --noinput --verbosity 1`:
+  30/30,16.616s test execution excluding database setup,zero skips,exit0.
+  System checks pass; both test aliases destroyed. Six new tests cover complete
+  selection across pages, frozen membership/pinned quantities, unknown values,
+  signed selection expiry/tampering/actor mismatch, changed sources, fresh grants/
+  office/item ownership, bounds, editing/add/exclude, escaping, no Finance queries
+  or source writes, CSRF and methods. Existing tests/identities are preserved.
+  Expected403/400/405 logs are denial assertions, not test failures. Log:
+  `.tmp/count-drafts-focused.log`. No failing original-code run is claimed for
+  this new workflow; it previously had no source-start endpoint or list action.
+- PASS authenticated Playwright: Reviewed counts → source draft → edit → preview
+  → exclude → undo. Two distinct synthetic observations preserve zero and blank
+  valuation. Desktop/mobile screenshots inspected; one-page browser PDF extracted,
+  rendered with Poppler and visually checked, including original source appendix.
+  QA artifacts: `output/playwright/count-drafts/`. Private fixture/token helpers
+  remain ignored under `.tmp`; no credentials belong in version control.
+  Initial browser navigation used the wrong `/inventory/` prefix (404); corrected
+  to the existing `/gso/inventory/` mount. An initial CLI file argument failed to
+  parse; documented `run-code --filename` then passed. Neither was an app failure.
+  Missing fixture favicon gives404. Owned preview was restarted after collapsing
+  editor source details, so final screenshots/PDF use the final template.
+- PASS `git diff --check`. Existing35-test supplies/RPCPPE evidence below remains
+  historical; current30-test run rechecks changed supplies/count behavior. The
+  RPCPPE implementation is unchanged. No new hosted CI/release evidence is claimed.
+- NOT RUN — OUT OF SCOPE: full project/native suites, migration rehearsal and CI.
+  This read-only draft adapter changes no Finance persistence, calculation,
+  permission definitions, model, schema or routing. Full applicable suites remain
+  required at the next authorized vm-commit checkpoint; skipped gates are not passes.
+
+The owner checkout and protected databases are untouched. The source browser pair
+was cloned into a new exclusive synthetic directory; its originals and clone
+Finance bytes are verified unchanged. Owned browser/server and focused test
+process are terminal. Remaining work includes RSMI source preparation, larger/
+qualified complete cohorts, immutable issued archives, accepted local forms and
+production storage/recovery/formal acceptance. Continue the wider mission from
+the roadmap; do not infer publication or deployment authority from this progress.
+
+## Resumed development — longer supplies drafts, 2026-10-21
+
+Goal ACTIVE after interface resume. The previous overnight pause is historical.
+Work is isolated on `codex/supply-draft-lines`, based on local208 /
+`ec5a640aa4bba1581c033d0cc5be6bf8ff252d75`; initial tracked tree was clean.
+Remote master was verified unchanged at187 /
+`a116691a100ed9230b578f73692ed12add84205e`. Original checkout remains dirty and
+protected. No merge, push, release publication, deployment or production work.
+Finance **NO-GO**; the wider mission and formal acceptance remain incomplete.
+
+Implemented the existing [RPCI/RSMI preparation extension](docs/gso/supplies-output-drafts.md):
+up to50 supplied lines, Add5 using ordinary form submission, reversible exclusion,
+retained invalid values and complete selected preview. Original exact arithmetic,
+unknown/zero distinctions, current stock-read/GSO checks and private/no-store
+responses remain. Server validation handles excluded invalid fields; re-inclusion
+requires correcting them. No stock, custody, Finance, schema or permission writes.
+The50-slot bound is an input limit, not proof of report completeness. Official
+forms, source population, archival issuance and operational acceptance remain open.
+
+Validation with the documented Python3.11 environment:
+
+- PASS `python -B .tmp/run_isolated.py test
+  gso_integration_tests.test_supply_drafts.SupplyDraftTests.test_longer_supplied_reports_retain_every_line_in_order
+  --noinput --verbosity 1`:1/1,1.038s,zero skips. Despite the local log name
+  `supply-lines-baseline.log`, this ran the implementation after database setup;
+  it is not evidence of a failing original-source regression.
+- PASS `python -B .tmp/run_isolated.py test
+  gso_integration_tests.test_supply_drafts gso_integration_tests.test_rpcppe_drafts
+  --noinput --verbosity 1`:35/35,17.358s,zero skips,exit0; both aliases destroyed.
+  Framework checks passed. Covers all prior supply/related property arithmetic
+  scenarios plus five new methods:50-line retention, adding with invalid values,
+  exclusion/undo, malformed/oversized counts and add-action authorization/no-write
+  checks. The former six-line rejection test now asserts the new51-line boundary;
+  no prior test identity or assertion family was removed.
+- PASS `python -B .tmp/verify_lines_fixture.py`: loads unchanged208 formsets from
+  the preserved prior checkout and demonstrates their six-line rejection while
+  current formsets retain all six. Seven synthetic asset/stock/audit snapshots,
+  the original synthetic source pair and clone Finance bytes remain unchanged.
+- PASS actual authenticated Playwright RSMI add/exclude/undo and mobile preview;
+  RPCI Add5 nine times to50, every supplied item retained in order. Excluding a
+  negative-quantity line yields49 rows; undo blocks preview until correction,
+  then restores50. An owned preview server was restarted after the template
+  update to avoid reusing its cached earlier form. Missing fixture homepage
+  logo/hero/favicon files produce404s; they are unrelated to the draft controls.
+- PASS native browser PDF:50 RPCI item identities occur once in order over four
+  A4 landscape pages, all four rendered with Poppler and visually inspected.
+  Repeated draft/table headings and complete final placeholders are retained.
+  Two desktop/mobile screenshots and the PDF are untracked QA artifacts under
+  `output/playwright/supply-draft-lines/`; private scripts/receipts stay in `.tmp`.
+- NOT RUN — OUT OF SCOPE: full project/native suites, migration rehearsal and
+  hosted CI. This changes supplied read-only drafts, not Finance persistence or
+  schema. Full applicable suites belong at the next vm-commit checkpoint under
+  the owner's October20 preference, now persisted in AGENTS and the decision log.
+
+Current changes are uncommitted; VERSION/CHANGELOG remain208. Do not imply new
+commit/publication evidence. Both test sessions are terminal; the owned browser
+and loopback server are stopped. `git diff --check` passes. The read-only retained
+publication187/preservation verifier passes again; its historical CI receipts
+are not CI for this development. Next: continue the wider roadmap from this validated
+local slice; before any vm-commit run its full applicable gates. Keep unresolved
+local Finance rules, historical real-data imports and formal acceptance explicit.
+
+## Treasury printable collection register — active development, 2026-10-21
+
+Owner requests independent unattended progress and deferral of manual-input items.
+Goal ACTIVE. Work remains uncommitted on `codex/advance-report-starter` at local208 /
+`ec5a640aa4bba1581c033d0cc5be6bf8ff252d75`, preserving the advance starter below.
+Separate supplies work remains in `codex/supply-draft-lines`. No integration, push,
+tag, publication, deployment or production work; VERSION/CHANGELOG remain208.
+Finance **NO-GO**; formal Accounting/LGU acceptance remains open.
+
+Added Collection register → Open printable copy using the existing filter form,
+office read/export checks and `_register_rows` projection across every selected
+page. Includes original source identities/versions, face amounts, source statuses,
+preparation/review, deposit availability and linked journal-request states.
+No new total, financial calculation, dataset, model, migration, permission or
+posting behavior. Output is private/no-store/nosniff and live/unarchived; official
+forms, accountable-form coverage and signatures remain separately unconfirmed.
+
+Focused validation command (Python3.11, isolated temporary two-store runner):
+`python -B .tmp/run_isolated.py test vouchers.test_collection_retrieval --noinput --verbosity 1`.
+PASS6/6,4.278s test execution excluding setup,zero skips,exit0; both aliases
+destroyed and system checks passed. Session is terminal. Expected permission/
+method denial logs are assertions, not failures. Log `.tmp/collection-copy-focused.log`.
+Three new methods cover all53 matching rows from later-page selection, foreign
+office exclusion, posted receipt/pending deposit capacity outside filters,
+authority loss, malformed/empty filters, escaping, method and no-write boundaries.
+The existing three retrieval scenarios are preserved.
+
+PASS authenticated browser register button → six-record printable copy. One A4
+landscape PDF rendered with Poppler and visually inspected. The initial browser
+default-size PDF is retained; `output/playwright/collection-copy-a4.pdf` uses CSS
+paper size. Initial text identity checking failed on line-wrapped UUIDs; matching
+after whitespace normalization preserves every complete identity and passes.
+PASS `python -B .tmp/verify_collection_copy.py`: original synthetic pair, clone
+Finance bytes and all collection records unchanged; all six IDs in the A4 PDF.
+Cookie/scripts remain ignored `.tmp`. Owned browser/server are terminal. Fixture
+login logo/favicon404s are unrelated. `git diff --check` passes.
+
+Full/native suites and hosted CI NOT RUN — OUT OF SCOPE for this read-only
+retrieval adapter without new Finance persistence/calculation. Full applicable
+suites remain due at the next authorized vm-commit checkpoint. Continue an
+independent evidenced roadmap gap; local-policy and operational acceptance gates
+remain explicit rather than silently resolved.
+
+## Recognized officer-advance report starter — local development, 2026-10-21
+
+Goal ACTIVE after the owner's interface resume; the prior overnight pause below
+is historical. Current isolated branch `codex/advance-report-starter` starts from
+local208 / `ec5a640aa4bba1581c033d0cc5be6bf8ff252d75`, initially tracked-clean.
+Remote master was reverified at187 / `a116691a100ed9230b578f73692ed12add84205e`.
+No integration, push, tag, publication, deployment or production operations.
+Finance **NO-GO**; local validation is not Accounting/LGU acceptance.
+
+Implemented the named missing starter from the required-output map. Accounting
+can use the existing controlled Reporting workflow for recognized officer-advance
+balances through the selected end date. It reuses the existing dataset, source
+snapshots, GL reconciliation, immutable output and current authorization gates.
+The description and printable header distinguish posted recognition from actual
+release and liquidation capacity. New definitions stay candidates and their
+templates stay pilot previews. Seeding preserves locally edited definitions and
+templates. No model, migration, Finance calculation, posting, routing or permission
+code changed. Existing `seed_reporting_presets` is the installation entry point;
+it was exercised only in disposable fixtures, never in the operator checkout.
+See [catalog](docs/FINANCE_OPERATIONAL_REPORT_CATALOG.md#recognized-officer-advances---posted-balances)
+and [office output map](docs/FINANCE_REQUIRED_OUTPUT_MAP.md).
+
+Preserved separate work: `codex/supply-draft-lines` also branches from208 and holds
+the uncommitted50-line RPCI/RSMI extension, its35 passing focused tests and three
+QA artifacts. It is not incorporated in this branch. Its own CONTINUE.md retains
+that evidence. Neither branch includes the protected original checkout's dirty
+CONTINUE/database or its untracked work. The October20 testing preference is
+recorded identically in both branches' AGENTS and decision log.
+
+Validation (documented Python3.11, disposable two-store fixtures):
+
+- EXPECTED FAIL before implementation: `python -B .tmp/run_isolated.py shell -c
+  "from reporting.presets import FINANCE_PRESETS; assert any(p['dataset_key']=='finance_posted_advance_schedule' for p in FINANCE_PRESETS['accounting']), 'Recognized officer advance starter is missing'"`:
+  exit1, confirms the missing starter. No database was modified.
+- PASS `python -B .tmp/run_isolated.py test` with these three methods under
+  `reporting.test_finance_reporting.FinanceAccountabilityReportingTests`, followed
+  by `--noinput --verbosity 1`: `test_advance_starter_is_candidate_scoped_and_preserves_local_edits_on_reseed`,
+  `test_advance_starter_preserves_asof_debit_balances_sources_and_original_outputs`,
+  `test_advance_starter_missing_sources_and_generation_authority_fail_closed`.
+  All3/3 pass,1.609s reported test execution (excluding fresh database setup),
+  zero skips,exit0; both aliases destroyed; framework check passes.
+  These are new methods in the existing class; original identities remain.
+- Tests retain the1000 debit/250 credit/750 balance, include recognition before
+  the selected start date, exclude later/draft movements, compare PDF/XLSX
+  controls, preserve original financial rows/output bytes, reject an unmatched
+  GL debit, missing subsidiary evidence, cross-office generation and UAT mutation.
+  Candidate/pilot official-approval denial and idempotent preservation of local
+  report setup are verified. Existing dataset/financial algorithms are unchanged.
+- PASS actual authenticated browser entry, controlled PDF generation and native
+  download on an exclusive clone of the prior synthetic officer-return fixture.
+  Retained5source rows reconcile1800 debit/800 credit/1000 balance. Downloaded
+  bytes equal the stored checksummed PDF. Desktop/mobile screenshots and the
+  one-page A4 landscape PDF were visually inspected; the recognition boundary is
+  visible and financial columns fit. Poppler reports missing Symbol/ArialUnicode
+  display fonts, but no visible clipping/glyph failure was observed. Fixture
+  default logo/avatar assets are absent; no product asset was changed.
+- PASS `python -B .tmp/verify_advance_browser.py`: source identity, candidate
+  status, exact controls, output checksum, protected synthetic source pair and
+  clone Finance bytes unchanged. Browser grants were applied only to the synthetic
+  Accounting actor in the clone. QA files stay untracked under
+  `output/playwright/advance-report/`; private fixture/state scripts stay ignored.
+- NOT RUN — OUT OF SCOPE at this intermediate slice: full project/reporting/native
+  suites, hosted CI and production acceptance. This changes one starter definition,
+  not Finance persistence, schema or calculation services. Full applicable suites
+  remain due before vm-commit; no new release-ready claim is made.
+
+Current implementation/tests and continuity changes are uncommitted; VERSION and
+CHANGELOG remain208. The test session is terminal, owned browser and HTTP server
+are stopped, and `git diff --check` passes. Continue the wider documented office-workflow/output gaps;
+do not repeat the completed ordinary JEV/Form1 or this starter replay. Keep local
+rules, official forms, real historical imports, production recovery and formal
+acceptance requirements explicit. No second coding agent was used.
+
 ## Officer assessed-redemption local208 checkpoint — pause requested, 2026-10-20
 
 The owner requested focused completion and a checkpoint, then PAUSE for the night.

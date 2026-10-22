@@ -1,5 +1,18 @@
 # GRAND Finance complete-cycle roadmap
 
+October21 Treasury output follow-up adds a complete filtered collection/deposit
+printable working copy beside the register/CSV. It preserves original face
+amounts, source/request statuses and deposit availability. No new monetary total,
+dataset or official-form acceptance is inferred. CONTINUE.md owns actual focused/
+browser evidence and unpublished branch state.
+
+October21 local development closes the named missing officer-advance report starter
+in the required-output map. The existing as-of dataset supplies recognized debit
+balances, original subsidiary evidence and GL reconciliation through governed
+generation and retained PDF/XLSX output. See the [catalog boundary](FINANCE_OPERATIONAL_REPORT_CATALOG.md#recognized-officer-advances---posted-balances)
+and CONTINUE.md for current tests and unpublished state. No new financial rule,
+release-capacity inference or official form acceptance is established.
+
 October19 [ordinary redemption charges](FINANCE_REDEMPTION_CHARGES_2026-10-19.md)
 implement the documented principal-plus-assessed-components extension using
 reviewed collection recipes. The [officer extension](FINANCE_OFFICER_REDEMPTION_CHARGES.md)

@@ -1,5 +1,11 @@
 # GRAND implementation decision log
 
+2026-10-20 owner testing direction: optional intermediate tests/broad repeats may
+wait; full applicable suites run at vm-commit checkpoints. Critical Finance,
+security and data-integrity verification remains required when affected. This
+does not waive release gates or turn deferred evidence into a pass; AGENTS.md
+holds the durable testing rule and CONTINUE.md records each actual scope.
+
 October19 D-096/D-099 implementation follow-up: ordinary returned-cheque
 redemptions may retain explicit assessed charge components using existing reviewed
 collection recipes, with applicable ordinance/authority and assessment references.
@@ -95,6 +101,22 @@ GSO stock-read boundary. All six named forms have bounded supplied draft flows;
 this does not resolve accepted local layouts, complete report coverage, source
 population, valuation, numbering, signatures or archival issuance. Do not turn
 the earlier complete stock working copies into implicit official reports.
+October21 development applies the same boundary to a reviewed-count RPCI starter:
+copy pinned observations under existing stock-export authority, retain original
+sources separately from editable lines, recheck actor/ownership/content and reject
+oversized selections explicitly. This sets no common inventory date, valuation,
+signatory or completeness policy. See the [source contract](gso/supplies-output-drafts.md#start-rpci-from-reviewed-counts--2026-10-21-development).
+The RSMI counterpart copies original issue quantities, recipient/reference and
+optional costs as recorded, preserving unknowns and never inferring source dates,
+line amounts or valuation approval. Returns stay separate. Its item/reference
+search shares the existing history/export selection and current read/export scope.
+Both source starters use the same small signed-selection guard with distinct salts;
+this does not introduce a persistent report or new official approval workflow.
+The later RPCPPE starter applies this direction to descriptive listed count
+snapshots under both property/count read grants. It does not promote recorded
+tags into official numbers, observation statuses into numeric quantities or
+snapshot acquisition amounts into unit values. Unknown classification/coverage
+and official-form decisions remain open.
 
 **DECISION-GSO-002 — Real historical imports (deferred by owner).** Which source export, owners,
 identity mappings and discrepancy decisions should an eventual import retain?

@@ -14,6 +14,7 @@ MAX_DISPOSAL_FILE_BYTES = 15 * 1024 * 1024
 
 
 class StockHistoryFilterForm(forms.Form):
+    q = forms.CharField(label="Supply item or source reference", required=False, max_length=100)
     from_date = forms.DateField(label="Recorded from", required=False,
         widget=forms.DateInput(attrs={"type": "date"}))
     to_date = forms.DateField(label="Recorded through", required=False,

@@ -2,7 +2,41 @@
 
 ## RPCPPE working preparation — 2026-10-19
 
-Property records → Prepare RPCPPE draft supplies an unsigned five-line form,
+### Start from listed physical-count records — 2026-10-21 development
+
+The physical count detail now offers Start RPCPPE draft to readers with both the
+existing property-document and physical-verification read grants. Both authorities
+and the count's owning GSO scope are rechecked on every request; UAT read remains
+usable without mutation authority. The source starter searches pinned item names
+or tags and selects all matching listed observations up to50. Empty/larger or
+overlong search selections fail explicitly. Unregistered findings and Accounting-
+only rows are outside this selection and remain in the full count comparison.
+
+Only descriptive facts are copied: pinned name, serial and result/tag remarks.
+Found/not-found/not-checked do not establish numeric quantities. Official property
+number, unit, card/count quantities, unit/difference values, classification, report
+date, fund and accountable-officer facts remain for documentary completion. A
+snapshot acquisition cost is not adopted as a per-unit Accounting value. No tag
+is assigned an official number by the starter.
+
+The count/record snapshots and cohort are actor-bound for eight hours using the
+existing signed-selection guard with a distinct salt. Changes to selected records,
+round date/state/ownership, invalid tokens or lost access prevent preview while
+retaining posted input. Later matching records do not expand the opened cohort.
+Original observations remain separately printable after edits, additions and
+exclusion. Follow-up labels retain the existing discrepancy/missing-item meaning.
+This is a nonpersistent descriptive starter, not complete inventory qualification,
+immutable issued evidence, classification/valuation approval or signed local form.
+No Inventory/Finance writes, permission definitions, model or migration changes.
+
+October21 development extends the initial five slots to up to50 supplied lines.
+Add5 retains all entries (including invalid inputs awaiting correction) and
+requires a fresh preview. Explicit exclusion preserves values for undo; restoring
+an invalid line blocks preview until corrected. The bounded formset and growth
+controls are shared with RPCI/RSMI. All included lines retain the same exact
+arithmetic and unknown/zero checks. The input bound is not a completeness claim.
+
+Property records → Prepare RPCPPE draft supplies an unsigned form,
 editable preview and browser Print / Save as PDF. Reuse the existing property
 document read boundary; UAT readers remain allowed. These entirely supplied
 entries do not require an export grant because no stored asset/count/Accounting
@@ -20,7 +54,7 @@ applicable treatment/rounding is unresolved. No unlike-item quantity/value total
 classification, valuation, signature or common-date completeness is inferred.
 
 The draft is private/no-store, nonpersistent and not an issued archive or accepted
-municipal form. Larger reports, automatic register/count population, class/fund
+municipal form. Reports beyond50 supplied lines, automatic register/count population, class/fund
 aggregation, exact local layout/revision/numbering, official roles and signed
 issuance remain separate work and acceptance requirements. A current register
 quantity or a Not found result must never silently become a physical count.

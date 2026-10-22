@@ -152,6 +152,34 @@ FINANCE_PRESETS = {
             ],
         },
         {
+            "name": "Recognized Officer Advances - Posted Balances",
+            "slug": "posted-officer-advances",
+            "dataset_key": "finance_posted_advance_schedule",
+            "description": (
+                "Officer-level posted advance debit balances through the selected end date, with "
+                "original subsidiary evidence and general-ledger reconciliation. Recognition is not "
+                "proof of actual disbursement or available liquidation capacity."
+            ),
+            "fields": [
+                "fund_code", "account_code", "account_title", "reference_key",
+                "reference_label", "source_code", "debit", "credit", "balance",
+            ],
+            "totals": ["debit", "credit", "balance"],
+            "authority_reference": (
+                "Internal working schedule of GRAND's retained posted officer-advance subsidiary evidence. "
+                "Exact local applicability, official layout, ageing, signatories and routing remain unconfirmed."
+            ),
+            "header": (
+                "Municipal Accounting Office - cumulative posted balances through the selected end date. "
+                "Not proof of cash release or available liquidation capacity."
+            ),
+            "prefix": "ACCTG-ADV",
+            "signatories": [
+                {"role": "Prepared by", "name": "Accounting subsidiary-ledger preparer"},
+                {"role": "Reviewed by", "name": "Municipal Accountant / authorized reviewer"},
+            ],
+        },
+        {
             "name": "Posted Withholding Liability Schedule",
             "slug": "posted-withholding-liability",
             "dataset_key": "finance_posted_withholding_schedule",

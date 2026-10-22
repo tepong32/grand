@@ -15,7 +15,7 @@ from django.db import transaction
 from django.db.models import Max
 from django.utils import timezone
 from pypdf import PdfReader
-from pypdf.errors import PdfReadError
+from pypdf.errors import LimitReachedError, PdfReadError
 
 from accounting.cash_classifications import checksum
 from accounting.models import Fund
@@ -74,7 +74,7 @@ def _page_count(content):
         if not count:
             raise ValidationError('The returned PDF must contain the actual signing pages.')
         return count
-    except (PdfReadError, ValueError, TypeError, KeyError, RecursionError) as error:
+    except (PdfReadError, LimitReachedError, ValueError, TypeError, KeyError, RecursionError) as error:
         raise ValidationError('Use a readable PDF of the complete returned Form 1.') from error
 
 

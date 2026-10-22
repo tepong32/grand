@@ -4,6 +4,7 @@ from . import views
 from . import property_movement_views
 from . import property_output_views
 from . import rpcppe_drafts
+from . import property_count_drafts
 from . import property_card_views
 from . import property_views
 from . import receiving_views
@@ -17,6 +18,8 @@ from . import custody_review
 from . import custody_return_views
 from . import stock_count_views
 from . import supply_drafts
+from . import count_drafts
+from . import issue_drafts
 from . import requisition_views
 from . import supply_return_views
 from . import hr_custody_review_views
@@ -34,6 +37,7 @@ urlpatterns = [
     path("property-records/prepare-spc/", property_output_views.spc_preparation, name="spc-preparation"),
     path("property-records/prepare-par/", property_output_views.par_preparation, name="par-preparation"),
     path("property-records/prepare-rpcppe/", rpcppe_drafts.preparation, name="rpcppe-preparation"),
+    path("verifications/<int:pk>/prepare-rpcppe/", property_count_drafts.preparation, name="count-rpcppe-preparation"),
     path("assets/<int:pk>/property-movements/", property_movement_views.movement_list, name="property-movements"),
     path("assets/<int:pk>/property-movements/new/", property_movement_views.movement_new, name="property-movement-new"),
     path("property-movements/<int:pk>/", property_movement_views.movement_detail, name="property-movement-detail"),
@@ -64,6 +68,8 @@ urlpatterns = [
     path("consumables/prepare-rpci/", supply_drafts.rpci_preparation, name="rpci-preparation"),
     path("consumables/prepare-rsmi/", supply_drafts.rsmi_preparation, name="rsmi-preparation"),
     path("stock-counts/working-copy/", stock_count_views.count_working_copy, name="stock-count-working-copy"),
+    path("stock-counts/prepare-rpci/", count_drafts.rpci_from_counts, name="count-rpci-preparation"),
+    path("consumables/movements/prepare-rsmi/", issue_drafts.rsmi_from_issues, name="issue-rsmi-preparation"),
     path("consumables/<int:pk>/count/", stock_count_views.count_start, name="stock-count-start"),
     path("stock-counts/<int:pk>/", stock_count_views.count_detail, name="stock-count-detail"),
     path("stock-counts/evidence/<int:pk>/", stock_count_views.count_evidence, name="stock-count-evidence"),

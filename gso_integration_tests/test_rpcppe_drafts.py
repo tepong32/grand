@@ -21,6 +21,142 @@ class RPCPPEDraftTests(TestCase):
     def url(self):
         return reverse("inventory:rpcppe-preparation")
 
+    def source_url(self, count):
+        return reverse('inventory:count-rpcppe-preparation', args=[count.pk])
+
+    @staticmethod
+    def source_entries(response, **changes):
+        return {**response.context['lines'].data.dict(),
+                'property_source_token': response.context['property_source_token'], **changes}
+
+    def test_count_starter_copies_descriptions_without_inventing_numeric_or_official_facts(self):
+        count, records = self.count_fixture()
+        self.client.force_login(self.clerk)
+        response = self.client.get(self.source_url(count))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['lines'].forms), 4)
+        self.assertFalse(response.context['ready'])
+        self.assertContains(self.client.get(reverse('inventory:asset-verification-detail', args=[count.pk])), self.source_url(count))
+        with CaptureQueriesContext(connections['finance']) as finance, CaptureQueriesContext(connections['default']) as default:
+            result = self.client.post(self.source_url(count), self.source_entries(response))
+        self.assertTrue(result.context['ready'])
+        self.assertEqual([row['article'] for row in result.context['print_lines']], [r.asset_name_snapshot for r in records])
+        for row in result.context['print_lines']:
+            for name in ('card_quantity', 'counted_quantity', 'unit_value', 'difference', 'difference_value'):
+                self.assertIsNone(row[name])
+            self.assertFalse(row['property_number'])
+            self.assertFalse(row['unit'])
+        self.assertEqual(len(finance), 0)
+        self.assertFalse(any(q['sql'].lstrip().upper().startswith(('INSERT', 'UPDATE', 'DELETE')) for q in default))
+        self.assertContains(result, 'Not found during visit')
+        self.assertContains(result, 'Starting property count records')
+        self.assertNotContains(result, '<script>alert(1)</script>')
+        self.assertIn('no-store', result['Cache-Control'])
+
+    def test_count_starter_rejects_changed_sources_and_tokens_while_retaining_input(self):
+        count, records = self.count_fixture()
+        self.client.force_login(self.clerk)
+        response = self.client.get(self.source_url(count))
+        values = self.source_entries(response, **{'lines-0-article': 'Retained edited description'})
+        for token in ('', values['property_source_token'] + 'x'):
+            result = self.client.post(self.source_url(count), {**values, 'property_source_token': token})
+            self.assertEqual(result.status_code, 400)
+            self.assertFalse(result.context['ready'])
+        AssetVerificationRecord.objects.filter(pk=records[0].pk).update(notes='Changed observed facts')
+        result = self.client.post(self.source_url(count), values)
+        self.assertContains(result, 'Retained edited description', status_code=400)
+        self.assertFalse(result.context['ready'])
+        self.assertFalse(result.context['property_sources'])
+
+    def test_count_starter_rechecks_both_grants_office_and_methods(self):
+        from inventory.models import AssetVerificationRound
+        count, records = self.count_fixture()
+        url = self.source_url(count)
+        self.assertEqual(self.client.get(url).status_code, 302)
+        for actor in (self.no_grant, self.super_no_grant, self.outsider):
+            self.client.force_login(actor)
+            self.assertEqual(self.client.get(url).status_code, 403)
+        self.client.force_login(self.viewer)
+        self.assertTrue(self.client.post(url, self.source_entries(self.client.get(url))).context['ready'])
+        self.client.force_login(self.clerk)
+        foreign = AssetVerificationRound.objects.create(title='Foreign count', department_id=self.other.pk,
+                                                        department_label=self.other.name)
+        self.assertEqual(self.client.get(self.source_url(foreign)).status_code, 404)
+        values = self.source_entries(self.client.get(url))
+        self.clerk.user_permissions.remove(*Permission.objects.filter(content_type__app_label='inventory',
+            codename__in=('start_asset_verification', 'record_asset_verification', 'close_asset_verification')))
+        self.assertEqual(self.client.post(url, values).status_code, 403)
+        protected = Client(enforce_csrf_checks=True)
+        protected.force_login(self.viewer)
+        self.assertEqual(protected.post(url, values).status_code, 403)
+        self.client.force_login(self.viewer)
+        self.assertEqual(self.client.put(url).status_code, 405)
+
+    def test_count_starter_search_bounds_and_edit_exclusion_keep_originals(self):
+        from inventory.models import Asset
+        count, records = self.count_fixture()
+        self.client.force_login(self.clerk)
+        url = self.source_url(count)
+        response = self.client.get(url, {'q': 'UNKNOWN'})
+        self.assertEqual(len(response.context['lines'].forms), 1)
+        values = self.source_entries(response, action='add_lines', **{'lines-0-unit_value': '-1'})
+        added = self.client.post(url, values)
+        self.assertEqual(len(added.context['lines'].forms), 6)
+        values.update({'action': 'preview', 'lines-TOTAL_FORMS': '6', 'lines-0-DELETE': 'on'})
+        result = self.client.post(url, values)
+        self.assertTrue(result.context['ready'])
+        self.assertEqual(len(result.context['property_sources']), 1)
+        self.assertEqual(len(result.context['print_lines']), 5)
+        values.pop('lines-0-DELETE')
+        self.assertFalse(self.client.post(url, values).context['ready'])
+        for query in ({'q': 'No matching observation'}, {'q': 'x' * 101}):
+            self.assertEqual(self.client.get(url, query).status_code, 400)
+        for i in range(47):
+            asset = Asset.objects.create(department_id=self.gso.pk, asset_name=f'Extra source {i}')
+            AssetVerificationRecord.objects.create(verification_round=count, asset=asset, asset_name_snapshot=asset.asset_name)
+        self.assertContains(self.client.get(url), 'More than 50 listed records match', status_code=400)
+        self.assertEqual(len(self.client.get(url, {'q': 'Extra source'}).context['lines'].forms), 47)
+
+    def test_fifty_supplied_property_lines_remain_in_order_with_unknowns(self):
+        self.client.force_login(self.clerk)
+        data = self.fields(**{"lines-TOTAL_FORMS": "50"})
+        for i in range(50):
+            data.update({f"lines-{i}-article": f"Property {i + 1}", f"lines-{i}-card_quantity": "1",
+                         f"lines-{i}-counted_quantity": "0"})
+        response = self.client.post(self.url(), data)
+        self.assertTrue(response.context['ready'])
+        rows = response.context['print_lines']
+        self.assertEqual([row['article'] for row in rows], [f'Property {i + 1}' for i in range(50)])
+        self.assertTrue(all(row['difference'] == -1 and row['unit_value'] is None for row in rows))
+
+    def test_add_lines_and_exclusion_retain_invalid_input_for_undo(self):
+        self.client.force_login(self.clerk)
+        values = self.fields(**{'action': 'add_lines', 'header-office': 'Keep office',
+                                'lines-4-article': 'Keep fifth property', 'lines-0-unit_value': 'invalid'})
+        added = self.client.post(self.url(), values)
+        self.assertEqual(len(added.context['lines'].forms), 10)
+        self.assertFalse(added.context['ready'])
+        self.assertContains(added, 'Keep fifth property')
+        values.update({'action': 'preview', 'lines-TOTAL_FORMS': '10', 'lines-0-DELETE': 'on'})
+        excluded = self.client.post(self.url(), values)
+        self.assertTrue(excluded.context['ready'])
+        self.assertEqual(len(excluded.context['print_lines']), 9)
+        self.assertContains(excluded, 'value="invalid"')
+        values.pop('lines-0-DELETE')
+        self.assertFalse(self.client.post(self.url(), values).context['ready'])
+
+    def test_growth_rechecks_authority_and_rejects_malformed_counts(self):
+        self.client.force_login(self.clerk)
+        for total in ('-1', '51', '100000', 'invalid'):
+            for action in ('preview', 'add_lines'):
+                response = self.client.post(self.url(), self.fields(**{'lines-TOTAL_FORMS': total, 'action': action}))
+                self.assertFalse(response.context['ready'])
+                self.assertTrue(response.context['lines'].non_form_errors())
+                self.assertLessEqual(len(response.context['lines'].forms), 50)
+        for actor in (self.no_grant, self.super_no_grant, self.outsider):
+            self.client.force_login(actor)
+            self.assertEqual(self.client.post(self.url(), self.fields(**{'action': 'add_lines'})).status_code, 403)
+
     def copy_url(self, count):
         return reverse('inventory:asset-verification-reconcile', args=(count.pk,)).replace('/reconcile/', '/working-copy/')
 
@@ -261,7 +397,7 @@ class RPCPPEDraftTests(TestCase):
 
     def test_formset_bounds_missing_management_and_methods_fail_safely(self):
         self.client.force_login(self.clerk)
-        forged = self.client.post(self.url(), {**self.fields(), "lines-TOTAL_FORMS": "6", "lines-5-description": "Cannot be silently omitted"})
+        forged = self.client.post(self.url(), {**self.fields(), "lines-TOTAL_FORMS": "51", "lines-50-description": "Cannot be silently omitted"})
         self.assertFalse(forged.context["ready"])
         self.assertTrue(forged.context["lines"].non_form_errors())
         self.assertFalse(self.client.post(self.url(), {}).context["ready"])

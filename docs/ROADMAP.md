@@ -1,5 +1,34 @@
 # GRAND product roadmap
 
+October21 RPCPPE preparation now starts from selected listed physical-count
+snapshots under existing property/count read scope. It copies descriptive facts
+without turning results into numeric quantities or original acquisition costs
+into unit values. Original observations and changed-source checks remain explicit.
+See [source limits](gso/property-record-design.md#start-from-listed-physical-count-records--2026-10-21-development)
+and CONTINUE.md; official inventory coverage, classification/forms and acceptance
+remain unresolved rather than inferred.
+
+October21 property preparation now supports up to50 supplied RPCPPE lines with
+retained invalid values and reversible exclusion, sharing bounded entry controls
+with RPCI/RSMI. [Scope and remaining source/acceptance requirements](gso/property-record-design.md#rpcppe-working-preparation--2026-10-19).
+CONTINUE.md records actual validation; no complete official inventory is inferred.
+
+2026-10-21 follow-up connects reviewed supply-count selections to editable RPCI
+preparation, reducing repeat entry while preserving original observations,
+unknown valuation/report dates, current export scope and changed-source rejection.
+See [count starter](gso/supplies-output-drafts.md#start-rpci-from-reviewed-counts--2026-10-21-development)
+and CONTINUE.md. The corresponding RSMI starter now selects original issue records
+through shared history/date/item/reference filters, retaining zero/unknown costs,
+original quantities and source history without inferred dates or valuation.
+Complete inventory/monthly-report qualification, issued
+archives and local form/operational acceptance remain open.
+
+2026-10-21 resumed work extends the existing RPCI/RSMI supplied preparation to
+longer reports with reversible line exclusion and retained invalid input. This
+advances the documented larger-report gap without new stock or Finance writes.
+See [scope](gso/supplies-output-drafts.md) and CONTINUE.md for validation and remaining
+complete-cohort, official-form and operational acceptance limits.
+
 2026-10-19 officer-redemption follow-up is implemented locally: keep the actual whole
 receipt/deposit separate from the original officer-advance component and reviewed
 fee receivables through repeated returns and exact corrections. See the
