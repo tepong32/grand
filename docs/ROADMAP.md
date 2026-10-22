@@ -1,5 +1,12 @@
 # GRAND product roadmap
 
+October23 PAR/ICS/SPC development extends supplied draft preparation to50 lines
+with retained input, reversible exclusion and the existing source-prefill/access
+boundaries. This completes the bounded larger-entry controls across the six
+existing draft types, not complete source coverage or official-form acceptance.
+See [property draft scope](gso/property-record-design.md#working-draft-preparation--2026-10-18)
+and CONTINUE.md for actual testing and checkpoint/publication state.
+
 October21 RPCPPE preparation now starts from selected listed physical-count
 snapshots under existing property/count read scope. It copies descriptive facts
 without turning results into numeric quantities or original acquisition costs

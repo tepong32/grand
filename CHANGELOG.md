@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.210] - 2026-10-23
+### Fixed
+- fix(reporting): handle lazy PDF failures and extend property drafts
+
 ## [0.7.209] - 2026-10-23
 ### Added
 - feat(office): prepare inventory drafts, working reports and update dependencies

@@ -9,6 +9,7 @@ from django.db import transaction
 from django.core.exceptions import PermissionDenied
 from openpyxl import load_workbook
 from pypdf import PdfReader, PdfWriter
+from pypdf.errors import PyPdfError
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas
 
@@ -119,34 +120,38 @@ def inspect_pdf_template(template, payload=None):
         reader = PdfReader(io.BytesIO(payload))
     except Exception as exc:
         raise TemplateMappingError("The uploaded PDF could not be opened safely.") from exc
-    if reader.is_encrypted:
-        raise TemplateMappingError("Encrypted PDFs cannot be used as overlay templates.")
-    if not reader.pages:
-        raise TemplateMappingError("The PDF template has no pages.")
-    mappings = list(template.overlay_fields.all())
-    if not mappings:
-        raise TemplateMappingError("Add at least one reviewed coordinate mapping before validating this PDF.")
-    repeating_fields = set()
-    for mapping in mappings:
-        mapping.full_clean()
-        if mapping.page_number > len(reader.pages):
-            raise TemplateMappingError(f"{mapping.source_key} points to page {mapping.page_number}, but the PDF has only {len(reader.pages)} page(s).")
-        page = reader.pages[mapping.page_number - 1]
-        if int(page.get("/Rotate", 0) or 0) % 360:
-            raise TemplateMappingError("Rotated PDF pages must be normalized before coordinate mapping.")
-        width_mm = float(page.mediabox.width) / 72 * 25.4
-        height_mm = float(page.mediabox.height) / 72 * 25.4
-        bottom = float(mapping.y_mm) + (float(mapping.row_height_mm) * (mapping.max_rows - 1) if mapping.repeat_for_rows else 0)
-        if float(mapping.x_mm) + float(mapping.width_mm) > width_mm or bottom > height_mm:
-            raise TemplateMappingError(f"{mapping.source_key} extends beyond page {mapping.page_number}.")
-        if mapping.repeat_for_rows:
-            repeating_fields.add(mapping.source_key)
-    return reader, {
-        "mode": ReportTemplateVersion.RENDER_PDF_OVERLAY,
-        "page_count": len(reader.pages),
-        "mapping_count": len(mappings),
-        "repeating_fields": sorted(repeating_fields),
-    }
+    try:
+        # Page traversal and geometry can parse PDF objects lazily after construction.
+        if reader.is_encrypted:
+            raise TemplateMappingError("Encrypted PDFs cannot be used as overlay templates.")
+        if not reader.pages:
+            raise TemplateMappingError("The PDF template has no pages.")
+        mappings = list(template.overlay_fields.all())
+        if not mappings:
+            raise TemplateMappingError("Add at least one reviewed coordinate mapping before validating this PDF.")
+        repeating_fields = set()
+        for mapping in mappings:
+            mapping.full_clean()
+            if mapping.page_number > len(reader.pages):
+                raise TemplateMappingError(f"{mapping.source_key} points to page {mapping.page_number}, but the PDF has only {len(reader.pages)} page(s).")
+            page = reader.pages[mapping.page_number - 1]
+            if int(page.get("/Rotate", 0) or 0) % 360:
+                raise TemplateMappingError("Rotated PDF pages must be normalized before coordinate mapping.")
+            width_mm = float(page.mediabox.width) / 72 * 25.4
+            height_mm = float(page.mediabox.height) / 72 * 25.4
+            bottom = float(mapping.y_mm) + (float(mapping.row_height_mm) * (mapping.max_rows - 1) if mapping.repeat_for_rows else 0)
+            if float(mapping.x_mm) + float(mapping.width_mm) > width_mm or bottom > height_mm:
+                raise TemplateMappingError(f"{mapping.source_key} extends beyond page {mapping.page_number}.")
+            if mapping.repeat_for_rows:
+                repeating_fields.add(mapping.source_key)
+        return reader, {
+            "mode": ReportTemplateVersion.RENDER_PDF_OVERLAY,
+            "page_count": len(reader.pages),
+            "mapping_count": len(mappings),
+            "repeating_fields": sorted(repeating_fields),
+        }
+    except PyPdfError as exc:
+        raise TemplateMappingError("The uploaded PDF could not be opened safely.") from exc
 
 
 @transaction.atomic

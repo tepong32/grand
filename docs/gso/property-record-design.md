@@ -78,6 +78,23 @@ handoff. This does not establish valuation policy or operational acceptance. See
 
 ## Working draft preparation — 2026-10-18
 
+October23 development extends PAR/ICS/SPC entry to up to50 supplied lines, sharing
+the existing bounded controls with RPCI/RSMI/RPCPPE. Add5 retains entered values
+and requires another preview; explicit exclusion keeps values for undo. Invalid
+included rows still block preview, and the existing exact supplied-amount checks
+remain unchanged. Malformed or excessive management counts fail rather than
+silently omitting entries. The limit applies to all slots, including excluded rows.
+Longer printed tables repeat their draft title and column headings on continuation
+pages; this preserves context without establishing an official local form.
+
+Asset-started PAR/ICS retain one trusted initial row and five visible slots on
+entry. Growth preserves that source row, entered edits and current read/export/
+owning-office checks. The common formset validates its initial count against the
+server-supplied rows; client counts cannot invent initial data. No new source
+population, quantity balance, valuation, numbering, signature or custody action
+is inferred. Drafts remain nonpersistent. CONTINUE.md owns current validation and
+checkpoint/publication state; this is not official form or printer acceptance.
+
 The autonomous mission's local branch `codex/grand-autonomous-workflows` adds ICS
 and SPC preparation beside the existing PAR draft in Property records. Current
 test/preview evidence and publication status belong to [GRAND's handoff](../../CONTINUE.md).
@@ -88,7 +105,7 @@ Both routes reuse existing native property-document view authority. UAT viewers
 may prepare a blank draft because the operation reads no asset/source rows and writes
 no operational or Finance records. Unauthenticated/ungranted/non-GSO access is
 denied under the existing identity contract. User-entered HTML is escaped,
-responses are private/no-store, formsets are bounded to five entries and normal
+responses are private/no-store, formsets are bounded to50 entries and normal
 CSRF protection remains. No permission, model, migration or routing policy changes.
 
 Known values are supplied per sheet; unknown fields stay blank, and explicit zero

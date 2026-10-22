@@ -157,6 +157,11 @@ safe paths without inventing a historical integrity claim or altering its workfl
 Its controlled readers support both current assistance_docs and retained legacy
 assistance_uploads paths; DEBUG raw media must deny both. Do not relocate old bytes
 or rewrite retained paths merely to change the download allowlist.
+PDF parsing is lazy: preflight must handle known reader failures/limits during
+page traversal and geometry inspection, not only reader construction. Preserve
+parser limits, precise mapping diagnostics and separate approval/activation.
+See [Reporting PDF input handling](docs/REPORTING_PDF_PREFLIGHT_2026-10-23.md).
+
 Citizen access and direct-media privacy remain unqualified: the confirmed
 [access review](docs/CITIZEN_FILE_ACCESS_SECURITY_REVIEW.md) and DECISION-OPS-005
 track the accepted short-code/legacy-link transition: request-scoped private links

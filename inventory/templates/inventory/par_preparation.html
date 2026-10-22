@@ -2,6 +2,7 @@
 {% block title %}PAR preparation sheet{% endblock %}
 {% block content %}
 <style>
+.par-line input[type="checkbox"]{width:auto;min-width:20px;min-height:20px}
 .par-sheet{background:white;color:#111;padding:24px;border:1px solid #aaa;margin-top:24px;overflow-wrap:anywhere;overflow-x:auto}
 .par-sheet table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px;min-width:650px}.par-sheet td,.par-sheet th{border:1px solid #555;padding:8px;white-space:normal;overflow-wrap:anywhere}.par-sheet td{height:55px}
 .par-sheet tbody tr:last-child td{border-bottom:1px solid #555}
@@ -13,7 +14,8 @@
 <nav class="quick-links par-navigation"><a class="button" href="{% url 'inventory:property-register' %}">Back to property records</a>{% if ready %}<button class="button primary" type="button" onclick="window.print()">Print / Save as PDF</button>{% endif %}</nav>
 {% if source_asset %}<aside class="panel par-navigation"><p>Started from <a href="{% url 'inventory:asset-detail' source_asset.pk %}">{{ source_asset.asset_name }}</a> (register tag: {{ source_asset.property_tag|default:"not recorded" }}). Name and quantity are copied for editing. Complete the unit, property number, acquisition date and acquisition cost from the applicable source documents. Register unit cost and purchase date do not establish those PAR entries. Check property classification and the local form before official use. Draft edits are not saved to the register.</p></aside>{% endif %}
 <details class="panel par-editor"{% if not ready %} open{% endif %}><summary>{% if ready %}Change draft details{% else %}Enter draft details{% endif %}</summary>
-<form method="post">{% csrf_token %}
+<form method="post" novalidate>{% csrf_token %}
+<p>Enter up to 50 supplied property lines. Add five at a time as needed. To omit a line, check “Leave this line out of the preview”; uncheck it to include the retained values again.</p>
 <p>These entries are not saved. Preview, then use your browser’s Print / Save as PDF. Keep the draft in your approved office storage if you need to continue later.</p>
 <p>This preparation sheet does not assign a number, sign a receipt, transfer custody or post to Finance. Confirm local layout and instructions before official use.</p>
 {% if invalid %}<p role="alert">Check the highlighted fields. Your entries are retained below.</p>{% endif %}
@@ -21,7 +23,9 @@
 <h2>Property lines</h2><p>Enter supplied facts only. Blank costs and dates remain blank; no values are inferred from a price threshold.</p>
 {{ lines.management_form }}{{ lines.non_form_errors }}
 {% for line in lines %}<fieldset class="par-line"><legend>Property {{ forloop.counter }}</legend><div class="form-grid">{{ line.as_p }}</div></fieldset>{% endfor %}
-<button class="button primary" type="submit">Preview preparation sheet</button>
+{% if line_notice %}<p role="status">{{ line_notice }}</p>{% endif %}
+{% if can_add_lines %}<button class="button" type="submit" name="action" value="add_lines" formnovalidate>Add 5 lines</button>{% endif %}
+<button class="button primary" type="submit" name="action" value="preview">Preview preparation sheet</button>
 </form></details>
 {% if ready %}
 <section class="par-sheet" aria-label="PAR draft preview">
@@ -30,7 +34,7 @@
 <p>Fund: {{ details.fund|default:"[Fund]" }} · PAR no.: {{ details.number|default:"[Number to be assigned under local rules]" }}</p>
 <p>Form reference / revision: {{ details.form_reference|default:"[Local form reference / revision]" }}</p>
 <p>Numbering instructions: {{ details.numbering|default:"[Confirm local numbering practice]" }}</p>
-<div class="par-scroll" role="region" aria-label="PAR supplied entries" tabindex="0"><table><thead><tr><th>Quantity</th><th>Unit</th><th>Description</th><th>Property number</th><th>Acquisition date</th><th>Acquisition cost<br>(as supplied)</th></tr></thead><tbody>
+<div class="par-scroll" role="region" aria-label="PAR supplied entries" tabindex="0"><table><thead><tr><th colspan="6">DRAFT — PAR preparation · supplied entries for review</th></tr><tr><th>Quantity</th><th>Unit</th><th>Description</th><th>Property number</th><th>Acquisition date</th><th>Acquisition cost<br>(as supplied)</th></tr></thead><tbody>
 {% for line in print_lines %}<tr><td>{{ line.quantity|default_if_none:"" }}</td><td>{{ line.unit }}</td><td>{{ line.description|linebreaksbr }}</td><td>{{ line.property_number }}</td><td>{{ line.acquisition_date|date:"Y-m-d" }}</td><td>{{ line.acquisition_cost|default_if_none:"" }}</td></tr>{% endfor %}
 </tbody></table></div>
 <div class="par-signatures"><div><strong>Issuer (to be confirmed)</strong><p>{{ details.issuer|default:"[Name]" }}</p><p>{{ details.issuer_role|default:"[Designation / office]" }}</p><p>Signature: ___________________</p><p>Date: ___________________</p></div><div><strong>Recipient (to be confirmed)</strong><p>{{ details.recipient|default:"[Name]" }}</p><p>{{ details.recipient_role|default:"[Designation / office]" }}</p><p>Signature: ___________________</p><p>Date: ___________________</p></div></div>

@@ -10,6 +10,7 @@ from django.views.decorators.http import require_http_methods
 from .property_determinations import can_act
 from .access import can as can_asset, gso_department_for_user
 from .models import Asset
+from .draft_lines import MAX_DRAFT_LINES, DraftLines, add_lines
 
 
 class PARHeaderForm(forms.Form):
@@ -34,7 +35,8 @@ class PARLineForm(forms.Form):
     acquisition_cost = forms.DecimalField(label='Acquisition cost (as supplied)', required=False, min_value=0, max_digits=15, decimal_places=2)
 
 
-PARLines = formset_factory(PARLineForm, extra=5, max_num=5, validate_max=True, absolute_max=5)
+PARLines = formset_factory(PARLineForm, formset=DraftLines, extra=5, max_num=MAX_DRAFT_LINES,
+                          validate_max=True, absolute_max=MAX_DRAFT_LINES, can_delete=True)
 
 
 def _par_preparation(request, source_asset=None):
@@ -44,12 +46,20 @@ def _par_preparation(request, source_asset=None):
     header = PARHeaderForm(data, prefix='header')
     initial = [{'description': source_asset.asset_name, 'quantity': source_asset.quantity}] if source_asset else None
     lines = PARLines(data, prefix='lines', initial=initial)
-    ready = request.method == 'POST' and header.is_valid() and lines.is_valid()
+    if data is None and initial:
+        lines.extra = 5 - len(initial)
+    adding = request.method == 'POST' and request.POST.get('action') == 'add_lines'
+    notice = ''
+    if adding:
+        lines, notice = add_lines(request.POST, PARLines, initial=initial)
+    valid = request.method == 'POST' and header.is_valid() and lines.is_valid()
+    ready = valid and not adding
     return render(request, 'inventory/par_preparation.html', {
         'header':header, 'lines':lines, 'ready':ready, 'source_asset':source_asset,
-        'invalid': request.method == 'POST' and not ready,
+        'invalid': request.method == 'POST' and not valid,
+        'line_notice': notice, 'can_add_lines': lines.total_form_count() < MAX_DRAFT_LINES,
         'details': header.cleaned_data if ready else {},
-        'print_lines': [form.cleaned_data for form in lines] if ready else [],
+        'print_lines': [form.cleaned_data for form in lines if not form.cleaned_data.get('DELETE')] if ready else [],
     })
 
 
@@ -122,8 +132,10 @@ class SPCLineForm(forms.Form):
         return _check_supplied_total(self, 'received')
 
 
-ICSLines = formset_factory(ICSLineForm, extra=5, max_num=5, validate_max=True, absolute_max=5)
-SPCLines = formset_factory(SPCLineForm, extra=5, max_num=5, validate_max=True, absolute_max=5)
+ICSLines = formset_factory(ICSLineForm, formset=DraftLines, extra=5, max_num=MAX_DRAFT_LINES,
+                          validate_max=True, absolute_max=MAX_DRAFT_LINES, can_delete=True)
+SPCLines = formset_factory(SPCLineForm, formset=DraftLines, extra=5, max_num=MAX_DRAFT_LINES,
+                          validate_max=True, absolute_max=MAX_DRAFT_LINES, can_delete=True)
 
 
 def _preparation(request, *, kind, title, header_class, line_set, source_asset=None):
@@ -134,13 +146,21 @@ def _preparation(request, *, kind, title, header_class, line_set, source_asset=N
     initial = [{'description': source_asset.asset_name, 'quantity': source_asset.quantity,
                 'unit_cost': source_asset.unit_cost}] if source_asset else None
     lines = line_set(data, prefix='lines', initial=initial)
-    ready = request.method == 'POST' and header.is_valid() and lines.is_valid()
+    if data is None and initial:
+        lines.extra = 5 - len(initial)
+    adding = request.method == 'POST' and request.POST.get('action') == 'add_lines'
+    notice = ''
+    if adding:
+        lines, notice = add_lines(request.POST, line_set, initial=initial)
+    valid = request.method == 'POST' and header.is_valid() and lines.is_valid()
+    ready = valid and not adding
     return render(request, 'inventory/property_preparation.html', {
         'kind': kind, 'title': title, 'header': header, 'lines': lines, 'ready': ready,
-        'invalid': request.method == 'POST' and not ready,
+        'invalid': request.method == 'POST' and not valid,
+        'line_notice': notice, 'can_add_lines': lines.total_form_count() < MAX_DRAFT_LINES,
         'source_asset': source_asset,
         'details': header.cleaned_data if ready else {},
-        'print_lines': [form.cleaned_data for form in lines] if ready else [],
+        'print_lines': [form.cleaned_data for form in lines if not form.cleaned_data.get('DELETE')] if ready else [],
     })
 
 

@@ -111,7 +111,7 @@ class PARSourcePreparationTests(TestCase):
         for url in (reverse('inventory:par-preparation'), self.source_url()):
             response = self.client.post(url, self.fields(**{'lines-TOTAL_FORMS': '100000'}))
             self.assertFalse(response.context['ready'])
-            self.assertLessEqual(len(response.context['lines'].forms), 5)
+            self.assertLessEqual(len(response.context['lines'].forms), 50)
             self.assertEqual(self.client.put(url).status_code, 405)
             csrf = Client(enforce_csrf_checks=True)
             csrf.force_login(self.clerk)

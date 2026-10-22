@@ -18,6 +18,7 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill
 from openpyxl.workbook.defined_name import DefinedName
 from pypdf import PdfReader
+from pypdf.errors import LimitReachedError, PdfReadError
 from reportlab.pdfgen import canvas
 
 from assistance.models import AssistanceRequest, AssistanceType
@@ -571,6 +572,119 @@ class ReportingPlatformTests(TestCase):
             with self.assertRaisesMessage(TemplateMappingError, "reserves 1 row"):
                 create_manual_run(self.definition, template, "xlsx", today, today, {}, self.operator)
         self.assertEqual(ReportRun.objects.latest("created_at").status, ReportRun.FAILED)
+
+    @staticmethod
+    def _page_tree_pdf(depth=1):
+        objects = [b'<< /Type /Catalog /Pages 2 0 R >>']
+        for index in range(depth):
+            objects.append(f'<< /Type /Pages /Kids [{index + 3} 0 R] /Count 1 >>'.encode())
+        objects.append(f'<< /Type /Page /Parent {depth + 1} 0 R /MediaBox [0 0 612 792] /Resources <<>> >>'.encode())
+        payload, offsets = bytearray(b'%PDF-1.4\n'), [0]
+        for index, body in enumerate(objects, 1):
+            offsets.append(len(payload))
+            payload.extend(f'{index} 0 obj\n'.encode() + body + b'\nendobj\n')
+        start = len(payload)
+        payload.extend(f'xref\n0 {len(offsets)}\n0000000000 65535 f \n'.encode())
+        for offset in offsets[1:]:
+            payload.extend(f'{offset:010d} 00000 n \n'.encode())
+        payload.extend(f'trailer\n<< /Size {len(offsets)} /Root 1 0 R >>\nstartxref\n{start}\n%%EOF\n'.encode())
+        return bytes(payload)
+
+    def _pdf_candidate(self, payload, *, version=2, page_number=1):
+        template = ReportTemplateVersion.objects.create(
+            definition=self.definition, version=version, title='Synthetic PDF candidate',
+            render_mode=ReportTemplateVersion.RENDER_PDF_OVERLAY,
+            reference_kind=ReportTemplateVersion.REFERENCE_PDF, is_active=False,
+            reference_file=SimpleUploadedFile('synthetic-reference.pdf', payload), created_by=self.head,
+        )
+        ReportTemplateMappingField.objects.create(template_version=template, source_key='title',
+            page_number=page_number, x_mm=15, y_mm=25, width_mm=120)
+        return template
+
+    def test_pdf_preflight_controls_lazy_limit_and_preserves_original_outputs(self):
+        original = self._generate('pdf')
+        original_bytes = Path(original.output_file.path).read_bytes()
+        original_run = list(ReportRun.objects.filter(pk=original.pk).values())
+        original_template = list(ReportTemplateVersion.objects.filter(pk=self.template.pk).values())
+        payload = self._page_tree_pdf(depth=102)
+        reader = PdfReader(io.BytesIO(payload))
+        with self.assertRaises(LimitReachedError):
+            len(reader.pages)
+        candidate = self._pdf_candidate(payload)
+        mappings = list(candidate.overlay_fields.values())
+        self.client.force_login(self.head)
+        self.client.raise_request_exception = False
+        response = self.client.post(reverse('reporting:template_preflight', args=[candidate.pk]))
+        self.assertRedirects(response, reverse('reporting:template_mapping', args=[candidate.pk]), fetch_redirect_response=False)
+        self.assertContains(self.client.get(response['Location']), 'The uploaded PDF could not be opened safely.')
+        candidate.refresh_from_db()
+        self.assertFalse(candidate.is_mapping_ready)
+        self.assertEqual(candidate.mapping_checksum, '')
+        self.assertEqual(candidate.mapping_summary, {})
+        self.assertIsNone(candidate.mapping_validated_at)
+        self.assertIsNone(candidate.approved_at)
+        self.assertFalse(candidate.is_active)
+        self.assertEqual(list(candidate.overlay_fields.values()), mappings)
+        with candidate.reference_file.open('rb') as stream:
+            self.assertEqual(stream.read(), payload)
+
+        replacement = self._pdf_candidate(self._pdf_reference(), version=3)
+        response = self.client.post(reverse('reporting:template_preflight', args=[replacement.pk]))
+        self.assertRedirects(response, reverse('reporting:template_mapping', args=[replacement.pk]), fetch_redirect_response=False)
+        self.assertContains(self.client.get(response['Location']), 'Preflight passed.')
+        replacement.refresh_from_db()
+        self.assertTrue(replacement.is_mapping_ready)
+        self.assertIsNone(replacement.approved_at)
+        self.assertFalse(replacement.is_active)
+        self.assertEqual(ReportRun.objects.count(), 1)
+        self.assertEqual(list(ReportRun.objects.filter(pk=original.pk).values()), original_run)
+        self.assertEqual(list(ReportTemplateVersion.objects.filter(pk=self.template.pk).values()), original_template)
+        self.assertEqual(Path(original.output_file.path).read_bytes(), original_bytes)
+
+    def test_pdf_preflight_controls_lazy_corruption_and_rechecks_current_authority(self):
+        payload = self._page_tree_pdf().replace(b'/Kids [3 0 R]', b'/Kids [2 0 R]')
+        reader = PdfReader(io.BytesIO(payload))
+        with self.assertRaises(PdfReadError):
+            len(reader.pages)
+        candidate = self._pdf_candidate(payload)
+        url = reverse('reporting:template_preflight', args=[candidate.pk])
+        self.assertEqual(self.client.post(url).status_code, 302)
+        self.client.force_login(self.operator)
+        self.assertEqual(self.client.post(url).status_code, 403)
+        self.outsider.user_permissions.add(Permission.objects.get(codename='manage_report_templates'))
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.post(url).status_code, 404)
+        with self.assertRaises(PermissionDenied):
+            preflight_template(candidate, self.outsider)
+        self.client.force_login(self.head)
+        self.client.raise_request_exception = False
+        response = self.client.post(url)
+        self.assertRedirects(response, reverse('reporting:template_mapping', args=[candidate.pk]), fetch_redirect_response=False)
+        self.assertContains(self.client.get(response['Location']), 'The uploaded PDF could not be opened safely.')
+        candidate.refresh_from_db()
+        self.assertFalse(candidate.is_mapping_ready)
+        self.assertIsNone(candidate.approved_at)
+        self.assertFalse(candidate.is_active)
+        self.assertEqual(candidate.overlay_fields.count(), 1)
+        self.assertEqual(ReportRun.objects.count(), 0)
+
+    def test_pdf_preflight_retains_coordinate_diagnostics_and_permits_correction(self):
+        candidate = self._pdf_candidate(self._pdf_reference(), page_number=2)
+        self.client.force_login(self.head)
+        url = reverse('reporting:template_preflight', args=[candidate.pk])
+        response = self.client.post(url)
+        self.assertRedirects(response, reverse('reporting:template_mapping', args=[candidate.pk]), fetch_redirect_response=False)
+        self.assertContains(self.client.get(response['Location']), 'title points to page 2, but the PDF has only 1 page(s).')
+        candidate.refresh_from_db()
+        self.assertFalse(candidate.is_mapping_ready)
+        mapping = candidate.overlay_fields.get()
+        mapping.page_number = 1
+        mapping.save()
+        self.assertEqual(self.client.post(url).status_code, 302)
+        candidate.refresh_from_db()
+        self.assertTrue(candidate.is_mapping_ready)
+        self.assertIsNone(candidate.approved_at)
+        self.assertFalse(candidate.is_active)
 
     def test_pdf_overlay_keeps_original_form_and_adds_controlled_values(self):
         template = ReportTemplateVersion.objects.create(

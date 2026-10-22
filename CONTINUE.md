@@ -1,5 +1,296 @@
 # GRAND continuation handoff
 
+## Combined output/PDF checkpoint — save and pause, 2026-10-23
+
+Owner instruction: finish this checkpoint with Version Manager, push the feature
+branch, then PAUSE. The subsequent instruction, “skip full tests for now,” defers
+the remaining broad runs; it does not pass or waive primary-publication gates.
+No new development, PR/manual full-CI dispatch, master integration or remote
+release-tag publication belongs to this bounded save. Resume only on instruction.
+
+Branch `codex/output-pdf-checkpoint` starts from local209 /
+`7810ceb37528f3caa5129959c2f5055bd6763e2c`, initially clean. This combines exactly14
+intended product paths: the completed PAR/ICS/SPC50-line editor slice and the
+Reporting lazy-PDF preflight repair, regression tests and appropriate continuity
+documentation. Source worktrees, QA, protected stores and failed evidence remain
+intact. Per-slice records below retain their original branch contexts; this
+section owns combined validation/checkpoint state. No model, migration, routing,
+permission definition or financial calculation changes.
+
+Source validation: property final8/8 plus78 relevant dependency cases and complete
+desktop/mobile/PDF journeys; Reporting95/95 across both aliases, including real
+lazy parser-limit/cycle rejection, valid replacement, precise mapping diagnostics,
+unchanged original output and current authority. These are source-slice results,
+not a combined full gate. The original HTTP500 red run and corrected test-fixture
+failure remain preserved; no failed or interrupted attempt is relabeled passing.
+
+The complete combined diff, original test identities plus exactly9 new methods,
+frozen runtime/environment and installed VM preview were reviewed. Passed and
+deferred checks are distinguished below. All completed MySQL partitions used
+exclusive test-only clones with identity checks, owned shutdown and original-
+template preservation. No test remains running. Full publication gates remain.
+
+The reviewed installed-VM plan is209→210, with a local lightweight tag210 and a
+feature-branch-only push. Verify the actual result through VERSION, Git and
+`.tmp/vm-local-receipt.json`; do not rerun the old209-guarded adapter after210
+exists. Remote master was verified unchanged at187 /
+`a116691a100ed9230b578f73692ed12add84205e`. Master and remote release tag210 stay
+unchanged until required exact-candidate CI passes. The branch push includes the
+preserved188–209 ancestry; it does not establish primary publication or CI success.
+No deployment or production operations are authorized.
+Finance **NO-GO**; local forms, actual sources/signatures, production storage and
+recovery, operational qualification and formal Accounting/LGU acceptance remain
+open. Local earmark/numerical questions are deferred; no financial recipe inferred.
+An October23 bounded research retry found the indexed COA2002-003 listing, but
+the official full page again returned403. No controlling non-expense officer-
+liquidation recipe or resolution of EV-OFF-005 was established; no posting route
+or policy changed. Keep the applicability limits in the existing
+[official source register](docs/finance-discovery/OFFICIAL_SOURCE_REGISTER.md).
+
+### Current combined gates
+
+PASS full diff/scope and source preservation; all3,162 original discovered IDs
+remain, with exactly6 property and3 Reporting methods added (3,171 total/470 GSO).
+Original classes/bases/decorators are preserved. The excessive-count tests now
+assert the intended50-row bound; no inherited-test migration or gate weakening.
+`.tmp/global-discovery-review.json` and `.tmp/batch-test-identity-review.json`
+retain the complete identity proof. Separate Telegram discovery retains5 mocked
+SimpleTestCase methods, with no database access or messages sent.
+
+Installed VM preview PASS:209→210; message
+`Release v0.7.210: fix(reporting): handle lazy PDF failures and extend property drafts`.
+Automatic updates affect only VERSION/CHANGELOG;14 reviewed source/documentation
+paths are intended for staging, with a local lightweight tag210 for the checkpoint.
+Preview changed no files/staging/tags.
+Push only `codex/output-pdf-checkpoint`; retain the tag locally. No release
+artifact or deployment side effects are authorized.
+
+PASS fresh five prechecks: `pip check`, `pip_audit -r requirements.txt` (no known
+vulnerabilities), isolated Django/migration-drift checks and9/9 CI-coverage units.
+The audit emitted a Windows short-path versus expanded-path warning, then exited0.
+Receipt: `.tmp/checkpoint210-shards-c70e1af5035c/prechecks.json`.
+Frozen runtime/source/helper/Python-package fingerprint:
+`c70e1af5035ca4e78817f534a2fec237879cb2e11d6bad10f0e4c5b7793cd1a4`.
+`.tmp/driver-adaptation.json` records reuse of the prior verified isolation,
+committed-coverage/native wrappers and installed-VM procedure with only candidate
+identity/count/category substitutions. A preparation occurrence-count guard caught
+an8-versus9 token-count mismatch before any helper copies; its original is retained.
+No test or repository gate changed.
+
+PASS complete sequential SQLite gate: all3,171 discovered tests covered exactly
+once,2,932 passed/239 native-only skips,5,371.520s summed test time; all8 actual
+wrapper exits0 and both disposable aliases destroyed in every partition. The
+unchanged committed `scripts/verify_ci_coverage.py` aggregate passed with count8
+and parent revision209. Raw logs/coverage hashes and the aggregate receipt are
+retained in `.tmp/batch-full-sqlite-verified.json` and the frozen directory above.
+The239 skips are not passing tests; native completion is recorded separately.
+
+PASS separate mocked Telegram gate:5/5,zero skips,0.406s,exit0, exact unchanged
+identities and sources; `.tmp/batch-telegram-verified.json`. No messages were sent.
+Commands: `python -B .tmp/checkpoint_shards.py aggregate-sqlite`, followed by
+`python -B .tmp/run_telegram_gate.py`, using the same documented3.11 interpreter.
+
+PASS native partitions0–5:2,308 tests,zero skips; counts374/292/417/265/469/491,
+durations720.020/973.115/1107.622/764.323/1273.547/842.872s. All six actual
+wrappers exited0, destroyed both aliases, stopped their owned server and verified
+the original test-template hashes unchanged. All nine new regression methods
+passed on native MySQL (property partition1, Reporting partition0).
+Commands: `python -B .tmp/native_shard.py N` for N=0 through5.
+
+NOT RUN — OWNER DEFERRED: native partitions6/7, complete native aggregate and
+hosted candidate/published-master CI. No complete native3171-test pass is claimed.
+`.tmp/native-validation-progress.json` records paused/index6/session0; immutable
+core/owner receipts and raw hashes remain authoritative. No owned mysqld remains.
+`.tmp/validation-progress.json` retains the completed SQLite-phase pointer.
+These are LOCAL candidate checks, with parent209 plus the exact fingerprint;
+they are not hosted CI for the new commit. No repository/CI gate was modified.
+The ignored local VM adapter checks completed evidence and records this explicit
+deferral; it cannot authorize primary integration or release-tag publication.
+
+Exact precheck commands: `python -m pip check`; `python -m pip_audit -r
+requirements.txt`; `python -B .tmp/run_isolated.py check`; `python -B
+.tmp/run_isolated.py makemigrations --check --dry-run`; `python -m unittest
+scripts.test_ci_test_runner -v`. Full SQLite used `python -B
+.tmp/checkpoint_shards.py sqlite --index N` for N=0 through7, followed by the
+aggregate command above. All used the documented Python3.11 environment.
+
+Next session: inspect actual branch/tag/remote receipts and paused goal before
+acting. When full validation/publication is resumed, run or precisely reuse
+unchanged-code evidence for remaining local native coverage, then require the
+documented exact-candidate hosted CI gates before ff-only primary integration,
+atomic master/tag publication and exact-master CI verification. A feature branch
+backup is not a release or formal acceptance. Preserve all source worktrees,
+protected databases, failed evidence and historical local tags.
+
+## Longer PAR / ICS / SPC drafts — active development, 2026-10-23
+
+Goal ACTIVE; the owner is unattended, so manual/local decisions are deferred.
+New isolated branch `codex/property-draft-lines` starts from the completed local
+Version Manager checkpoint209 / `7810ceb37528f3caa5129959c2f5055bd6763e2c`, tag
+`v0.7.209`. Its checkpoint worktree is clean; original source worktrees and the
+protected dirty checkout are preserved. Remote master remains187 /
+`a116691a100ed9230b578f73692ed12add84205e`;209 was not published. No master merge,
+push, deployment or production operations. Finance **NO-GO**.
+
+The actual installed-VM operation passed, creating the reviewed49-path checkpoint
+with exactly parent208 and local lightweight tag209. Its receipt is retained in
+the checkpoint worktree's `.tmp/vm-local-receipt.json`; complete SQLite/native,
+security/Telegram receipts and failed-attempt evidence remain there. Git's LF/CRLF
+warnings did not change the tested worktree bytes or add unintended paths.
+The preceding checkpoint's procedure below is historical; do not rerun it.
+
+Implemented: remove the remaining five-row ceiling in existing PAR/ICS/SPC draft
+editors using the same bounded50-line controls. Preserve source prefill and its
+management count, independent read/export scope, supplied arithmetic, explicit
+unknowns, reversible omission and no custody/Finance writes. No new official form,
+valuation, numbering, signature or issuance policy is introduced.
+
+EXPECTED FAIL against unchanged209 application code:
+`python -B .tmp/run_isolated.py test
+gso_integration_tests.test_property_draft_lines.PropertyDraftLineEntryTests.test_fifty_supplied_entries_are_all_printed_in_order
+--noinput --verbosity 2`; `.tmp/property-lines-red.log`, exit1. The one method's
+three subcases reproduce rejected50-line PAR, ICS and SPC previews (0.532s);
+both disposable aliases were destroyed. This is a capability regression baseline,
+not an unrelated test failure.
+
+Implementation now shares bounded50-line entry/omission controls with the other
+drafts, with server validation and a fresh preview after Add5. The shared helper
+requires management counts to match trusted server initial rows and retains the
+existing one-row source prefill/five visible slots. No source is rewritten.
+
+Initial focused run: `python -B .tmp/run_isolated.py test` with
+`gso_integration_tests.test_property_draft_lines`, `test_property_drafts`,
+`test_par_source_preparation`, `test_rpcppe_drafts`, `test_supply_drafts`,
+`test_count_drafts`, `test_issue_drafts` and `test_grand_property`, followed by
+`--noinput --verbosity 2`.84 executed in42.830s:83 passed,one new-test fixture
+error; exit1 and both aliases destroyed. A completely empty extra row has empty
+cleaned data, so the new unknown-amount assertion raised KeyError. The fixture
+now describes a known item/reference with an unknown amount, retaining the full
+unknown/zero assertions. No application code, existing test or gate changed.
+The failed log `.tmp/property-lines-focused.log` remains intact.
+
+PASS: the same isolated runner with `gso_integration_tests.test_property_draft_lines`,
+`gso_integration_tests.test_grand_asset_authority.GrandAssetAuthorityTests.test_par_preparation_reuses_native_view_authority_without_writes`
+and `gso_integration_tests.test_destination.StorageConfigurationTests.test_native_urls_are_registered`,
+then `--noinput --verbosity 2`; `.tmp/property-lines-green.log`:8/8,12.685s,
+zero skips,exit0 and both-alias cleanup. All six new tests plus two direct
+authorization/navigation checks passed. The78 earlier successful dependency
+cases cover unchanged access, prefill, validation and arithmetic contracts.
+
+Actual Playwright journeys PASS for all three final editors: Add5 to50, retained
+input/order, omission of an invalid numeric row (49 printed), undo rejection,
+correction back to50 and390px mobile pages without page overflow. Asset-started
+PAR/ICS retain five initial slots, original name/quantity and Add5 to10/preview.
+These use an exclusive clone of an already synthetic fixture, not operator data.
+Every Inventory table, cloned Finance bytes and the original source pair remain
+unchanged after the journeys (`.tmp/verify_property_browser.py`,exit0). The owned
+browser and both preview server instances are stopped. A favicon404 was observed;
+it did not block any journey. No printer, production or LGU acceptance is inferred.
+
+PDF inspection found continuation pages lacked the draft title. The bounded
+template repair repeats that title with column headings. Final PAR/ICS/SPC PDFs
+each have three A4 landscape pages, all50 markers exactly once/in order and a
+draft title on every data page. All nine pages were rendered/visually inspected;
+Poppler reports no render warnings. Original pre-header PDFs remain preserved.
+`.tmp/property-pdf-verification.json` retains final checksums and the original
+pages2/3 finding. QA remains untracked under `output/playwright/property-draft-lines/`;
+private fixture/cookie scripts and CLI snapshots remain ignored.
+
+PASS final rerun of the same eight tests after the print-header change:
+`.tmp/property-lines-final.log`:8/8,12.560s,zero skips,exit0,both aliases destroyed.
+The78 dependency cases predate only that title-row follow-up; their unchanged
+backend contracts are retained, with final templates covered by the eight tests
+and complete browser/PDF journeys. The failed initial fixture run remains intact.
+`.tmp/property-lines-validation.json` records commands/IDs, raw hashes, scope and
+reuse boundaries. Original test classes/methods/decorators are preserved; only
+two existing excessive-count assertions change their bound from5 to50.
+
+PASS `git diff --check`, complete ten-path product diff review and original-source
+preservation. No stages, commit or tag for this slice. Full SQLite/MySQL and
+hosted CI are NOT RUN — OUT OF SCOPE at this intermediate UI-only slice: no
+persistence, financial calculations, routing or permission definitions changed.
+They are not waived; complete applicable suites remain due before another VM
+checkpoint. The full209 gate validates209, not this subsequent source tree.
+VERSION/CHANGELOG remain209; this slice is uncommitted. Full suites remain due at
+the next vm-commit, with proportionate affected/dependent tests before then.
+
+Next: continue a documented independent workflow/source investigation. The old
+advance scope names capital/non-expense liquidation, while current entry still
+accepts expense accounts only. No new recipe has been selected/enabled: the
+official-source register's EV-OFF-005 warns against treating deferred LGU GAM or
+NGA appendices as automatic municipal authority. Initial public searches did not
+establish a controlling recipe. Continue authoritative research without inventing
+accounting treatment; defer unresolved local authority, earmark rules, real
+imports, actual forms/signatures, production recovery and formal acceptance.
+
+## Reporting PDF preflight — active security follow-up, 2026-10-23
+
+Goal ACTIVE; manual/local inputs are deferred while the owner is unattended.
+New isolated branch `codex/report-template-pdf-limits` starts from local209 /
+`7810ceb37528f3caa5129959c2f5055bd6763e2c`, tag `v0.7.209`, initially clean.
+Remote master was reverified at187 / `a116691a100ed9230b578f73692ed12add84205e`.
+No integration, push, publication, deployment or production operations. Finance
+**NO-GO**; no formal Accounting or LGU acceptance.
+
+Preserved independent work: `codex/property-draft-lines` has the completed,
+uncommitted PAR/ICS/SPC50-line slice, focused final8/8 and78 retained dependency
+cases, plus browser/three-page PDF evidence. Its own CONTINUE.md and validation
+receipt own those results. Its ten product paths/QA remain unchanged; they are
+not included in this branch. The209 checkpoint and original dirty checkout,
+source worktrees, protected databases and failed evidence remain intact.
+
+The current pypdf6.21.2 pin introduces lazy parsing limits as well as constructor
+limits. An8,329-byte synthetic PDF constructs a reader successfully, then raises
+the real LimitReachedError while traversing page depth101 beyond the default100.
+Reporting catches reader-construction errors but inspects pages outside that
+handler; its HTTP preflight catches only TemplateMappingError. A real cyclic
+page tree can likewise raise PdfReadError after construction. No parser limit
+was modified or disabled. Probe: `python -B .tmp/probe_lazy_pdf_limit.py`, PASS.
+
+EXPECTED FAIL red regression against unchanged209 application code:
+`python -B .tmp/run_isolated.py test
+reporting.tests.ReportingPlatformTests.test_pdf_preflight_controls_lazy_limit_and_preserves_original_outputs
+reporting.test_finance_reporting.FinanceAccountabilityReportingTests.test_advance_starter_is_candidate_scoped_and_preserves_local_edits_on_reseed
+--noinput --verbosity 2`; `.tmp/pdf-preflight-red.log`,2 executed in2.814s,exit1.
+The new HTTP regression fails500 vs302; the unchanged Finance starter check passes.
+Both disposable aliases are destroyed. The red source/log remain preserved.
+New tests additionally cover cyclic-page rejection, current authority and precise
+coordinate diagnostics. Redirect assertions now fetch the message only once;
+the failing HTTP expectation is unchanged.
+
+Implemented the bounded [known-PDF-error handler](docs/REPORTING_PDF_PREFLIGHT_2026-10-23.md)
+around complete inspection. Constructor handling and precise mapping errors stay
+unchanged; no parser limits, authority, financial rule or schema changes.
+
+PASS: `python -B .tmp/run_isolated.py test reporting.tests
+reporting.test_template_promotions reporting.test_finance_reporting
+budget.test_form1_signed_views --noinput --verbosity 2`;
+`.tmp/pdf-preflight-focused.log`:95/95,zero skips,587.451s,exit0 and both aliases
+destroyed. `.tmp/pdf-focused-verified.json` records the exact command,95 unique
+identities, raw SHA256, runtime hashes and Python/package environment. All34
+original Reporting test bodies/classes/decorators are unchanged; three methods
+are added. AST review confirms the existing mapper body is unchanged inside the
+known-error boundary; no handler/guard is weakened. `git diff --check` passes.
+The separate property slice's ten product hashes remain unchanged.
+
+Browser NOT RUN — OUT OF SCOPE: no mapper UI/template change; authenticated
+POST/redirect/GET tests exercise the existing displayed diagnostics and valid
+correction. Native/full suites are due at the next combined local VM checkpoint;
+no persistence, financial calculation, permission or routing changes. No formal
+or production acceptance is inferred. VERSION/CHANGELOG remain209, uncommitted.
+
+Next: assemble only these five paths and the completed property's ten paths
+(one shared handoff,14 total) on a fresh209-based checkpoint worktree; preserve
+both source branches/QA and the original dirty checkout. Review the full diff,
+preview installed VM210 and run the complete required local gates before any
+local commit/tag. No new publication/deployment authority.
+
+Non-expense liquidation remains unselected: public research has not established
+a controlling municipal recipe, and direct COA manual pages returned403. The
+existing official-source register retains the LGU GAM deferment boundary. Do not
+substitute an NGA or deferred manual as local authority or enable a guessed rule.
+This does not block this independent demonstrated PDF input-handling repair.
+
 ## Office-output checkpoint v0.7.209 — local only, 2026-10-23
 
 Goal ACTIVE; continue safe independent development while the owner is unattended.
