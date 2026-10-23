@@ -1,5 +1,89 @@
 # GRAND continuation handoff
 
+
+## Risk-based testing policy — 2026-10-23
+
+This branch adds the repository-wide policy in
+[docs/TESTING_AND_EVIDENCE_POLICY.md](docs/TESTING_AND_EVIDENCE_POLICY.md) and
+links it from [AGENTS.md](AGENTS.md). The goal is to reduce redundant local
+verification while keeping evidence trustworthy and preserving every required
+hosted CI, native MySQL, security, Finance, integration, and release gate.
+
+The policy requires a per-change risk classification; focused tests first;
+dependent/broader tests when impact warrants; evidence reuse only when exact
+source, tests/assertions, dependencies/runtime, schema/backend and environment
+assumptions remain unchanged; and explicit reporting of passes, failures, skips,
+cancellations, deferred checks and unavailable environments. SQLite skips do not
+count as native MySQL passes. Any proposal to alter hosted CI policy must be
+separate, measured, coverage-proven and explicitly approved. Finance remains
+NO-GO; no deployment or production operation is authorized.
+
+The original policy-documentation edit was documentation-only. A subsequent
+bounded GSO implementation slice is recorded immediately below. The branch is not
+merged or published as a release. Preserve all existing historical handoff material.
+
+## First implementation slice — employee custody dashboard — 2026-10-23
+
+Reviewing the published baseline identified an explicit next-slice candidate in
+the v0.7.187 handoff: employees lacked a direct home-dashboard entry/status summary
+for their own equipment allocation and pending custody movements.
+
+The branch adds a **My assigned equipment** card to the existing department home
+dashboard only when the current user passes the existing
+`can_view_custody_review` read gate. It counts current `Asset.custodian_user`
+assignments and pending `AssetTransfer` handoffs/returns involving that user,
+then links to the existing personal-scope custody review
+`/gso/inventory/custody/?scope=mine`. It adds no assignment mutation, permission
+grant, notification, clearance decision, new model, or migration. The new
+`DynamicDepartmentDashboardTests.test_employee_home_shows_own_custody_counts_only_with_explicit_read_access`
+regression checks the exact counts/link and that the card is absent without the
+explicit read permission.
+
+Changed files:
+- `departments/services/dashboard_service.py`
+- `departments/tests.py`
+- `AGENTS.md`, `CONTINUE.md`, and `docs/TESTING_AND_EVIDENCE_POLICY.md` for the
+  risk-based verification policy and current handoff.
+
+Validation status: no local application tests were executed because the execution
+container could not resolve `github.com` to clone the checkout. The original hosted
+run [39881303729](https://github.com/tepong32/grand/actions/runs/39881303729) failed
+the `security` job after `pip-audit` found 44 advisories across certifi, Pillow
+and pypdf. That failure is preserved as the original dependency-gate finding.
+After the pins were updated, exact-head run
+[39881577162](https://github.com/tepong32/grand/actions/runs/39881577162) completed
+successfully for commit `202ce5cdc0551c37135a517b43a2fac669426a8e`: the security
+audit, all SQLite shards, all native MySQL shards, and both aggregate verification
+jobs passed. This hosted result validates that exact branch revision; it does not
+replace local execution or establish Finance/operational acceptance. No migration,
+Finance calculation, ledger behavior, authorization grant, or CI gate changed.
+Finance remains NO-GO; no deployment or production operation is authorized.
+
+## Security audit follow-up — 2026-10-23
+
+The failed hosted `security` job's `python -m pip_audit -r requirements.txt`
+reported 44 known vulnerabilities in three pinned dependencies:
+- `certifi==2024.8.30`, with the reported fix version `2026.10.19`;
+- `pillow==12.3.0`, with the reported fix version `13.0.0`;
+- `pypdf==6.19.0`, with reported fixes through `6.21.1`.
+
+The repository dependency file is updated to the specific release pins
+`certifi==2026.10.19`, `pillow==13.0.0`, and `pypdf==6.21.2`. The pypdf pin
+uses the newer upstream release dated 2026-10-21, which includes additional
+security hardening. Evidence: [Certifi release history](https://pypi.org/project/certifi/),
+[Pillow 13.0.0 release notes](https://pillow.readthedocs.io/en/stable/releasenotes/),
+and [pypdf 6.21.2 release notes](https://pypdf.readthedocs.io/en/stable/meta/CHANGELOG.html).
+This is a candidate remediation only until the exact revised hosted security audit
+passes. Full SQLite/native regression remains mandatory; do not treat an updated
+version string as proof of compatibility or security.
+
+Next action: inspect the exact-revision hosted CI result. If it fails, preserve
+the failed run and diagnose the actual cause; if it passes, review the resulting
+diff and choose one next bounded task. Do not merge this draft PR or publish a
+release without explicit review/approval and all required gates.
+
+---
+
 ## Publication review remediation — 2026-10-18
 
 The wider goal was resumed through the interface and `get_goal` verified ACTIVE.

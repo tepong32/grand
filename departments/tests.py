@@ -3,8 +3,10 @@ from django.contrib.auth.models import Permission
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from assistance.models import AssistanceRequest, AssistanceType
+from inventory.models import Asset, AssetTransfer
 from .models import Department, InternalHowTo, InternalHowToStep, InternalHowToStepCompletion
 from .services import DEFAULT_DASHBOARD_TEMPLATE, get_department_home_context
 from .services.internal_howtos import set_step_completion, visible_internal_how_tos
@@ -136,6 +138,61 @@ class DynamicDepartmentDashboardTests(TestCase):
         self.assertContains(response, "Inventory register")
         self.assertContains(response, "Property issuance")
         self.assertNotContains(response, "Leave administration")
+
+    def test_employee_home_shows_own_custody_counts_only_with_explicit_read_access(self):
+        employee = self.users["hr"]
+        gso_user = self.users["gso"]
+        hr_department = self.departments["hr"]
+        gso_department = self.departments["gso"]
+
+        assigned = Asset.objects.create(
+            department_id=gso_department.pk,
+            department_label=gso_department.name,
+            asset_name="Assigned test laptop",
+            assigned_department_id=hr_department.pk,
+            assigned_department_label=hr_department.name,
+            assigned_office=hr_department.name,
+            custodian_user=employee,
+            created_by=gso_user,
+        )
+        incoming = Asset.objects.create(
+            department_id=gso_department.pk,
+            department_label=gso_department.name,
+            asset_name="Incoming test monitor",
+            created_by=gso_user,
+        )
+        AssetTransfer.objects.create(
+            asset=incoming,
+            destination_department_id=hr_department.pk,
+            destination_department_label=hr_department.name,
+            destination_custodian=employee.get_full_name(),
+            destination_custodian_user=employee,
+            transfer_date=timezone.localdate(),
+            reason="Synthetic dashboard regression",
+            requested_by=gso_user,
+        )
+
+        permission = Permission.objects.get(
+            content_type__app_label="inventory",
+            codename="view_asset",
+        )
+        self.client.force_login(employee)
+        response = self.client.get(reverse("department_dashboard"))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "My assigned equipment")
+
+        employee.user_permissions.add(permission)
+        response = self.client.get(reverse("department_dashboard"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "My assigned equipment")
+        self.assertContains(response, "/gso/inventory/custody/?scope=mine")
+        section = next(
+            item for item in response.context["dashboard_sections"]
+            if item.get("title") == "My assigned equipment"
+        )
+        summary = {item["label"]: item["value"] for item in section["summary_items"]}
+        self.assertEqual(summary, {"Assigned to me": 1, "Awaiting my response": 1})
+        self.assertEqual(assigned.custodian_user_id, employee.pk)
 
     def test_accounting_employee_gets_accounting_workspace(self):
         response = self._dashboard_for("acctg")
