@@ -23,25 +23,35 @@ def _configure_django():
         django.setup()
 
 
+def _private_message(update):
+    """Never inspect credentials or echo account data outside a private chat."""
+    chat = getattr(update, "effective_chat", None)
+    chat_id = getattr(chat, "id", None)
+    if (getattr(chat, "type", None) != "private"
+            or type(chat_id) is not int or chat_id <= 0):
+        return None
+    return getattr(update, "effective_message", None)
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    message = update.effective_message
+    message = _private_message(update)
     if message is None:
         return
 
     await message.reply_text(
         "Hello! To link your assistance request, reply with:\n\n"
-        "`your-refcode::editcode`\n\n"
-        "Example:\n`MSWD-01-2025-0001::123456`\n\n"
+        "`your-refcode::private-token`\n\n"
+        "Use the token at the end of your current private access link. Six-digit codes are no longer accepted.\n\n"
         "If you'd like to unlink this account later, send `/unlink`.",
         parse_mode="Markdown"
     )
 
 
 async def unlink(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    message = update.effective_message
-    chat = update.effective_chat
-    if message is None or chat is None:
+    message = _private_message(update)
+    if message is None:
         return
+    chat = update.effective_chat
 
     updated = await sync_to_async(unlink_chat_requests)(chat.id)
     if updated:
@@ -51,17 +61,17 @@ async def unlink(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    message = update.effective_message
-    chat = update.effective_chat
-    if message is None or chat is None:
+    message = _private_message(update)
+    if message is None:
         return
+    chat = update.effective_chat
 
     try:
         text = (message.text or "").strip()
         parsed = parse_assistance_link_payload(text)
         if not parsed:
             await message.reply_text(
-                "Invalid format. Send `reference::editcode`.",
+                "Invalid format. Send `reference::private-token`.",
                 parse_mode="Markdown"
             )
             return
@@ -72,7 +82,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await message.reply_text("Request not found or already claimed.")
             return
 
-        await sync_to_async(link_chat_to_request)(request_obj, chat_id=chat.id)
+        request_obj = await sync_to_async(link_chat_to_request)(
+            request_obj, chat_id=chat.id, chat_type=chat.type, access_token=edit_code)
         await message.reply_text(
             f"Linked successfully to *{request_obj.full_name}*.\n\n"
             "You will now receive status updates via Telegram.",

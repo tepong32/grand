@@ -1,46 +1,9 @@
 {% extends "base.html" %}
-{% load assistance_extras %}
-{% block title_ext %} - Track Request{% endblock %}
-
-{% block content %}
-<div class="container py-5">
-  <div class="row justify-content-center">
-    <div class="col-lg-8">
-      <div class="card shadow-sm rounded-4 p-4">
-        <h3 class="mb-4 text-center">Track Your Request</h3>
-
-        <p><strong>📌 Reference Code:</strong> {{ request_obj.reference_code }}</p>
-        {% comment %} removed for requester's privacy {% endcomment %}
-        {% comment %} <p><strong>👤 Name:</strong> {{ request_obj.full_name }}</p> {% endcomment %}
-        <p><strong>📅 Submitted:</strong> {{ request_obj.submitted_at|date:"F d, Y H:i" }}</p>
-        <p><strong>📌 Current Status:</strong> {{ request_obj.status_display|default:"Pending" }}</p>
-
-        {% if documents %}
-        <hr>
-        <h6>📂 Submitted Documents</h6>
-        <ul class="list-group">
-          {% for doc in documents %}
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-              <a href="{{ doc.file.url }}" target="_blank">{{ doc.file.name|basename }}</a>
-              <span class="text-muted small">{{ doc.uploaded_at|date:"M d, Y H:i" }}</span>
-            </li>
-          {% endfor %}
-        </ul>
-        {% endif %}
-
-        {% if logs %}
-        <hr>
-        <h6>📜 Activity Logs</h6>
-        <ul class="list-group small">
-          {% for log in logs %}
-            <li class="list-group-item">
-              <strong>{{ log.timestamp|date:"M d, Y H:i" }}:</strong> {{ log.message }}
-            </li>
-          {% endfor %}
-        </ul>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-</div>
-{% endblock %}
+{% block title_ext %} - Request status{% endblock %}
+{% block content %}<div class="container py-5"><div class="card p-4 mx-auto" style="max-width: 600px;">
+<h1 class="h4">Request status</h1>
+<p><strong>Reference code:</strong> {{ reference_code }}</p>
+<p><strong>Status:</strong> {{ status_display }}</p>
+<p>Details and documents are private. Use the link in your email to open your request.</p>
+<a class="btn btn-outline-primary" href="{% url 'assistance:assistance_landing' %}#renew-link">Get a new private link</a>
+</div></div>{% endblock %}

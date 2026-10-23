@@ -9,7 +9,7 @@ from django.db.models import Count, Prefetch, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 from django_ratelimit.decorators import ratelimit
 from telegram import Bot
@@ -385,3 +385,12 @@ def send_telegram_update(chat_id, message):
         bot.send_message(chat_id=chat_id, text=message, parse_mode="Markdown")
     except Exception:
         return
+
+
+@login_required
+@mswd_required
+@require_GET
+def mswd_document_download(request, doc_id):
+    from assistance.files import document_response
+    doc = get_object_or_404(RequestDocument, pk=doc_id, is_removed=False, request__is_active=True)
+    return document_response(doc)

@@ -13,7 +13,9 @@ Existing operational objects stay authoritative in their original app:
 
 The Records registry stores a typed association to these objects. It does not copy their files. A new `RecordFile` is created only when an employee uploads a genuinely separate department file. Each new file is validated, size-recorded, and assigned a SHA-256 checksum.
 
-This split prevents two “official” copies from silently diverging while still giving records custodians a department-wide register.
+This split avoids duplicate generated outputs while giving records custodians a
+department-wide register. A link to a mutable Assistance attachment remains a
+reference to its current file, not an immutable copy of the original submission.
 
 ## Lifecycle
 
@@ -45,6 +47,65 @@ Department heads/OICs and superusers receive equivalent authority within the sam
 ## Controlled download and audit behavior
 
 Downloads do not expose media paths directly. GRAND checks department, confidentiality, download permission, active-file state, and disposition status, then records the actor, time, record state, file/source identity, and checksum where available.
+
+For separately uploaded `RecordFile` documents, the download also requires the
+retained SHA-256 and size, a safe path beneath the configured filesystem storage
+root, and the owning record's UUID namespace. The original department folder is
+retained across department-slug renames; it does not grant cross-office access.
+The shared `src.file_integrity` function checks and rewinds the same open handle
+that is passed to `FileResponse`. Inventory's existing strict row API remains
+compatible. No integrity baseline is invented for legacy or altered metadata.
+
+Missing, modified, unsafe or unverifiable uploads return an unavailable-document
+404 before any successful-download event. A valid response retains attachment
+filename/type/length handling and adds `Cache-Control: private, no-store`. The
+existing event describes a verified download starting, not proof of delivery or
+client receipt. Verification or audit failures close the opened file. Approved,
+archived and superseded records retain the same visibility rules; disposed records
+remain denied. No permission, retention, approval or financial workflow changes.
+
+This checked-upload path requires a qualified local filesystem storage root.
+Other storage backends fail closed pending their own integrity/recovery design.
+Reading and streaming one handle prevents an unchecked reopen; it does not make
+storage immutable against concurrent in-place writes. Protected storage and
+production recovery qualification remain operational requirements. Linked
+operational sources use the distinct retained-metadata contract below. Neither
+route grants access to an original operational workspace or changes its export
+permissions. No Finance readiness or formal acceptance follows from these tests.
+Uploads still use the existing `MEDIA_ROOT`; the development URL configuration
+serves media when DEBUG is enabled. This endpoint check does not protect a known
+file URL served directly by a web server. Excluding confidential Records uploads
+from unauthenticated media serving and qualifying their storage/recovery remain
+explicit production blockers; no deployment configuration or file migration is
+performed by this change.
+
+### Linked source files
+
+The download route rechecks the record's native visibility/download permission and
+the source's current owning department. A report uses its definition owner; a
+voucher uses its configuration-release owner; Assistance retains its existing MSWD
+ownership rule. A missing or changed owner makes the source unavailable, including
+its current label and source/download links on the Records detail page. Existing
+record identity, association and audit history remain intact. This does not grant
+or require new Finance permissions; Records archive access and source-workspace
+access remain distinct.
+
+| Source | Integrity evidence used | Retained meaning |
+| --- | --- | --- |
+| Report output | Source SHA-256; an `official_source` must also match exactly one original report-filing event and its checksum | Original filed bytes remain readable after report supersession. Department/report slug renames do not rename or invalidate stored files. Missing or ambiguous filing evidence fails closed. |
+| Voucher output | Source SHA-256 and case/output-type/version path | Official or retained superseded outputs are readable; shadow outputs and missing release ownership are denied. No regeneration, posting or print acknowledgement is inferred. |
+| Assistance document | Safe `assistance_docs/` or retained legacy `assistance_uploads/` path; its model retains no checksum or size | This is the current replaceable attachment. Removed/missing files are unavailable. No old content, recorded integrity baseline or immutable filed copy is invented. Existing file paths/bytes are not migrated. |
+
+All three paths reject filesystem escapes and redirected directories, stream one
+opened handle, and use private/no-store responses. Checksum-bearing outputs must
+match their retained checksum before a download-start event. The event retains its
+association identity and records the verified checksum, or null for the current
+Assistance attachment. `X-GRAND-File-Integrity` distinguishes `sha256-verified` and
+`not-recorded`; the employee page explains the replaceable Assistance reference in
+plain language. An unrecorded baseline is not a successful integrity verification.
+Failed path/content/ownership checks create no successful-download event; audit
+failures close the opened source. These checks do not certify source workflow
+approval, complete financial evidence, production storage or legal retention.
 
 The append-only event view records creation, file additions, review transitions, approvals, retention changes, downloads, archival, supersession, and disposition. Database administrators should protect this history with the same backup and access controls as the source records.
 

@@ -7,7 +7,6 @@ import logging
 
 from departments.models import Department, Plantilla
 from profiles.services.file_service import (
-    normalize_department_memo,
     resize_image,
     temp_memo_path,
     uploaded_images_directory_path,
@@ -150,10 +149,8 @@ class EmployeeProfile(models.Model):
         # Resize only the profile image, not the memo
         resize_image(self.profile_image)
 
-        # Rename memo if it exists making sure it uses the new assiged department name
-        normalized_memo = normalize_department_memo(self)
-        if normalized_memo:
-            super().save(update_fields=['assigned_department_memo'])
+        # A profile edit must not rename or delete retained assignment evidence.
+        # New memo filenames are assigned once by the upload callable.
 
 
 class CitizenProfile(models.Model):

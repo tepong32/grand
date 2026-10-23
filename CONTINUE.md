@@ -1,3 +1,62 @@
+## Phase B P1 checkpoint — 2026-10-23
+
+Resume in `C:/Users/Administrator/.codex/worktrees/grand-p1-20261023-2408aa82de6e`,
+branch `codex/phase-b-p1-remediation-20261023`, base
+`04b25bf7b1c18a1d3932596597ba629e240ba252`. The original 48-file candidate,
+its evidence and original worktrees remain unchanged. The user requested a
+checkpoint commit after the focused native run, then a remote branch push for
+another device, and a pause. No master merge, release, tag or deployment.
+
+[Remediation design, actual evidence and remaining gates](docs/PHASE_B_P1_REMEDIATION_2026-10-23.md):
+citizen edits/document writes serialize on the current default-store request and
+save only permitted fields; Telegram credential handling rejects non-private
+chats before parsing, with fresh authority checked again at binding.
+Fresh focused SQLite PASS 22 /10 native race skips; native PASS 32/32 with all
+10 races executed and zero skips. Same 1,491-file source/helper fingerprint:
+`694a0b0ba89e3371e05c776c5e564f2f69b9682b938f80daca6774030c2ccd42`.
+Exact command arrays, identities, log hashes, helper snapshots and source manifests
+are portable in `docs/evidence/phase-b-p1-2026-10-23/`; original recovery data is
+not published. Native owned server stopped and source template remained unchanged.
+
+DEFERRED by the user's pause: expanded Assistance/Records/Profiles/Reporting/auth/
+GSO/dashboard regression on SQLite and native. NOT RUN: full-project/hosted CI,
+browser/production storage/logging/recovery or operational/LGU acceptance. Telegram
+delivery remains unchanged/nonfunctional; qualify associations and deny legacy
+destinations before any repair could enable sending. Do not infer qualification
+from a successful private binding. Both P1 fixes have focused evidence; broader
+acceptance and integration readiness remain pending. Finance remains NO-GO.
+
+Next session: restore helpers from the portable evidence if needed, run the
+recorded expanded scope on disposable stores, then perform a separate readiness
+review. Do not begin Phase C or integration without explicit authorization.
+
+---
+
+## Phase B private-file reconciliation — 2026-10-23
+
+Local branch `codex/reconcile-private-file-access-20261023`, based on exact
+`04b25bf7b1c18a1d3932596597ba629e240ba252`. G5/G6 only, reconciled as a patch;
+no commit, tag, publication or deployment. Master's custody card/test and testing
+policy remain unchanged. The existing handoff/history below is preserved.
+
+[Scope, complete file inventory, assumptions and fresh evidence](docs/PHASE_B_PRIVATE_ACCESS_RECONCILIATION_2026-10-23.md)
+is authoritative for this local slice. Initial Records PASS 32/32 before the
+additional alternate-stream rejection. Final affected SQLite PASS: 291 executed,
+288 passed/3 native-only skips, 73.495s. Same native MySQL scope PASS 291/291,
+zero skips, 86.599s. Five mocked Telegram cases pass within each expanded run.
+Both test aliases destroyed; owned server stopped/port closed; original native
+system-only template and both operator DB hashes unchanged. No operator migration.
+The rejected-path red probe and diagnostic exception mismatch remain recorded.
+
+Candidate fingerprint (1,461 runtime/test/dependency files):
+`315642c5b1f3be812aceb93aefe8d183a594fd00aa21af7e9810ceb17655a865`.
+Tests cover this uncommitted source, not a new commit or hosted CI revision.
+Full-project/hosted CI, new browser/production storage/recovery and formal
+acceptance are unperformed. Review Phase B, then wait for explicit direction;
+do not start Phase C or another feature group. Finance remains NO-GO.
+
+---
+
 # GRAND continuation handoff
 
 ## Current reconciliation checkpoint — 2026-10-23

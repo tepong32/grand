@@ -20,3 +20,6 @@ from .staff import (
 )
 
 submit_request = submit_assistance_view
+
+from .public import citizen_document
+from .staff import mswd_document_download

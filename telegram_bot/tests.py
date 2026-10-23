@@ -11,7 +11,7 @@ class TelegramBotHandlerTests(SimpleTestCase):
     def make_update(self, text=None, chat_id=12345):
         message = Mock(text=text)
         message.reply_text = AsyncMock()
-        return Mock(effective_message=message, effective_chat=Mock(id=chat_id)), message
+        return Mock(effective_message=message, effective_chat=Mock(id=chat_id, type="private")), message
 
     def test_application_registers_current_async_handlers(self):
         application = build_application("123456:synthetic-token")
@@ -29,7 +29,7 @@ class TelegramBotHandlerTests(SimpleTestCase):
         async_to_sync(start)(update, None)
 
         message.reply_text.assert_awaited_once()
-        self.assertIn("your-refcode::editcode", message.reply_text.await_args.args[0])
+        self.assertIn("your-refcode::private-token", message.reply_text.await_args.args[0])
 
     @patch("telegram_bot.bot_handler.unlink_chat_requests", return_value=1)
     def test_unlink_uses_effective_chat(self, unlink_requests):
@@ -53,11 +53,13 @@ class TelegramBotHandlerTests(SimpleTestCase):
     def test_valid_link_message_connects_request(self, find_request, link_request):
         request_obj = Mock(full_name="Synthetic Citizen")
         find_request.return_value = request_obj
-        update, message = self.make_update(text="MSWD-TEST-001::654321", chat_id=24680)
+        link_request.return_value = request_obj
+        update, message = self.make_update(text="MSWD-TEST-001::synthetic-signed-token", chat_id=24680)
 
         async_to_sync(handle_message)(update, None)
 
-        find_request.assert_called_once_with("MSWD-TEST-001", "654321")
-        link_request.assert_called_once_with(request_obj, chat_id=24680)
+        find_request.assert_called_once_with("MSWD-TEST-001", "synthetic-signed-token")
+        link_request.assert_called_once_with(request_obj, chat_id=24680,
+                                             chat_type="private", access_token="synthetic-signed-token")
         message.reply_text.assert_awaited_once()
         self.assertIn("Linked successfully", message.reply_text.await_args.args[0])

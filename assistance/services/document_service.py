@@ -3,6 +3,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from assistance.models import CitizenRequest, RequestDocument, RequestTimeline
+from .access_service import locked_request_for_mutation
 from .file_validation import validate_uploaded_file
 
 
@@ -42,15 +43,15 @@ class DocumentService:
         document_type: str,
         uploaded_file,
         created_by=None,
+        access_token=None,
     ) -> RequestDocument:
         if document_type not in {k for k, _ in RequestDocument.DOCUMENT_TYPE_CHOICES}:
             raise DocumentServiceError("Invalid document type.")
 
         validate_uploaded_file(uploaded_file)
-        _assert_request_allows_document_changes(request_obj)
-
         old_name = None
-        with transaction.atomic():
+        with locked_request_for_mutation(request_obj=request_obj, token=access_token) as request_obj:
+            _assert_request_allows_document_changes(request_obj)
             doc = (
                 RequestDocument.objects.select_for_update()
                 .filter(
@@ -93,8 +94,8 @@ class DocumentService:
                     created_by=created_by,
                 )
 
-        if old_name:
-            _delete_stored_file_if_needed(old_name)
+            if old_name:
+                transaction.on_commit(lambda: _delete_stored_file_if_needed(old_name))
 
         return doc
 
@@ -105,10 +106,10 @@ class DocumentService:
         request_obj: CitizenRequest,
         document_id: int,
         created_by=None,
+        access_token=None,
     ) -> RequestDocument:
-        _assert_request_allows_document_changes(request_obj)
-
-        with transaction.atomic():
+        with locked_request_for_mutation(request_obj=request_obj, token=access_token) as request_obj:
+            _assert_request_allows_document_changes(request_obj)
             doc = (
                 RequestDocument.objects.select_for_update()
                 .filter(

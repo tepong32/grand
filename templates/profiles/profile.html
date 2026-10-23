@@ -38,6 +38,10 @@
         <hr>
         <strong><i class="mr-1"></i>Member since {{ viewed_user.date_joined|date:"F Y" }}</strong>
 
+        {% if can_view_sensitive_profile and viewed_user.employeeprofile.assigned_department_memo %}
+          <p class="mt-3"><a href="{% url 'profile-department-memo' viewed_user.username %}" target="_blank" rel="noopener">Open department assignment memo</a></p>
+        {% endif %}
+
         {% if request.user.is_staff or request.user == viewed_user %}
           <hr>
           <button class="btn btn-outline-info btn-sm mb-2" type="button" data-toggle="collapse" data-target="#log-section">

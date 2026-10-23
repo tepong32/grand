@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.conf.urls.static import static
+from src.media import serve_development_media
 from django.contrib import admin
 from django.contrib.auth import views as auth_views     # for auths for logins and logouts
 from django.urls import path, include, reverse_lazy
@@ -82,4 +83,4 @@ urlpatterns = [
      ### allauth
     path('accounts/', include('allauth.urls')),
 
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT) + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+] + static(settings.MEDIA_URL, view=serve_development_media) + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

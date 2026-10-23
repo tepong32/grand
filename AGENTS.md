@@ -84,6 +84,20 @@ owns these accepted choices; do not ask them again.
 
 ## Project context and documentation map
 
+Private-file reconciliation: shared filesystem downloads use `src/file_integrity.py`
+and the original source authority; current legacy Assistance attachments and memos
+retain explicit missing-baseline status rather than invented checksums. Citizen
+access uses expiring request-scoped private links, with registered-email recovery;
+legacy PINs do not authorize access. Production storage and legacy external
+associations require separate operational qualification. See the
+[Phase B scope and validation](docs/PHASE_B_PRIVATE_ACCESS_RECONCILIATION_2026-10-23.md).
+
+Citizen mutations acquire the default-store request write lock before reading
+current credentials/eligibility; citizen forms write only name, email and phone.
+Document changes share that owning lock before document locks. Telegram credential
+binding requires a private chat; a binding is not notification qualification.
+See [P1 remediation and exact evidence](docs/PHASE_B_P1_REMEDIATION_2026-10-23.md).
+
 Asset-cost worksheets divide explicit documentary amounts, not official valuation.
 Retain accepted receipt/source evidence, exact component quantities/units/amounts,
 allocation basis and independent explicitly authorized Accounting review. No

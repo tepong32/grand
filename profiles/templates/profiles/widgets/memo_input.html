@@ -1,0 +1,7 @@
+{% if widget.is_initial and not widget.required %}
+  <div class="form-check mb-2">
+    <input class="form-check-input" type="checkbox" name="{{ widget.checkbox_name }}" id="{{ widget.checkbox_id }}"{% if widget.attrs.disabled %} disabled{% endif %}{% if widget.attrs.checked %} checked{% endif %}>
+    <label class="form-check-label" for="{{ widget.checkbox_id }}">Remove current memo</label>
+  </div>
+{% endif %}
+<input type="{{ widget.type }}" name="{{ widget.name }}"{% include "django/forms/widgets/attrs.html" %}>

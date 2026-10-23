@@ -10,7 +10,7 @@
         <h3 class="mb-4 text-center">Step 2: Upload Supporting Documents</h3>
 
         <p><strong>📌 Reference Code:</strong> {{ request_obj.reference_code }}</p>
-        <p><strong>🔑 Edit Code:</strong> {{ request_obj.edit_code }}</p>
+        <p class="text-muted">This private link expires after {{ private_link_days }} days. Keep it private; anyone with it can open this request.</p>
 
         {% if request_obj.status == 'approved' or request_obj.claimed_at %}
           <div class="alert alert-info">
@@ -39,7 +39,7 @@
                 {% for key, label in document_form.fields.document_type.choices %}
                   {% if key %}
                     <option value="{{ key }}" {% if key in locked_types %}disabled data-locked="1"{% endif %}>
-                      {{ label }}{% if key in locked_types %} (Already Approved){% endif %}
+                      {{ label }}{% if key in locked_types %} (Awaiting review or approved){% endif %}
                     </option>
                   {% endif %}
                 {% endfor %}
@@ -63,16 +63,16 @@
             <ul class="list-group">
               {% for doc in documents %}
                 <li class="list-group-item">
-                  <div class="d-flex justify-content-between align-items-start">
-                    <div class="me-3" style="width: 100%;">
-                      <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                          <a href="{{ doc.file.url }}" target="_blank">
-                            {{ doc.get_document_type_display }} ({{ doc.file.name }})
+                  <div class="d-flex flex-wrap gap-3 align-items-start">
+                    <div style="flex: 1 1 12rem; min-width: 0;">
+                      <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center">
+                        <div class="text-break">
+                          <a href="{% url 'assistance:citizen_document' edit_code=access_token doc_id=doc.pk %}" target="_blank">
+                            {{ doc.get_document_type_display }} ({{ doc.file.name|basename }})
                           </a>
                           <div class="text-muted small">{{ doc.uploaded_at|date:"M d, Y H:i" }}</div>
                         </div>
-                        <span class="badge bg-{{ doc.status }}">{{ doc.get_status_display }}</span>
+                        <span class="badge bg-secondary">{{ doc.get_status_display }}</span>
                       </div>
 
                       {% if doc.remarks %}
@@ -82,7 +82,7 @@
                       {% endif %}
 
                       {% if not request_obj.claimed_at and request_obj.status != 'approved' %}
-                        <form method="POST" class="delete-form d-inline-block mt-2" data-doc-id="{{ doc.id }}" data-edit-code="{{ request_obj.edit_code }}">
+                        <form method="POST" class="delete-form d-inline-block mt-2" data-doc-id="{{ doc.id }}" data-access-token="{{ access_token }}">
                           {% csrf_token %}
                           <button type="submit" class="btn btn-sm btn-outline-danger btn-delete-doc">
                             <i class="fas fa-trash-alt"></i> Delete
@@ -92,8 +92,8 @@
                     </div>
 
                     {% if doc.file.name|file_is_image %}
-                      <a href="{{ doc.file.url }}" target="_blank">
-                        <img src="{{ doc.file.url }}" alt="preview" class="rounded" style="max-width: 100px; max-height: 100px; object-fit: cover;">
+                      <a href="{% url 'assistance:citizen_document' edit_code=access_token doc_id=doc.pk %}" target="_blank">
+                        <img src="{% url 'assistance:citizen_document' edit_code=access_token doc_id=doc.pk %}" alt="preview" class="rounded" style="max-width: 100px; max-height: 100px; object-fit: cover;">
                       </a>
                     {% endif %}
                   </div>
@@ -143,7 +143,7 @@
       const formData = new FormData(uploadForm);
       const csrfToken = uploadForm.querySelector('[name=csrfmiddlewaretoken]').value;
 
-      fetch("{% url 'assistance:upload_document_ajax' edit_code=request_obj.edit_code %}", {
+      fetch("{% url 'assistance:upload_document_ajax' edit_code=access_token %}", {
         method: "POST",
         headers: {
           'X-CSRFToken': csrfToken,
@@ -153,7 +153,13 @@
       })
       .then(response => response.json())
       .then(data => {
-        feedback.innerHTML = `<div class="alert alert-${data.status}">${data.message}</div>`;
+        feedback.textContent = data.message;
+        if (data.access_unavailable) {
+          const renewLink = document.createElement('a');
+          renewLink.href = "{% url 'assistance:assistance_landing' %}#renew-link";
+          renewLink.textContent = 'Email a new private link';
+          feedback.append(document.createElement('br'), renewLink);
+        }
         if (data.status === 'success') {
           uploadForm.reset();
           setTimeout(() => location.reload(), 1500);
@@ -170,7 +176,7 @@
       form.addEventListener('submit', function(e) {
         e.preventDefault();
         const docId = this.dataset.docId;
-        const editCode = this.dataset.editCode;
+        const accessToken = this.dataset.accessToken;
         const csrfToken = this.querySelector('input[name=csrfmiddlewaretoken]').value;
 
         if (!confirm("Are you sure you want to delete this document?")) return;
@@ -184,7 +190,7 @@
           body: new URLSearchParams({
             'csrfmiddlewaretoken': csrfToken,
             'doc_id': docId,
-            'edit_code': editCode
+            'access_token': accessToken
           })
         })
         .then(response => response.json())
