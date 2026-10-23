@@ -1,5 +1,30 @@
 # GRAND continuation handoff
 
+
+## Risk-based testing policy — 2026-10-23
+
+This branch adds the repository-wide policy in
+[docs/TESTING_AND_EVIDENCE_POLICY.md](docs/TESTING_AND_EVIDENCE_POLICY.md) and
+links it from [AGENTS.md](AGENTS.md). The goal is to reduce redundant local
+verification while keeping evidence trustworthy and preserving every required
+hosted CI, native MySQL, security, Finance, integration, and release gate.
+
+The policy requires a per-change risk classification; focused tests first;
+dependent/broader tests when impact warrants; evidence reuse only when exact
+source, tests/assertions, dependencies/runtime, schema/backend and environment
+assumptions remain unchanged; and explicit reporting of passes, failures, skips,
+cancellations, deferred checks and unavailable environments. SQLite skips do not
+count as native MySQL passes. Any proposal to alter hosted CI policy must be
+separate, measured, coverage-proven and explicitly approved. Finance remains
+NO-GO; no deployment or production operation is authorized.
+
+Change scope is documentation-only. No application tests were run for this
+documentation edit; review the rendered Markdown, links and diff, then let the
+required branch/PR CI report its actual result. This branch is not merged or
+published as a release. Preserve all existing handoff history below.
+
+---
+
 ## Publication review remediation — 2026-10-18
 
 The wider goal was resumed through the interface and `get_goal` verified ACTIVE.
