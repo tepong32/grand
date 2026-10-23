@@ -12,13 +12,15 @@ This confirms the post-merge CI checkpoint; it does not establish Finance or
 operational acceptance. No release tag or deployment was created. Finance remains
 NO-GO for production, and eGAPS remains untouched.
 
-Next planned work: formalize the repository's existing risk-based testing policy
-into a practical Codex session protocol. Use focused tests matched to each change
-and its risk, broaden coverage when dependencies or blast radius require it, and
-reuse evidence only while all relevant assumptions remain unchanged. Do not weaken
-mandatory hosted CI, native MySQL, security, Finance acceptance, integration, or
-release gates. The policy itself is
-[docs/TESTING_AND_EVIDENCE_POLICY.md](docs/TESTING_AND_EVIDENCE_POLICY.md).
+The practical Codex session protocol is now documented in
+[docs/TESTING_AND_EVIDENCE_POLICY.md](docs/TESTING_AND_EVIDENCE_POLICY.md#codex-session-protocol)
+and linked from [AGENTS.md](AGENTS.md). It directs Codex to inspect the current
+handoff and diff, classify risk, run focused checks first, expand testing when
+dependencies or uncertainty require it, reuse only demonstrably valid evidence,
+preserve mandatory gates, and record exact outcomes and remaining checks here.
+This changes instructions only; no application code, tests, dependencies, CI
+workflows, release tags or deployments were changed by this documentation update.
+Finance remains NO-GO for production, and eGAPS remains untouched.
 
 
 ## Risk-based testing policy — 2026-10-23
