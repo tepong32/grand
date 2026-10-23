@@ -46,17 +46,18 @@ Changed files:
   risk-based verification policy and current handoff.
 
 Validation status: no local application tests were executed because the execution
-container could not resolve `github.com` to clone the checkout. The hosted run
-[39881303729](https://github.com/tepong32/grand/actions/runs/39881303729) for the
-prior application-code head failed its `security` job: `pip-audit` found 44
-advisories affecting three pinned packages (certifi, Pillow and pypdf). This is a
-real dependency-gate failure, not evidence of an application regression. Its
-remaining jobs are not acceptance evidence for the later handoff commit or a
-release. The next section records the evidence-based pin update; rerun the complete
-required exact-revision CI and verify both the dependency audit and application
-regressions before acceptance. No migration, Finance calculation, ledger behavior,
-authorization grant, or CI gate changed. Finance remains NO-GO; no deployment or
-production operation is authorized.
+container could not resolve `github.com` to clone the checkout. The original hosted
+run [39881303729](https://github.com/tepong32/grand/actions/runs/39881303729) failed
+the `security` job after `pip-audit` found 44 advisories across certifi, Pillow
+and pypdf. That failure is preserved as the original dependency-gate finding.
+After the pins were updated, exact-head run
+[39881577162](https://github.com/tepong32/grand/actions/runs/39881577162) completed
+successfully for commit `202ce5cdc0551c37135a517b43a2fac669426a8e`: the security
+audit, all SQLite shards, all native MySQL shards, and both aggregate verification
+jobs passed. This hosted result validates that exact branch revision; it does not
+replace local execution or establish Finance/operational acceptance. No migration,
+Finance calculation, ledger behavior, authorization grant, or CI gate changed.
+Finance remains NO-GO; no deployment or production operation is authorized.
 
 ## Security audit follow-up — 2026-10-23
 
