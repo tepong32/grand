@@ -1,5 +1,25 @@
 # GRAND continuation handoff
 
+## Current reconciliation checkpoint — 2026-10-23
+
+PR [#118](https://github.com/tepong32/grand/pull/118) was squash-merged into
+`master`. Merge commit: `da28b21230e4f73adc0fd7b02026fa611501644d`.
+Post-merge hosted workflow
+[run #186](https://github.com/tepong32/grand/actions/runs/39903961121)
+completed successfully on that exact commit: all 19 jobs passed, including
+security, eight SQLite shards, eight native MySQL shards, `verify`, and `mysql`.
+This confirms the post-merge CI checkpoint; it does not establish Finance or
+operational acceptance. No release tag or deployment was created. Finance remains
+NO-GO for production, and eGAPS remains untouched.
+
+Next planned work: formalize the repository's existing risk-based testing policy
+into a practical Codex session protocol. Use focused tests matched to each change
+and its risk, broaden coverage when dependencies or blast radius require it, and
+reuse evidence only while all relevant assumptions remain unchanged. Do not weaken
+mandatory hosted CI, native MySQL, security, Finance acceptance, integration, or
+release gates. The policy itself is
+[docs/TESTING_AND_EVIDENCE_POLICY.md](docs/TESTING_AND_EVIDENCE_POLICY.md).
+
 
 ## Risk-based testing policy — 2026-10-23
 
@@ -18,9 +38,12 @@ count as native MySQL passes. Any proposal to alter hosted CI policy must be
 separate, measured, coverage-proven and explicitly approved. Finance remains
 NO-GO; no deployment or production operation is authorized.
 
-The original policy-documentation edit was documentation-only. A subsequent
-bounded GSO implementation slice is recorded immediately below. The branch is not
-merged or published as a release. Preserve all existing historical handoff material.
+The policy and bounded GSO implementation were merged into `master` via PR
+[#118](https://github.com/tepong32/grand/pull/118). The current post-merge
+reconciliation checkpoint is recorded at the top of this handoff. The historical
+branch-specific validation notes below are retained as history, not as current
+status. No release or deployment was performed. Preserve all other historical
+handoff material.
 
 ## First implementation slice — employee custody dashboard — 2026-10-23
 
@@ -77,10 +100,11 @@ This is a candidate remediation only until the exact revised hosted security aud
 passes. Full SQLite/native regression remains mandatory; do not treat an updated
 version string as proof of compatibility or security.
 
-Next action: inspect the exact-revision hosted CI result. If it fails, preserve
-the failed run and diagnose the actual cause; if it passes, review the resulting
-diff and choose one next bounded task. Do not merge this draft PR or publish a
-release without explicit review/approval and all required gates.
+Historical next-action note superseded by PR #118 merge and post-merge run
+#186, which passed on the resulting master commit. Preserve the original failed
+security run and exact-head evidence above as audit history; use the current
+checkpoint at the top of this handoff for present status. No release or deployment
+was performed.
 
 ---
 
