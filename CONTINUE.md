@@ -18,10 +18,47 @@ count as native MySQL passes. Any proposal to alter hosted CI policy must be
 separate, measured, coverage-proven and explicitly approved. Finance remains
 NO-GO; no deployment or production operation is authorized.
 
-Change scope is documentation-only. No application tests were run for this
-documentation edit; review the rendered Markdown, links and diff, then let the
-required branch/PR CI report its actual result. This branch is not merged or
-published as a release. Preserve all existing handoff history below.
+The original policy-documentation edit was documentation-only. A subsequent
+bounded GSO implementation slice is recorded immediately below. The branch is not
+merged or published as a release. Preserve all existing historical handoff material.
+
+## First implementation slice — employee custody dashboard — 2026-10-23
+
+Reviewing the published baseline identified an explicit next-slice candidate in
+the v0.7.187 handoff: employees lacked a direct home-dashboard entry/status summary
+for their own equipment allocation and pending custody movements.
+
+The branch adds a **My assigned equipment** card to the existing department home
+dashboard only when the current user passes the existing
+`can_view_custody_review` read gate. It counts current `Asset.custodian_user`
+assignments and pending `AssetTransfer` handoffs/returns involving that user,
+then links to the existing personal-scope custody review
+`/gso/inventory/custody/?scope=mine`. It adds no assignment mutation, permission
+grant, notification, clearance decision, new model, or migration. The new
+`DynamicDepartmentDashboardTests.test_employee_home_shows_own_custody_counts_only_with_explicit_read_access`
+regression checks the exact counts/link and that the card is absent without the
+explicit read permission.
+
+Changed files:
+- `departments/services/dashboard_service.py`
+- `departments/tests.py`
+- `AGENTS.md`, `CONTINUE.md`, and `docs/TESTING_AND_EVIDENCE_POLICY.md` for the
+  risk-based verification policy and current handoff.
+
+Validation status: no local application tests were executed because the execution
+container could not resolve `github.com` to clone the checkout. Do not infer a
+local pass. Hosted PR run
+[39881303729](https://github.com/tepong32/grand/actions/runs/39881303729) was
+observed queued/in progress for exact head
+`864fdbfe2953d8907c7320de9bc750be1f1b0325`; its terminal outcome must be checked
+before this slice is accepted or any further implementation begins. No migration,
+Finance calculation, ledger behavior, authorization grant, or CI gate changed.
+Finance remains NO-GO; no deployment or production operation is authorized.
+
+Next action: inspect the exact-revision hosted CI result. If it fails, preserve
+the failed run and diagnose the actual cause; if it passes, review the resulting
+diff and choose one next bounded task. Do not merge this draft PR or publish a
+release without explicit review/approval and all required gates.
 
 ---
 
