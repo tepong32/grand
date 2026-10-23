@@ -31,6 +31,16 @@ gates remain mandatory. Report passed, failed, deferred, skipped and unavailable
 checks accurately with reasons; investigate failures without weakening gates.
 Propose costly CI-policy duplication separately, with evidence, not inside a feature.
 
+For every Codex implementation session, follow the actionable
+[testing session protocol](docs/TESTING_AND_EVIDENCE_POLICY.md#codex-session-protocol):
+inspect the current handoff and actual diff; classify risk before testing; run
+focused checks first; expand when dependencies, uncertainty or critical boundaries
+require it; reuse only demonstrably valid evidence; and record exact outcomes and
+remaining gates in CONTINUE.md. Do not rerun broad suites mechanically after every
+small edit, but do not defer required Finance/native-MySQL, security, integration,
+release or acceptance checks. Never alter CI gates as a feature-level shortcut.
+
+
 Make routine implementation decisions independently. Consolidate owner decisions in
 the existing [decision log](docs/IMPLEMENTATION_DECISIONS.md), using stable
 `DECISION-FIN/GSO/UX/OPS-NNN` identifiers. Each open entry records the question,
