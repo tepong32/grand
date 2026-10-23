@@ -195,6 +195,38 @@ def _workspace_sections(department: Department, user=None) -> list[dict]:
                 item["url_name"] = destination
     from inventory.templatetags.inventory_access import inventory_navigation
     inventory_links = inventory_navigation(user)
+
+    # Surface an employee's own recorded equipment and pending custody movements
+    # on their home dashboard. Reuse the exact read gate and scope of the custody
+    # review; this is navigation/status only, not an allocation or clearance action.
+    if getattr(user, "is_authenticated", False):
+        from inventory.custody_review import can_view_custody_review
+        if can_view_custody_review(user):
+            from inventory.models import Asset, AssetTransfer
+
+            assigned_count = Asset.objects.filter(custodian_user=user).count()
+            pending_count = AssetTransfer.objects.filter(
+                status=AssetTransfer.PENDING,
+            ).filter(
+                Q(destination_custodian_user=user)
+                | Q(kind=AssetTransfer.RETURN, source_custodian_user=user)
+            ).count()
+            result.append({
+                "icon": "fa-laptop",
+                "title": "My assigned equipment",
+                "description": (
+                    "Review equipment recorded in your custody and handoffs or "
+                    "returns waiting for your response. This is not an employment "
+                    "clearance decision."
+                ),
+                "status": "Available",
+                "url": "/gso/inventory/custody/?scope=mine",
+                "action_label": "Review my equipment",
+                "summary_items": (
+                    {"label": "Assigned to me", "value": assigned_count},
+                    {"label": "Awaiting my response", "value": pending_count},
+                ),
+            })
     for label, key, destination in (
         ("Inventory register", "assets", "inventory:asset-list"),
         ("Consumables", "stock", "inventory:consumable-list"),
