@@ -46,14 +46,35 @@ Changed files:
   risk-based verification policy and current handoff.
 
 Validation status: no local application tests were executed because the execution
-container could not resolve `github.com` to clone the checkout. Do not infer a
-local pass. Hosted PR run
-[39881303729](https://github.com/tepong32/grand/actions/runs/39881303729) was
-observed queued/in progress for exact head
-`864fdbfe2953d8907c7320de9bc750be1f1b0325`; its terminal outcome must be checked
-before this slice is accepted or any further implementation begins. No migration,
-Finance calculation, ledger behavior, authorization grant, or CI gate changed.
-Finance remains NO-GO; no deployment or production operation is authorized.
+container could not resolve `github.com` to clone the checkout. The hosted run
+[39881303729](https://github.com/tepong32/grand/actions/runs/39881303729) for the
+prior application-code head failed its `security` job: `pip-audit` found 44
+advisories affecting three pinned packages (certifi, Pillow and pypdf). This is a
+real dependency-gate failure, not evidence of an application regression. Its
+remaining jobs are not acceptance evidence for the later handoff commit or a
+release. The next section records the evidence-based pin update; rerun the complete
+required exact-revision CI and verify both the dependency audit and application
+regressions before acceptance. No migration, Finance calculation, ledger behavior,
+authorization grant, or CI gate changed. Finance remains NO-GO; no deployment or
+production operation is authorized.
+
+## Security audit follow-up — 2026-10-23
+
+The failed hosted `security` job's `python -m pip_audit -r requirements.txt`
+reported 44 known vulnerabilities in three pinned dependencies:
+- `certifi==2024.8.30`, with the reported fix version `2026.10.19`;
+- `pillow==12.3.0`, with the reported fix version `13.0.0`;
+- `pypdf==6.19.0`, with reported fixes through `6.21.1`.
+
+The repository dependency file is updated to the specific release pins
+`certifi==2026.10.19`, `pillow==13.0.0`, and `pypdf==6.21.2`. The pypdf pin
+uses the newer upstream release dated 2026-10-21, which includes additional
+security hardening. Evidence: [Certifi release history](https://pypi.org/project/certifi/),
+[Pillow 13.0.0 release notes](https://pillow.readthedocs.io/en/stable/releasenotes/),
+and [pypdf 6.21.2 release notes](https://pypdf.readthedocs.io/en/stable/meta/CHANGELOG.html).
+This is a candidate remediation only until the exact revised hosted security audit
+passes. Full SQLite/native regression remains mandatory; do not treat an updated
+version string as proof of compatibility or security.
 
 Next action: inspect the exact-revision hosted CI result. If it fails, preserve
 the failed run and diagnose the actual cause; if it passes, review the resulting
