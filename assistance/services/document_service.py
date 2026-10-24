@@ -1,3 +1,5 @@
+import logging
+
 from django.core.files.storage import default_storage
 from django.db import transaction
 from django.utils import timezone
@@ -30,8 +32,10 @@ def _delete_stored_file_if_needed(name: str | None) -> None:
         return
     try:
         default_storage.delete(name)
-    except OSError:
-        pass
+    except Exception:
+        # Cleanup must not turn an already committed replacement into a failure
+        # or cause the new current file to be removed by rollback compensation.
+        logging.getLogger(__name__).error("Attachment cleanup failed; storage recovery review required.")
 
 
 class DocumentService:
@@ -49,53 +53,47 @@ class DocumentService:
             raise DocumentServiceError("Invalid document type.")
 
         validate_uploaded_file(uploaded_file)
-        old_name = None
-        with locked_request_for_mutation(request_obj=request_obj, token=access_token) as request_obj:
-            _assert_request_allows_document_changes(request_obj)
-            doc = (
-                RequestDocument.objects.select_for_update()
-                .filter(
-                    request=request_obj,
-                    document_type=document_type,
-                    is_removed=False,
-                )
-                .first()
-            )
-            if doc:
-                _assert_document_is_mutable(doc)
-                old_name = doc.file.name if doc.file else None
-                doc.file = uploaded_file
-                doc.status = "pending"
-                doc.remarks = doc.remarks or ""
-                doc.replacement_count = (doc.replacement_count or 0) + 1
-                doc.save(update_fields=["file", "status", "remarks", "replacement_count"])
-                RequestTimeline.objects.create(
-                    request=request_obj,
-                    event_type="document_replaced" if old_name else "document_uploaded",
-                    message=(
-                        f"Supporting document ({document_type}) uploaded."
-                        if not old_name
-                        else f"Supporting document ({document_type}) replaced."
-                    ),
-                    created_by=created_by,
-                )
-            else:
-                doc = RequestDocument.objects.create(
-                    request=request_obj,
-                    document_type=document_type,
-                    file=uploaded_file,
-                    status="pending",
-                    remarks="",
-                )
-                RequestTimeline.objects.create(
-                    request=request_obj,
-                    event_type="document_uploaded",
-                    message=f"Supporting document ({document_type}) uploaded.",
-                    created_by=created_by,
-                )
-
-            if old_name:
-                transaction.on_commit(lambda: _delete_stored_file_if_needed(old_name))
+        doc, old_name = None, None
+        try:
+            with locked_request_for_mutation(request_obj=request_obj, token=access_token) as request_obj:
+                _assert_request_allows_document_changes(request_obj)
+                doc = RequestDocument.objects.select_for_update().filter(
+                    request=request_obj, document_type=document_type).first()
+                if doc:
+                    old_name = doc.file.name if doc.file else None
+                    was_removed = doc.is_removed
+                    if not was_removed:
+                        _assert_document_is_mutable(doc)
+                    doc.file = uploaded_file
+                    doc.status = "pending"
+                    doc.remarks = doc.remarks or ""
+                    doc.is_removed = False
+                    doc.removed_at = None
+                    doc.replacement_count = (doc.replacement_count or 0) + 1
+                    doc.save(update_fields=["file", "status", "remarks", "replacement_count",
+                                            "is_removed", "removed_at"])
+                    event_type = "document_uploaded" if was_removed else "document_replaced"
+                    message = f"Supporting document ({document_type}) {'uploaded again after removal' if was_removed else 'replaced'}."
+                else:
+                    # Keep the object available for compensating storage cleanup
+                    # if the database insert or timeline write fails after save().
+                    doc = RequestDocument(request=request_obj, document_type=document_type,
+                                          file=uploaded_file, status="pending", remarks="")
+                    doc.save()
+                    event_type = "document_uploaded"
+                    message = f"Supporting document ({document_type}) uploaded."
+                RequestTimeline.objects.create(request=request_obj, event_type=event_type,
+                                               message=message, created_by=created_by)
+                if old_name:
+                    transaction.on_commit(lambda: _delete_stored_file_if_needed(old_name))
+        except Exception:
+            # Authorization/eligibility failures occur before assigning a new
+            # file. Later failures roll back rows and remove only the new stored
+            # object, never the retained original. No immutable baseline is made.
+            if (doc is not None and doc.file and doc.file._committed
+                    and doc.file.name != old_name):
+                _delete_stored_file_if_needed(doc.file.name)
+            raise
 
         return doc
 

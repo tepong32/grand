@@ -31,6 +31,8 @@ def find_request_by_reference(ref_code, edit_code):
 def link_chat_to_request(request_obj, chat_id, *, chat_type, access_token):
     if chat_type != "private" or type(chat_id) is not int or chat_id <= 0:
         raise ValueError("A private chat is required.")
+    if not isinstance(access_token, str) or not access_token:
+        raise Http404("Private link unavailable.")
     with locked_request_for_mutation(request_obj=request_obj, token=access_token) as current:
         if current.claimed_at is not None:
             raise ValueError("Request unavailable.")

@@ -3,7 +3,7 @@ from io import BytesIO
 
 from django.contrib import messages
 from django.core.validators import validate_email
-from django.core.exceptions import ValidationError
+from django.core.exceptions import NON_FIELD_ERRORS, ValidationError
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -151,7 +151,8 @@ def _edit_request_response(request, req, edit_code):
         messages.error(request, _("Please fix the errors."))
     context.update(form=form, document_form=RequestDocumentForm(), step=2,
                    locked_types=[d.document_type for d in context["documents"] if d.status in {"approved", "pending"}])
-    return render(request, "assistance/edit_request.html", context)
+    status = 400 if form.has_error(NON_FIELD_ERRORS, "forbidden_fields") else 200
+    return render(request, "assistance/edit_request.html", context, status=status)
 
 
 @require_GET

@@ -1,3 +1,44 @@
+## Secure Phase B checkpoint — 2026-10-24
+
+Current isolated clone: `C:/Users/Administrator/.codex/worktrees/grand-secure-phase-b-20261024-6ea2569a2637`,
+branch `codex/secure-phase-b-20261024`, parent `5600a554b5f2333b089a7a9b168a8e93c5e44580`.
+Original 48-file Phase B candidate, P1 workspace/evidence, recovery archive,
+operator databases, original worktrees/refs/stashes remain preserved.
+
+[Final implementation, evidence, VM procedure and Finance next step](docs/PHASE_B_SECURITY_CHECKPOINT_2026-10-24.md).
+Citizen mutation locking/current authority remains; forbidden fields now reject
+rather than silently ignore. Document failure cleanup/re-upload respects the
+existing identity and original evidence. Unsupported private storage returns
+unavailable before opening. Private Telegram binding requires a real token;
+both staff callers use an explicit deny-all delivery gate. Binding or settings
+cannot qualify a destination; no async/real delivery is enabled.
+
+Fresh focused SQLite PASS 32 /10 native-only skips (42 discovered). Affected
+native PASS 328/328, zero skips, including all ten deterministic races, shared
+access/authorization and the original own-custody dashboard regression. Both
+aliases destroyed; owned native server stopped; source template unchanged.
+AST 1,121 files /whitespace PASS. Frozen 1,499-file source/helper fingerprint:
+`35c8b18b6584e6701249cc875d20d68453f7ac2789cf58da56038aaeb55a3c53`.
+Portable evidence: `docs/evidence/phase-b-security-2026-10-24/`.
+
+The installed VM release CLI proposes a version bump/tag, prohibited here. Use
+only its existing `GitService.commit` helper with the reviewed explicit paths,
+parent/tree/message to create a tag-free checkpoint; no VERSION/CHANGELOG, master
+merge, tag or deployment. This is a checkpoint, not an accepted VM release.
+The owner's explicit checkpoint review/acceptance is still required. The active
+goal must not begin Finance before that acceptance; pause/resume stays user-controlled.
+
+After acceptance: reconcile preserved canonical Finance v112 (`ce0c7243...`) and
+unmatched v188-v210 history against the accepted security baseline before choosing
+implementation. The current Finance roadmap's next functional milestone is an
+evidence-backed Form 1 numerical treatment via its existing source-finding route;
+verify it against that reconciled state, never infer acceptance from old notes.
+No Finance implementation occurred in this security session. Full-project/hosted
+CI, browser/production storage/logging/recovery and LGU acceptance remain NOT RUN.
+Finance remains NO-GO. Historical checkpoints below retain their original scope.
+
+---
+
 ## Phase B P1 checkpoint — 2026-10-23
 
 Resume in `C:/Users/Administrator/.codex/worktrees/grand-p1-20261023-2408aa82de6e`,

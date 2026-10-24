@@ -97,6 +97,10 @@ current credentials/eligibility; citizen forms write only name, email and phone.
 Document changes share that owning lock before document locks. Telegram credential
 binding requires a private chat; a binding is not notification qualification.
 See [P1 remediation and exact evidence](docs/PHASE_B_P1_REMEDIATION_2026-10-23.md).
+Privileged/unknown citizen fields are rejected. Telegram notification delivery is
+explicitly disabled for every current association until a reviewed qualification
+contract exists; neither chat IDs, private binding nor settings enable it. See
+[the secure checkpoint](docs/PHASE_B_SECURITY_CHECKPOINT_2026-10-24.md).
 
 Asset-cost worksheets divide explicit documentary amounts, not official valuation.
 Retain accepted receipt/source evidence, exact component quantities/units/amounts,

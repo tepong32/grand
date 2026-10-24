@@ -88,3 +88,10 @@ class PrivateChatBindingTests(TestCase):
             link_chat_to_request(self.req, 123, chat_type="private", access_token=self.token)
         self.req.refresh_from_db()
         self.assertIsNone(self.req.telegram_chat_id)
+
+    def test_missing_token_cannot_fall_back_to_internal_snapshot_authority(self):
+        for token in (None, "", False):
+            with self.subTest(token=token), self.assertRaises(Http404):
+                link_chat_to_request(self.req, 123, chat_type="private", access_token=token)
+        self.req.refresh_from_db()
+        self.assertIsNone(self.req.telegram_chat_id)

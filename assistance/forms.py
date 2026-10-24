@@ -57,6 +57,15 @@ class AssistanceRequestEditForm(forms.ModelForm):
         model = AssistanceRequest
         fields = ['full_name', 'email', 'phone', ]  # example
 
+    def clean(self):
+        cleaned = super().clean()
+        if set(self.data) - set(self.Meta.fields) - {"csrfmiddlewaretoken"}:
+            raise forms.ValidationError(
+                "Only your name, email and phone can be changed here.",
+                code="forbidden_fields",
+            )
+        return cleaned
+
 
 class CitizenReviewForm(forms.ModelForm):
     class Meta:

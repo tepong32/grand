@@ -86,7 +86,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             request_obj, chat_id=chat.id, chat_type=chat.type, access_token=edit_code)
         await message.reply_text(
             f"Linked successfully to *{request_obj.full_name}*.\n\n"
-            "You will now receive status updates via Telegram.",
+            "Telegram notifications are not enabled. Use your private web link to check updates.",
             parse_mode="Markdown"
         )
     except Exception as exc:

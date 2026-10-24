@@ -48,10 +48,8 @@ class CitizenMutationFixture:
 
 
 class CitizenMutationTests(CitizenMutationFixture, TestCase):
-    def test_allowed_edit_ignores_workflow_and_ownership_fields(self):
-        response = self.client.post(self.url, {**self.payload, "status": "approved",
-            "claimed_at": "2026-01-01", "is_active": "False", "edit_code": "000000",
-            "citizen": "123", "assistance_type": "999", "telegram_chat_id": "123"})
+    def test_allowed_edit_changes_only_contact_fields(self):
+        response = self.client.post(self.url, self.payload)
         self.assertEqual(response.status_code, 302)
         self.req.refresh_from_db()
         self.assertEqual(self.req.full_name, self.payload["full_name"])
@@ -63,6 +61,17 @@ class CitizenMutationTests(CitizenMutationFixture, TestCase):
         self.assertIsNone(self.req.telegram_chat_id)
         self.assertEqual(self.req.edit_code, "123456")
         self.assertEqual(self.req.assistance_type_id, self.kind.pk)
+
+    def test_workflow_ownership_and_unknown_fields_reject_the_entire_edit(self):
+        for name, value in {"status": "approved", "claimed_at": "2026-01-01",
+                "is_active": "False", "edit_code": "000000", "citizen": "123",
+                "citizen_id": "123", "assistance_type": "999", "telegram_chat_id": "123",
+                "approved_at": "2026-01-01", "remarks": "staff decision", "is_staff": "True"}.items():
+            with self.subTest(field=name):
+                before = AssistanceRequest.objects.values().get(pk=self.req.pk)
+                response = self.client.post(self.url, {**self.payload, name: value})
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(AssistanceRequest.objects.values().get(pk=self.req.pk), before)
 
     def test_denied_edit_preserves_approved_claimed_and_revoked_states(self):
         claimed = timezone.now()

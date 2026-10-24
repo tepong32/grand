@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from django_ratelimit.decorators import ratelimit
-from telegram import Bot
+from telegram_bot.services.notification_service import send_telegram_update
 
 from assistance.decorators import mswd_required
 from assistance.access import (
@@ -299,7 +299,7 @@ def mswd_request_detail_view(request, ref_code):
                     f"• Remarks: _{remarks or 'None'}_\n\n"
                     f"• Reference Code: `{assistance_request.reference_code}`"
                 )
-                send_telegram_update(assistance_request.telegram_chat_id, msg)
+                send_telegram_update(assistance_request, msg)
 
             messages.success(request, "Status and remarks updated. Email sent to requester.")
 
@@ -354,7 +354,7 @@ def mswd_update_document_ajax(request, doc_id):
                 f"• Remarks: _{new_remarks or 'None'}_\n\n"
                 f"• Reference Code: `{document.request.reference_code}`"
             )
-            send_telegram_update(document.request.telegram_chat_id, msg)
+            send_telegram_update(document.request, msg)
 
         return JsonResponse({"success": True})
     except Exception as exc:
@@ -374,17 +374,6 @@ def mswd_printable_view(request, ref_code):
             "documents": documents,
         },
     )
-
-
-def send_telegram_update(chat_id, message):
-    if not chat_id or not message:
-        return
-
-    try:
-        bot = Bot(token=settings.TELEGRAM_BOT_TOKEN)
-        bot.send_message(chat_id=chat_id, text=message, parse_mode="Markdown")
-    except Exception:
-        return
 
 
 @login_required

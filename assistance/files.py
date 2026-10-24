@@ -21,7 +21,7 @@ def document_response(document):
     try:
         validate_document_file(document.file)
         source = document.file.open("rb")
-    except (OSError, ValueError, RuntimeError, ValidationError):
+    except (OSError, ValueError, RuntimeError, ValidationError, NotImplementedError, AttributeError):
         raise Http404("Attachment unavailable.") from None
     # Preserve image/PDF previews without serving arbitrary upload declarations
     # as executable HTML/SVG on this origin. Inline content is also sandboxed.

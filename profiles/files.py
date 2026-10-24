@@ -32,7 +32,7 @@ def memo_response(memo):
         response['Referrer-Policy'] = 'no-referrer'
         response['X-GRAND-File-Integrity'] = 'not-recorded'
         return response
-    except (OSError, ValueError, RuntimeError, ValidationError):
+    except (OSError, ValueError, RuntimeError, ValidationError, NotImplementedError, AttributeError):
         if source is not None:
             source.close()
         raise Http404('Memo unavailable.') from None

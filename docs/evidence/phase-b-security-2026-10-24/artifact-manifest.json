@@ -1,0 +1,110 @@
+{
+  "parent": "5600a554b5f2333b089a7a9b168a8e93c5e44580",
+  "source_fingerprint": "35c8b18b6584e6701249cc875d20d68453f7ac2789cf58da56038aaeb55a3c53",
+  "files": {
+    "AGENTS.md": {
+      "size": 47161,
+      "sha256": "911b7abb49e2c059a874f8c0026da5437bc270ab739375c7b247ccff605a60ce"
+    },
+    "CONTINUE.md": {
+      "size": 271508,
+      "sha256": "7a77b2ad294ca5b5154cdd8429c624ae22318970e237a481938e915e3f138ad5"
+    },
+    "assistance/files.py": {
+      "size": 2792,
+      "sha256": "7e8c39fadd7cb88a596c80b47fb8171d9dad84d37a78b2f93d7ebb1078cc5301"
+    },
+    "assistance/forms.py": {
+      "size": 3498,
+      "sha256": "463d16d51de6d7201e901aeec0af0718081ce1530c8d44144e01f5f85765e8c1"
+    },
+    "assistance/services/document_service.py": {
+      "size": 5767,
+      "sha256": "97a24e8cdc72f7daa4ff519031521dc18b452a008e51a7428571f25d5ee29f56"
+    },
+    "assistance/test_citizen_mutations.py": {
+      "size": 9827,
+      "sha256": "0d9362c5a2ffaf8dce548ba41097f9ce55daf4f4c2fa7ebf05981026d2d97883"
+    },
+    "assistance/test_security_coordination.py": {
+      "size": 8208,
+      "sha256": "066543f8825bc36a6bf17959b05a6df33be581e06b49237f01dce8cb0737937f"
+    },
+    "assistance/views/public.py": {
+      "size": 14272,
+      "sha256": "86857d97602f2e0aefce28415548587f256317c2022ff7161e7fbdeb11d33514"
+    },
+    "assistance/views/staff.py": {
+      "size": 15591,
+      "sha256": "048cb3baa637400d7381559aefa23c4fde9f7c28d508ccb1390fa42c8d803092"
+    },
+    "docs/PHASE_B_SECURITY_CHECKPOINT_2026-10-24.md": {
+      "size": 9422,
+      "sha256": "c82bf4eaf34a5e594272f52fcc095436cd69c8b2971a1b4af4aaf8393f4c60f3"
+    },
+    "docs/evidence/phase-b-security-2026-10-24/README.md": {
+      "size": 2050,
+      "sha256": "bf4a028b3cceaab66f62b96de231790f1ab39beff83e13d31b8fda6284326b7d"
+    },
+    "docs/evidence/phase-b-security-2026-10-24/affected-native-01.raw.gz": {
+      "size": 28193,
+      "sha256": "0c707c6a2ea26b0d769a17435d0390274659441b7c0111783eee522fd2ebd8eb"
+    },
+    "docs/evidence/phase-b-security-2026-10-24/affected-native-01.receipt.json": {
+      "size": 40060,
+      "sha256": "4015c177ce02fe390a68686baafd4e59e4fca5603e7454903006267399e28df3"
+    },
+    "docs/evidence/phase-b-security-2026-10-24/affected-native-01.source.json": {
+      "size": 174685,
+      "sha256": "ae96ac1119494c25e382d3d96e91669d8551280da4f65ca02891490024e40a24"
+    },
+    "docs/evidence/phase-b-security-2026-10-24/environment.json": {
+      "size": 481,
+      "sha256": "54873d288e821d9f3e0ee5685737f086f026a673f9d43fe3b2e5e79187a55936"
+    },
+    "docs/evidence/phase-b-security-2026-10-24/focused-sqlite-01.raw.gz": {
+      "size": 5848,
+      "sha256": "782b50dd109059552b8a147f3953870a7bef39c9fb07f1c64c6ea8bd5f64ecf2"
+    },
+    "docs/evidence/phase-b-security-2026-10-24/focused-sqlite-01.receipt.json": {
+      "size": 9028,
+      "sha256": "daa8abb67d6f4a4e9db26a3b4f273a09dcdce6b27320374f45580ca8dfa956f4"
+    },
+    "docs/evidence/phase-b-security-2026-10-24/focused-sqlite-01.source.json": {
+      "size": 174685,
+      "sha256": "ae96ac1119494c25e382d3d96e91669d8551280da4f65ca02891490024e40a24"
+    },
+    "docs/evidence/phase-b-security-2026-10-24/native-owner-result.json": {
+      "size": 255,
+      "sha256": "f5449e87bfa68d45ae4f7834a13cab585f61d58985ca4f0dc7eeacb40761a3c8"
+    },
+    "docs/evidence/phase-b-security-2026-10-24/verification-helpers.json": {
+      "size": 14513,
+      "sha256": "630b8da95ed119b7b114ce34e3e2cfd83b2e6c9cb58e487c56a29fa33141a1de"
+    },
+    "docs/evidence/phase-b-security-2026-10-24/vm-preview.json": {
+      "size": 1056,
+      "sha256": "ad854006231c82bfe57817670cf4fc0a5c27ef4444be1e1b5a85ae20cc06f9f9"
+    },
+    "profiles/files.py": {
+      "size": 1903,
+      "sha256": "a766e12bcf6fb9afaa8d133dfb1415ed9c906f471f32177bd0d9399d715a36bd"
+    },
+    "telegram_bot/bot_handler.py": {
+      "size": 4284,
+      "sha256": "e0e0c83319d9c8810f1551dac4c12a5a7ec1a757d36277a7895a7a4d9ca27708"
+    },
+    "telegram_bot/services/message_service.py": {
+      "size": 1682,
+      "sha256": "881ec00e42e57ba368fca82e268b4d960252914ad5b7161083b75f1467eceabb"
+    },
+    "telegram_bot/services/notification_service.py": {
+      "size": 545,
+      "sha256": "9fb162a48a9e5f26e39a0c8b3fc22f4bf3d95d3c8d0888cf5e6943e01422ad28"
+    },
+    "telegram_bot/test_private_chats.py": {
+      "size": 5251,
+      "sha256": "e2504bb3ccc41f23bea690408dd0958ad982b949e8b066284659672d521ccbd8"
+    }
+  }
+}
