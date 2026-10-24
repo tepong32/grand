@@ -1,0 +1,606 @@
+{
+  "operation": "quick local tracked and nonignored intended-content review; values never emitted",
+  "text_files_scanned": 1960,
+  "skipped": {
+    "binary_or_database": 478,
+    "over_4MiB": 2
+  },
+  "findings": [
+    {
+      "path": "accounting/test_period_close.py",
+      "line": 61,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "accounting/tests.py",
+      "line": 97,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "assistance/test_security_coordination.py",
+      "line": 97,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "assistance/tests_citizen_reviews.py",
+      "line": 29,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "assistance/tests_citizen_reviews.py",
+      "line": 36,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "assistance/tests_citizen_reviews.py",
+      "line": 41,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "assistance/tests_citizen_reviews.py",
+      "line": 48,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "budget/tests.py",
+      "line": 330,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "departments/tests.py",
+      "line": 94,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "departments/tests.py",
+      "line": 345,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "finance/test_cutover.py",
+      "line": 104,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "finance/test_discovery.py",
+      "line": 48,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "finance/test_operations.py",
+      "line": 53,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "finance/test_setup_discovery_register.py",
+      "line": 99,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "finance/test_work_tasks.py",
+      "line": 107,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "finance/test_work_tasks.py",
+      "line": 1069,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "finance/test_work_tasks.py",
+      "line": 1273,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "finance/test_work_tasks.py",
+      "line": 1594,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "finance/test_work_tasks.py",
+      "line": 2281,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "finance/test_work_tasks.py",
+      "line": 2547,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "finance/test_work_tasks.py",
+      "line": 2903,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "finance/test_work_tasks.py",
+      "line": 3188,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "finance/tests.py",
+      "line": 60,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "gso_integration_tests/test_destination.py",
+      "line": 31,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "gso_integration_tests/test_destination.py",
+      "line": 33,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "home/tests.py",
+      "line": 94,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "home/tests_production_preflight.py",
+      "line": 35,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "home/tests_production_preflight.py",
+      "line": 46,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "leave_mgt/tests.py",
+      "line": 26,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "leave_mgt/tests.py",
+      "line": 188,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "leave_mgt/tests.py",
+      "line": 228,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "leave_mgt/tests.py",
+      "line": 237,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "leave_mgt/tests.py",
+      "line": 242,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "leave_mgt/tests.py",
+      "line": 251,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "leave_mgt/tests.py",
+      "line": 253,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "output/playwright/grand-portfolio/seed_showcase.py",
+      "line": 48,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "profiles/tests.py",
+      "line": 213,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "profiles/tests.py",
+      "line": 228,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "records/tests.py",
+      "line": 35,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "records/tests.py",
+      "line": 36,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "records/tests.py",
+      "line": 37,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "records/tests.py",
+      "line": 38,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "records/tests.py",
+      "line": 39,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "reporting/test_accountability_packages.py",
+      "line": 83,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "reporting/test_cash_flows.py",
+      "line": 38,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "reporting/test_finance_reporting.py",
+      "line": 195,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "reporting/test_local_form_acceptance.py",
+      "line": 116,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "reporting/test_statement_notes.py",
+      "line": 101,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "reporting/test_template_promotions.py",
+      "line": 42,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "reporting/test_template_promotions.py",
+      "line": 43,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "reporting/test_template_promotions.py",
+      "line": 44,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "reporting/test_template_promotions.py",
+      "line": 46,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "reporting/tests.py",
+      "line": 47,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "reporting/tests.py",
+      "line": 48,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "reporting/tests.py",
+      "line": 49,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "reporting/tests.py",
+      "line": 50,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "reporting/tests.py",
+      "line": 51,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "social_welfare/tests.py",
+      "line": 26,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "social_welfare/tests.py",
+      "line": 29,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "social_welfare/tests.py",
+      "line": 32,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "social_welfare/tests.py",
+      "line": 35,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "static/admin-lte/plugins/bootstrap/js/bootstrap.bundle.min.js.map",
+      "line": 1,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "static/admin-lte/plugins/bootstrap/js/bootstrap.bundle.min.js.map",
+      "line": 1,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "static/admin-lte/plugins/bootstrap/js/bootstrap.bundle.min.js.map",
+      "line": 1,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "static/admin-lte/plugins/bootstrap/js/bootstrap.bundle.min.js.map",
+      "line": 1,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "static/admin-lte/plugins/bootstrap/js/bootstrap.bundle.min.js.map",
+      "line": 1,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "static/admin-lte/plugins/bootstrap/js/bootstrap.bundle.min.js.map",
+      "line": 1,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "static/admin-lte/plugins/bootstrap/js/bootstrap.bundle.min.js.map",
+      "line": 1,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "static/admin-lte/plugins/bootstrap/js/bootstrap.bundle.min.js.map",
+      "line": 1,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "telegram_bot/tests.py",
+      "line": 63,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "templates/home/authed/xxxxsampler_withChat.html",
+      "line": 191,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/test_batches_checkpoints.py",
+      "line": 27,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/test_batches_checkpoints.py",
+      "line": 30,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/test_batches_checkpoints.py",
+      "line": 33,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/test_controls.py",
+      "line": 33,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/test_controls.py",
+      "line": 34,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/test_controls.py",
+      "line": 35,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/test_controls.py",
+      "line": 36,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/test_controls.py",
+      "line": 37,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/test_controls.py",
+      "line": 38,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/test_credentials.py",
+      "line": 22,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/test_credentials.py",
+      "line": 23,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/test_credentials.py",
+      "line": 24,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/test_credentials.py",
+      "line": 25,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/test_handoffs.py",
+      "line": 24,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/test_handoffs.py",
+      "line": 28,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/test_handoffs.py",
+      "line": 32,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/test_handoffs.py",
+      "line": 36,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/test_views.py",
+      "line": 21,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/test_views.py",
+      "line": 22,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/test_views.py",
+      "line": 23,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/test_views.py",
+      "line": 24,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/test_views.py",
+      "line": 25,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/tests.py",
+      "line": 23,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/tests.py",
+      "line": 24,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/tests.py",
+      "line": 25,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/tests.py",
+      "line": 26,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/tests.py",
+      "line": 27,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "tracepoint/tests.py",
+      "line": 28,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "users/test_auth_security.py",
+      "line": 22,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "users/test_auth_security.py",
+      "line": 26,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "users/test_auth_security.py",
+      "line": 83,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "users/tests.py",
+      "line": 14,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "users/tests.py",
+      "line": 20,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "users/tests.py",
+      "line": 25,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "users/tests.py",
+      "line": 35,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "users/tests.py",
+      "line": 44,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "users/tests.py",
+      "line": 49,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "users/tests.py",
+      "line": 55,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "users/tests.py",
+      "line": 65,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "vouchers/test_advice_register.py",
+      "line": 24,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "vouchers/test_advice_register.py",
+      "line": 136,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "vouchers/test_cash_register.py",
+      "line": 31,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "vouchers/test_cash_register.py",
+      "line": 41,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "vouchers/test_cash_register.py",
+      "line": 337,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "vouchers/test_remittance_register.py",
+      "line": 93,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "vouchers/test_returned_instrument_register.py",
+      "line": 82,
+      "category": "literal-assignment"
+    },
+    {
+      "path": "vouchers/tests.py",
+      "line": 305,
+      "category": "literal-assignment"
+    }
+  ],
+  "limitations": [
+    "not full Git history",
+    "binary artifacts/databases excluded",
+    "ignored private operator data not read",
+    "heuristic review, not proof that every secret is absent"
+  ]
+}

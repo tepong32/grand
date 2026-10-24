@@ -43,8 +43,264 @@ from .services import (
 )
 
 
-class AnnualBudgetPreparationTests(TestCase):
+from .test_draft_integrity import BudgetDraftViewChecks
+
+
+class AnnualBudgetPreparationTests(BudgetDraftViewChecks, TestCase):
     databases = {"default", "finance"}
+
+    def assert_obligation_line_rejected(self, request, action, actor, message):
+        before = (request.status, request.state_version, request.obligation_number, request.snapshot_checksum,
+                  BudgetAuditEvent.objects.count(), list(ObligationMovement.objects.order_by('pk').values()))
+        with self.assertRaisesMessage(ValidationError, message):
+            transition_obligation_request(request, action, actor, 'Independent line validation review', 'OBR-LINE-BLOCKED')
+        request.refresh_from_db()
+        self.assertEqual((request.status, request.state_version, request.obligation_number, request.snapshot_checksum,
+                          BudgetAuditEvent.objects.count(), list(ObligationMovement.objects.order_by('pk').values())), before)
+
+    def foreign_executable_authority(self):
+        authority = self.make_authorized_appropriation('1000', suffix='FOREIGN-LINE')
+        self.dated_allotment(authority, 'ARO-FOREIGN-LINE', 5, '1000')
+        return authority
+
+    def test_obligation_service_rejects_a_line_from_another_authorized_appropriation(self):
+        authority = self.make_executable_authority(amount='1000', release='1000')
+        foreign = self.foreign_executable_authority()
+        request = self.make_obligation_request(authority, total='100')
+        line = self.add_obligation_line(request, '100')
+        line.appropriation_line = foreign.schedule_lines.get()
+        line.save(update_fields=['appropriation_line'])
+        self.assert_obligation_line_rejected(request, 'submit', self.requester, 'exact authorized appropriation')
+
+    def test_obligation_service_rejects_a_line_owned_by_another_budget_office(self):
+        authority = self.make_executable_authority(amount='1000', release='1000')
+        request = self.make_obligation_request(authority, total='100')
+        line = self.add_obligation_line(request, '100')
+        line.department_id = self.other_office.pk
+        line.save(update_fields=['department_id'])
+        self.assert_obligation_line_rejected(request, 'submit', self.requester, 'same Budget office')
+
+    def test_obligation_service_rejects_zero_and_negative_line_amounts(self):
+        authority = self.make_executable_authority(amount='1000', release='1000')
+        self.dated_obligation(authority, 'LINE-AMOUNT-BASE', 15, '500')
+        for amount in ('0', '-100'):
+            with self.subTest(amount=amount):
+                request = self.make_obligation_request(authority, reference='INVALID-AMOUNT-' + amount, total=amount)
+                self.add_obligation_line(request, amount)
+                self.assert_obligation_line_rejected(request, 'submit', self.requester, 'greater than zero')
+
+    def test_original_obligation_cannot_reduce_an_unlinked_existing_obligation(self):
+        authority = self.make_executable_authority(amount='1000', release='1000')
+        original = self.dated_obligation(authority, 'LINE-UNLINKED-BASE', 15, '500')
+        before = list(original.movements.values())
+        request = self.make_obligation_request(authority, reference='UNLINKED-REDUCTION', total='-100')
+        self.add_obligation_line(request, '100', ObligationRequestLine.REDUCE)
+        self.assert_obligation_line_rejected(request, 'submit', self.requester, 'original request may only create')
+        self.assertEqual(list(original.movements.values()), before)
+
+    def test_obligation_service_rejects_unknown_line_movement_types(self):
+        authority = self.make_executable_authority(amount='1000', release='1000')
+        self.dated_obligation(authority, 'LINE-CHOICE-BASE', 15, '500')
+        request = self.make_obligation_request(authority, reference='UNKNOWN-LINE-TYPE', total='-100')
+        self.add_obligation_line(request, '100', 'unknown')
+        self.assert_obligation_line_rejected(request, 'submit', self.requester, 'valid choice')
+
+    def test_obligation_returns_and_cancellations_cannot_increase_the_linked_obligation(self):
+        authority = self.make_executable_authority(amount='1000', release='1000')
+        original = self.dated_obligation(authority, 'LINE-RETURN-BASE', 15, '500')
+        for kind in (ObligationRequest.RETURN, ObligationRequest.CANCELLATION):
+            with self.subTest(kind=kind):
+                request = self.make_obligation_request(authority, reference='INVALID-DIRECTION-' + kind,
+                    total='100', kind=kind, corrects=original)
+                self.add_obligation_line(request, '100', ObligationRequestLine.OBLIGATE)
+                self.assert_obligation_line_rejected(request, 'submit', self.requester, 'may only reduce')
+
+    def test_certification_rechecks_stored_line_office_before_any_financial_write(self):
+        authority = self.make_executable_authority(amount='1000', release='1000')
+        request = self.dated_obligation(authority, 'PENDING-LINE-OFFICE', 15, '100', certify=False)
+        request = transition_obligation_request(request, 'submit', self.requester)
+        # Deliberately invalid retained data: bypass draft editing to exercise the
+        # final writer's own validation, rather than relying on the form or save.
+        request.lines.update(department_id=self.other_office.pk)
+        self.assert_obligation_line_rejected(request, 'certify', self.certifier, 'same Budget office')
+
+    def test_certification_and_http_recheck_stored_line_authority(self):
+        authority = self.make_executable_authority(amount='1000', release='1000')
+        foreign = self.foreign_executable_authority()
+        request = self.dated_obligation(authority, 'PENDING-LINE-AUTHORITY', 15, '100', certify=False)
+        request = transition_obligation_request(request, 'submit', self.requester)
+        request.lines.update(appropriation_line=foreign.schedule_lines.get())
+        self.assert_obligation_line_rejected(request, 'certify', self.certifier, 'exact authorized appropriation')
+        self.client.force_login(self.certifier)
+        response = self.client.post(reverse('budget:obligation_action', args=(request.public_id, 'certify')),
+            {'reason': 'Independent line authority review', 'obligation_number': 'OBR-LINE-HTTP-BLOCKED'})
+        self.assertEqual(response.status_code, 302)
+        from django.contrib.messages import get_messages
+        self.assertTrue(any('exact authorized appropriation' in str(message) for message in get_messages(response.wsgi_request)))
+        request.refresh_from_db()
+        self.assertEqual(request.status, ObligationRequest.FOR_CERTIFICATION)
+        self.assertEqual(request.obligation_number, '')
+        self.assertFalse(request.movements.exists())
+
+    def test_valid_obligation_lines_keep_linked_corrections_and_original_history(self):
+        authority = self.make_executable_authority(amount='1000', release='1000')
+        original = self.dated_obligation(authority, 'VALID-LINE-BASE', 15, '200')
+        before = list(original.movements.values())
+        reduction = self.dated_obligation(authority, 'VALID-LINE-REDUCTION', 16, '-75', corrects=original)
+        increase = self.dated_obligation(authority, 'VALID-LINE-INCREASE', 17, '25', corrects=original)
+        for request in (original, reduction, increase):
+            self.assertEqual(request.status, ObligationRequest.CERTIFIED)
+            self.assertTrue(request.snapshot_checksum)
+            self.assertEqual(request.movements.count(), 1)
+        self.assertEqual(obligation_line_balance(authority.schedule_lines.get())['obligated'], Decimal('150'))
+        self.assertEqual(list(original.movements.values()), before)
+
+    def dated_allotment(self, authorization, number, day, amount, movement_type=AllotmentOrderLine.RELEASE,
+                        kind=AllotmentReleaseOrder.LATER, corrects=None, post=True):
+        order = self.make_allotment_order(authorization, number=number, total=str(amount), kind=kind, corrects=corrects)
+        order.release_date = order.effective_date = date(2027, 1, day)
+        order.save(update_fields=['release_date', 'effective_date'])
+        self.add_allotment_line(order, str(amount), movement_type)
+        if post:
+            order = transition_allotment_order(order, 'submit', self.preparer)
+            order = transition_allotment_order(order, 'post', self.authorizer, 'Independent synthetic dated source review')
+        return order
+
+    def dated_obligation(self, authorization, reference, day, amount, corrects=None, certify=True):
+        negative = Decimal(str(amount)) < 0
+        request = self.make_obligation_request(authorization, reference=reference, total=str(amount),
+            kind=ObligationRequest.RETURN if negative else
+                (ObligationRequest.ADJUSTMENT if corrects else ObligationRequest.ORIGINAL), corrects=corrects)
+        request.obligation_date = date(2027, 1, day)
+        request.save(update_fields=['obligation_date'])
+        self.add_obligation_line(request, str(abs(Decimal(str(amount)))),
+            ObligationRequestLine.REDUCE if negative else ObligationRequestLine.OBLIGATE)
+        if certify:
+            request = transition_obligation_request(request, 'submit', self.requester)
+            request = transition_obligation_request(request, 'certify', self.certifier,
+                'Independent synthetic dated obligation review', 'OBR-' + reference)
+        return request
+
+    def test_backdated_release_cannot_overrun_an_intermediate_appropriation_balance(self):
+        authority = self.make_authorized_appropriation('1000')
+        first = self.dated_allotment(authority, 'DATED-FIRST', 5, '800')
+        self.dated_allotment(authority, 'DATED-RETURN', 20, '800', AllotmentOrderLine.RETURN,
+            AllotmentReleaseOrder.RETURN, corrects=first)
+        order = self.dated_allotment(authority, 'DATED-BACK', 10, '500', post=False)
+        before = list(AllotmentMovement.objects.order_by('pk').values())
+        with self.assertRaisesMessage(ValidationError, '2027-01-10'):
+            transition_allotment_order(order, 'submit', self.preparer)
+        order.refresh_from_db()
+        self.assertEqual(order.status, AllotmentReleaseOrder.DRAFT)
+        self.assertEqual(list(AllotmentMovement.objects.order_by('pk').values()), before)
+
+    def test_backdated_hold_cannot_use_a_later_allotment_release(self):
+        authority = self.make_authorized_appropriation('1000')
+        self.dated_allotment(authority, 'DATED-LATE-RELEASE', 20, '1000')
+        order = self.dated_allotment(authority, 'DATED-EARLY-HOLD', 10, '500', AllotmentOrderLine.RESERVE,
+            AllotmentReleaseOrder.RESERVE, post=False)
+        with self.assertRaisesMessage(ValidationError, '2027-01-10'):
+            transition_allotment_order(order, 'submit', self.preparer)
+        self.assertFalse(order.movements.exists())
+
+    def test_backdated_obligation_cannot_spend_a_later_cancellation_early(self):
+        authority = self.make_executable_authority(amount='1000', release='1000')
+        first = self.dated_obligation(authority, 'DATED-ORIGINAL', 15, '800')
+        self.dated_obligation(authority, 'DATED-CANCEL', 25, '-800', corrects=first)
+        request = self.dated_obligation(authority, 'DATED-BACK', 10, '500', certify=False)
+        before = list(ObligationMovement.objects.order_by('pk').values())
+        with self.assertRaisesMessage(ValidationError, '2027-01-15'):
+            transition_obligation_request(request, 'submit', self.requester)
+        request.refresh_from_db()
+        self.assertEqual(request.status, ObligationRequest.DRAFT)
+        self.assertEqual(list(ObligationMovement.objects.order_by('pk').values()), before)
+
+    def test_certification_rechecks_intermediate_capacity_after_other_postings(self):
+        authority = self.make_executable_authority(amount='1000', release='1000')
+        request = self.dated_obligation(authority, 'DATED-PENDING', 10, '500', certify=False)
+        request = transition_obligation_request(request, 'submit', self.requester)
+        first = self.dated_obligation(authority, 'DATED-OTHER', 15, '800')
+        self.dated_obligation(authority, 'DATED-RESTORE', 25, '-800', corrects=first)
+        before = (request.state_version, request.obligation_number, BudgetAuditEvent.objects.count(),
+                  list(ObligationMovement.objects.order_by('pk').values()))
+        with self.assertRaisesMessage(ValidationError, '2027-01-15'):
+            transition_obligation_request(request, 'certify', self.certifier, 'Independent dated review', 'OBR-BLOCKED')
+        request.refresh_from_db()
+        self.assertEqual(request.status, ObligationRequest.FOR_CERTIFICATION)
+        self.assertEqual((request.state_version, request.obligation_number, BudgetAuditEvent.objects.count(),
+                         list(ObligationMovement.objects.order_by('pk').values())), before)
+        self.client.force_login(self.certifier)
+        response = self.client.post(reverse('budget:obligation_action', args=(request.public_id, 'certify')),
+            {'reason': 'Independent browser-route review', 'obligation_number': 'OBR-BLOCKED-HTTP'})
+        self.assertEqual(response.status_code, 302)
+        from django.contrib.messages import get_messages
+        self.assertTrue(any('2027-01-15' in str(message) for message in get_messages(response.wsgi_request)))
+        request.refresh_from_db()
+        self.assertEqual(request.status, ObligationRequest.FOR_CERTIFICATION)
+        self.assertFalse(request.movements.exists())
+
+    def test_backdated_obligation_reduction_cannot_make_an_intermediate_balance_negative(self):
+        authority = self.make_executable_authority(amount='1000', release='1000')
+        first = self.dated_obligation(authority, 'DATED-BASE', 5, '1000')
+        self.dated_obligation(authority, 'DATED-REDUCTION', 15, '-800', corrects=first)
+        self.dated_obligation(authority, 'DATED-INCREASE', 25, '500', corrects=first)
+        request = self.dated_obligation(authority, 'DATED-NEGATIVE', 10, '-400', corrects=first, certify=False)
+        with self.assertRaisesMessage(ValidationError, '2027-01-15'):
+            transition_obligation_request(request, 'submit', self.requester)
+        self.assertFalse(request.movements.exists())
+
+    def test_backdated_hold_release_cannot_precede_the_original_hold(self):
+        authority = self.make_executable_authority(amount='1000', release='1000')
+        self.dated_allotment(authority, 'DATED-HOLD', 20, '500', AllotmentOrderLine.RESERVE,
+            AllotmentReleaseOrder.RESERVE)
+        order = self.dated_allotment(authority, 'DATED-EARLY-LIFT', 10, '500', AllotmentOrderLine.RESERVE_RELEASE,
+            AllotmentReleaseOrder.RESERVE, post=False)
+        with self.assertRaisesMessage(ValidationError, '2027-01-10'):
+            transition_allotment_order(order, 'submit', self.preparer)
+
+    def test_allotment_post_rechecks_intermediate_capacity_after_submission(self):
+        authority = self.make_authorized_appropriation('1000')
+        first = self.dated_allotment(authority, 'DATED-SMALL', 5, '200')
+        self.dated_allotment(authority, 'DATED-SMALL-RETURN', 20, '200', AllotmentOrderLine.RETURN,
+            AllotmentReleaseOrder.RETURN, corrects=first)
+        candidate = self.dated_allotment(authority, 'DATED-PENDING', 10, '500', post=False)
+        candidate = transition_allotment_order(candidate, 'submit', self.preparer)
+        other = self.dated_allotment(authority, 'DATED-OTHER', 12, '500')
+        self.dated_allotment(authority, 'DATED-OTHER-RETURN', 18, '500', AllotmentOrderLine.RETURN,
+            AllotmentReleaseOrder.RETURN, corrects=other)
+        before = (candidate.state_version, BudgetAuditEvent.objects.count(), list(AllotmentMovement.objects.order_by('pk').values()))
+        with self.assertRaisesMessage(ValidationError, '2027-01-12'):
+            transition_allotment_order(candidate, 'post', self.authorizer, 'Independent synthetic posting review')
+        candidate.refresh_from_db()
+        self.assertEqual(candidate.status, AllotmentReleaseOrder.FOR_REVIEW)
+        self.assertEqual((candidate.state_version, BudgetAuditEvent.objects.count(), list(AllotmentMovement.objects.order_by('pk').values())), before)
+
+    def test_valid_backdated_obligation_fits_every_boundary_and_preserves_originals(self):
+        authority = self.make_executable_authority(amount='1000', release='1000')
+        first = self.dated_obligation(authority, 'DATED-VALID-BASE', 15, '800')
+        self.dated_obligation(authority, 'DATED-VALID-RETURN', 25, '-800', corrects=first)
+        before = list(ObligationMovement.objects.order_by('pk').values())
+        accepted = self.dated_obligation(authority, 'DATED-VALID-BACK', 10, '200')
+        self.assertEqual(accepted.status, ObligationRequest.CERTIFIED)
+        balance = obligation_line_balance(authority.schedule_lines.get(), as_of=date(2027, 1, 15))
+        self.assertEqual((balance['obligated'], balance['unobligated']), (Decimal('1000'), Decimal('0')))
+        self.assertEqual(list(ObligationMovement.objects.exclude(request=accepted).order_by('pk').values()), before)
+
+    def test_valid_backdated_release_and_same_day_hold_lift_remain_permitted(self):
+        authority = self.make_authorized_appropriation('1000')
+        first = self.dated_allotment(authority, 'DATED-VALID-RELEASE', 5, '800')
+        self.dated_allotment(authority, 'DATED-VALID-RELEASE-RETURN', 20, '800', AllotmentOrderLine.RETURN,
+            AllotmentReleaseOrder.RETURN, corrects=first)
+        accepted = self.dated_allotment(authority, 'DATED-VALID-BACK', 10, '200')
+        self.assertEqual(accepted.status, AllotmentReleaseOrder.POSTED)
+        line = authority.schedule_lines.get()
+        self.assertEqual(allotment_line_balance(line, as_of=date(2027, 1, 15))['released'], Decimal('1000'))
+        self.dated_allotment(authority, 'DATED-VALID-HOLD', 12, '100', AllotmentOrderLine.RESERVE,
+            AllotmentReleaseOrder.RESERVE)
+        lifted = self.dated_allotment(authority, 'DATED-VALID-LIFT', 12, '100', AllotmentOrderLine.RESERVE_RELEASE,
+            AllotmentReleaseOrder.RESERVE)
+        self.assertEqual(lifted.status, AllotmentReleaseOrder.POSTED)
+        self.assertEqual(allotment_line_balance(line)['reserved'], Decimal('0'))
 
     @classmethod
     def setUpTestData(cls):

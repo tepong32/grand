@@ -1,0 +1,41 @@
+{
+  "command": [
+    "C:/xxx/_INSTALLS/_HERE/_xxx/grand-checkpoint209-pdf-venv/Scripts/python.exe",
+    "-B",
+    ".tmp/finance-reconcile/run_isolated.py",
+    "test",
+    "scripts.test_ci_test_runner",
+    "--noinput",
+    "--verbosity",
+    "2"
+  ],
+  "cwd": "C:\\Users\\Administrator\\.codex\\worktrees\\grand-finance-budget-20261024-6d195553f3ea",
+  "exit_code": 0,
+  "elapsed_seconds": 2.515,
+  "source_fingerprint": "82cac93e93ad2cfcbf7d4742d6e59719405576128f0104b19d946c6ca182b1fd",
+  "source_files": 1506,
+  "source_unchanged": true,
+  "raw_log_sha256": "d63ba90c31bce03ef04ae1dcd2c726f185d0267d1c3e39b5952dbeb816d203fd",
+  "count": 11,
+  "passed": 11,
+  "skipped": 0,
+  "test_identities": [
+    "scripts.test_ci_test_runner.ShardCoverageTests.test_actual_django_command_defaults_allow_complete_discovery",
+    "scripts.test_ci_test_runner.ShardCoverageTests.test_complete_ordered_classes_and_successful_coverage",
+    "scripts.test_ci_test_runner.ShardCoverageTests.test_intake_reassignment_rejects_changed_original_owner",
+    "scripts.test_ci_test_runner.ShardCoverageTests.test_intake_reassignment_rejects_changed_shard_count",
+    "scripts.test_ci_test_runner.ShardCoverageTests.test_missing_duplicate_failed_short_or_wrong_revision_record_rejected",
+    "scripts.test_ci_test_runner.ShardCoverageTests.test_native_skip_and_invalid_partition_rejected",
+    "scripts.test_ci_test_runner.ShardCoverageTests.test_omitted_repeated_or_split_class_tests_rejected",
+    "scripts.test_ci_test_runner.ShardCoverageTests.test_only_intake_class_moves_from_index_three_to_six",
+    "scripts.test_ci_test_runner.ShardCoverageTests.test_reviewed_current_owner_pin_rejects_any_other_original_owner",
+    "scripts.test_ci_test_runner.ShardCoverageTests.test_reviewed_current_owner_zero_keeps_intake_on_worker_six",
+    "scripts.test_ci_test_runner.ShardCoverageTests.test_runner_accepts_sequential_defaults_and_rejects_filtered_or_retained_execution"
+  ],
+  "duplicate_identities": [],
+  "skip_details": [],
+  "summaries": [
+    "Ran 11 tests in 0.008s",
+    "OK"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "classification": "NARROW REUSE: focused application SQLite results; not a complete final-source SQLite pass",
+  "focused_fingerprint": "106f90cb3eb66a6cf4eadb129abcbcd4d63edfd3f7e7742ca17756aa4c868c7b",
+  "final_fingerprint": "82cac93e93ad2cfcbf7d4742d6e59719405576128f0104b19d946c6ca182b1fd",
+  "changed_files": {
+    "scripts/ci_test_runner.py": {
+      "focused_sha256": "fab5615500f434264b9cf56ccad73b65548314e68509643223f61371debad7f2",
+      "final_sha256": "6f4a2edd8e4d57a7d60dae60dae74844d3881646cf5520a2a032c4b6b20c924b"
+    },
+    "scripts/test_ci_test_runner.py": {
+      "focused_sha256": "cf44f13d83f3376b4d2cff6c9ffbe4e69949c63e5d35932f24549d1eeb1491f4",
+      "final_sha256": "4e0fbb997868c5f2f8d1358a686260d1c242d5ebc7024b2bb55b26d3d4029b16"
+    }
+  },
+  "all_other_source_test_helper_bytes_identical": true,
+  "reason": "Only approved CI partition code/unit tests changed after SQLite; application code, test identities/assertions, helpers/settings/runtime/schema/backend/fixtures unchanged. CI unit checks are fresh on final source; native dependent run uses final source."
+}

@@ -31,6 +31,12 @@ gates remain mandatory. Report passed, failed, deferred, skipped and unavailable
 checks accurately with reasons; investigate failures without weakening gates.
 Propose costly CI-policy duplication separately, with evidence, not inside a feature.
 
+Every VM checkpoint includes the owner's quick local review of tracked and
+intended/staged content for credentials/keys. Remove exposed real secrets using
+existing private configuration, retain synthetic fixtures, print no values and
+flag any committed credential for rotation. Preserve private operator data and
+history; see [review boundary](docs/TESTING_AND_EVIDENCE_POLICY.md#sensitive-information-review-before-vm-commit).
+
 For every Codex implementation session, follow the actionable
 [testing session protocol](docs/TESTING_AND_EVIDENCE_POLICY.md#codex-session-protocol):
 inspect the current handoff and actual diff; classify risk before testing; run
@@ -83,6 +89,12 @@ development does not establish migration readiness. The consolidated decision lo
 owns these accepted choices; do not ask them again.
 
 ## Project context and documentation map
+
+Finance resumption (2026-10-24): security checkpoint f1711038 was explicitly
+accepted. Reconcile Budget G7/G8 dated capacity and line validation before new
+numerical breadth; draft header/line writes share their owning Finance lock with
+posting. Never use later restorations as earlier capacity or silently repair
+malformed historical lines. See [current reconciliation](docs/FINANCE_BUDGET_RECONCILIATION_2026-10-24.md).
 
 Private-file reconciliation: shared filesystem downloads use `src/file_integrity.py`
 and the original source authority; current legacy Assistance attachments and memos

@@ -1,0 +1,17 @@
+{
+  "review": "quick local text heuristic plus redacted context triage",
+  "text_files_scanned": 1978,
+  "flag_count": 133,
+  "classifications": {
+    "synthetic_test_or_showcase_assignment": 124,
+    "vendor_source_map_property": 8,
+    "documented_firebase_placeholder": 1
+  },
+  "confirmed_real_secrets_found": 0,
+  "removed": 0,
+  "large_json_artifacts_scanned": true,
+  "private_operator_data_read": false,
+  "binary_database_contents_read": false,
+  "full_git_history_scanned": false,
+  "exhaustive_secret_free_claim": false
+}

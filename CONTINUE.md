@@ -1,3 +1,57 @@
+## Finance Budget integrity checkpoint — 2026-10-24
+
+The user explicitly accepted security checkpoint
+`f1711038e30c0e684e99b4fd5172eebacfe99436` and authorized Finance resumption.
+The older acceptance hold below is historical and satisfied. Finance stays NO-GO.
+
+Current independent workspace:
+`C:/Users/Administrator/.codex/worktrees/grand-finance-budget-20261024-6d195553f3ea`,
+branch `codex/finance-budget-integrity-20261024`, parent f1711038.
+[Scope, source reconciliation, evidence and next work](docs/FINANCE_BUDGET_RECONCILIATION_2026-10-24.md).
+Canonical v112 is an ancestor; its dirty handoff/database, untracked Accounting
+test/nine artifacts, four stashes and all originals/archive remain preserved.
+
+G7/G8 from 5ad07d052324b744332164cd894592fa597b64d5 and
+f1b32ff7c95e0f60804ba3b6feec835788be8c05: dated Budget capacity checks every
+affected day-end; final obligation services enforce existing line rules. Eight
+draft header/line writes lock their owning Finance header against posting and
+roll back audit failures. No schema, financial recipe, grant or dashboard change.
+
+The owner separately approved the [CI compatibility repair](docs/FINANCE_CI_OWNERSHIP_BLOCKER_2026-10-24.md)
+after a pre-existing owner-pin failure was reproduced. Original owner 0 still moves
+intake to worker 6. All required jobs/gates, eight workers, coverage aggregation,
+native zero-skip checks and all nine original CI test bodies remain; two checks added.
+
+Risk: Finance calculations/writes, permissions, audit/transactions/concurrency;
+approved CI compatibility. Final native 02 PASS 297/297, zero skips, 357.957s.
+Focused SQLite 02 PASS 22 /12 native-only skips (34), 4.931s. Fresh CI unit 11/11.
+Static complete discovery/partition PASS 3,061 application IDs /374 classes, all
+old IDs retained and each assigned once; this is not 3,061 executed passes.
+[Portable exact commands/IDs/logs/helpers](docs/evidence/finance-budget-2026-10-24/README.md).
+Final 1,506-file source/helper fingerprint:
+`82cac93e93ad2cfcbf7d4742d6e59719405576128f0104b19d946c6ca182b1fd`.
+SQLite 02 fingerprint 106f90cb differs only in the later two CI files; exact reuse
+proof binds unchanged application/test/helper bytes and assumptions. Earlier 01
+passes/failed CI discovery are retained; no historical pass is relabeled current.
+Both stores destroyed, owned server/port stopped, source template unchanged.
+
+The new global VM preference requires quick local tracked/intended/staged secret
+review. Extended text scan 1,978 files /133 reviewed synthetic/vendor/placeholder
+flags, no real secret identified or removed; private ignored data/database/binary
+contents and history excluded. Final staged review precedes the local commit.
+VM release preview proposes a tag, prohibited; use only existing commit helper
+for this local checkpoint. No VERSION/CHANGELOG, integration/push, release/tag,
+deployment, production data, eGAPS or real Telegram operation.
+
+Next: reproduce D-064 close-policy first activation on supported native fixtures;
+preserve the original untracked test and stop dependent work on a verified critical
+defect. The functional Form 1 numerical milestone still requires applicable reviewed
+source rules. Other feature groups/stashes/artifacts are not automatically adopted.
+Hosted exact-candidate/primary CI, whole-project integration, local-rule/form,
+browser/paper/operational/recovery/LGU gates remain open. Finance stays NO-GO.
+
+---
+
 ## Secure Phase B checkpoint — 2026-10-24
 
 Current isolated clone: `C:/Users/Administrator/.codex/worktrees/grand-secure-phase-b-20261024-6ea2569a2637`,
