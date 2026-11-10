@@ -22,10 +22,10 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -69,8 +69,8 @@ jobs:
       GRAND_CI_SHARD_COUNT: 8
       GRAND_CI_COVERAGE_PATH: .tmp/ci-coverage/coverage.json
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -79,7 +79,7 @@ jobs:
       - name: Run complete project test shard
         run: python manage.py test --testrunner scripts.ci_test_runner.ShardedDiscoverRunner --verbosity 2 --noinput
       - name: Retain successful coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sqlite-coverage-${{ matrix.shard }}
           path: .tmp/ci-coverage/coverage.json
@@ -117,9 +117,9 @@ jobs:
           --health-retries=20
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
           cache: pip
@@ -130,7 +130,7 @@ jobs:
           GRAND_TEST_MYSQL_PORT: ${{ job.services.mysql.ports['3306'] }}
         run: python scripts/run_mysql_tests.py --ci-shard --verbosity 2
       - name: Retain successful coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: native-coverage-${{ matrix.shard }}
           path: .tmp/ci-coverage/coverage.json
@@ -148,11 +148,11 @@ jobs:
           SECURITY_RESULT: ${{ needs.security.result }}
           SQLITE_RESULT: ${{ needs.sqlite.result }}
         run: test "$SECURITY_RESULT" = success && test "$SQLITE_RESULT" = success
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: sqlite-coverage-*
           path: .tmp/ci-coverage
@@ -169,11 +169,11 @@ jobs:
         env:
           NATIVE_RESULT: ${{ needs.native.result }}
         run: test "$NATIVE_RESULT" = success
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: native-coverage-*
           path: .tmp/ci-coverage
