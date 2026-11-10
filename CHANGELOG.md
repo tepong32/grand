@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.189] - 2026-11-10
+### Security
+- Bump pypdf to 6.21.4 to resolve CVE-2026-119203 through CVE-2026-119209
+
 ## [0.7.188] - 2026-11-10
 ### Added
 - Reconcile Budget integrity, close-policy concurrency, cheque redemption charges, and printable JEV view
