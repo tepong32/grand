@@ -47,9 +47,10 @@ def movements(detail, *, exclude=None):
         if _digest(source.proposal) != source.proposal_checksum:
             raise ValidationError('The retained officer refund reservation changed.')
         data = source.proposal['advance_refund']
+        from .officer_receipt_components import principal
+        value = principal(source)
         if (source.finance_department_id != detail.entry.department_id
-                or source.proposal['fund_id'] != detail.entry.fund_id
-                or Decimal(data['amount']) != source.amount):
+                or source.proposal['fund_id'] != detail.entry.fund_id):
             raise ValidationError('Retain the original advance fund and refund amount.')
         if source.status in (Source.REJECTED, Source.WITHDRAWN):
             reviewer = source.reviewed_by_id if source.status == Source.REJECTED else source.withdrawn_by_id
@@ -61,12 +62,12 @@ def movements(detail, *, exclude=None):
             if JournalEntry.objects.filter(source_type='collection', source_reference__in=references).exclude(status=JournalEntry.VOIDED).exists():
                 raise ValidationError('A refund with an active journal cannot release its reservation by withdrawal.')
             continue
-        rows.append((source.source_date, source.amount))
+        rows.append((source.source_date, value))
         for correction in source.corrections.filter(status=Source.POSTED):
             from .collection_corrections import corrected_sources
             if source.pk not in corrected_sources(source.treasury_department_id, correction.source_date):
                 raise ValidationError('Reconcile the exact refund correction before releasing its reservation.')
-            rows.append((correction.source_date, -source.amount))
+            rows.append((correction.source_date, -value))
     from .advance_cheque_returns import movements as return_movements
     return rows + return_movements(detail)
 
@@ -139,6 +140,8 @@ def validate_source(source, *, check_capacity=True):
         return
     if _digest(source.proposal) != source.proposal_checksum:
         raise ValidationError('The retained officer refund proposal changed.')
+    from .officer_receipt_components import principal
+    value = principal(source)
     detail, recognition, _ = original(JournalSubsidiaryLine.objects.get(pk=data['original_detail']))
     if (str(recognition.case.public_id) != data['original_case']
             or str(detail.entry.public_id) != data['original_entry'] or detail.entry.reference != data['original_jev_number']
@@ -150,11 +153,10 @@ def validate_source(source, *, check_capacity=True):
             or not recognition.case.events.filter(pk=data['release_event'],
                 actor_department_id=source.treasury_department_id,
                 action__in=('check_released', 'disbursement_completed')).exists()
-            or source.amount != Decimal(data['amount'])
             or data['officer_key'] != detail.reference_key or data['officer_name'] != detail.reference_label):
         raise ValidationError('The refund must retain its exact original advance, officer, office and amount.')
     if check_capacity:
-        capacity(detail, source.source_date, source.amount, exclude_refund=source.pk)
+        capacity(detail, source.source_date, value, exclude_refund=source.pk)
 
 
 def attach(entry, source, request):
@@ -162,11 +164,13 @@ def attach(entry, source, request):
     attach_return(entry,source,request)
     data = source.proposal.get('advance_refund')
     if data:
+        from .officer_receipt_components import principal
+        value = principal(source)
         detail = JournalSubsidiaryLine.objects.get(pk=data['original_detail'])
-        credit = entry.lines.get(credit=source.amount)
+        credit = entry.lines.get(account_id=detail.journal_line.account_id,credit=value,debit=0)
         row = JournalSubsidiaryLine(entry=entry, journal_line=credit, category=JournalSubsidiaryLine.ADVANCE,
             reference_key=detail.reference_key, reference_label=detail.reference_label,
-            source_code=detail.source_code, source_reference=str(request.public_id), credit=source.amount,
+            source_code=detail.source_code, source_reference=str(request.public_id), credit=value,
             source_snapshot={'advance_refund': data, 'original_advance_detail': detail.pk,
                              'transaction_type': detail.source_code})
         row.full_clean(); row.save()
@@ -204,6 +208,8 @@ def validate_journal(entry):
     row = subsidiary[0]
     detail = JournalSubsidiaryLine.objects.get(pk=data['original_detail'])
     correction = 'advance_refund_correction' in proposal
+    from .officer_receipt_components import principal
+    value = principal(source)
     if correction:
         original_entry = JournalEntry.objects.get(public_id=proposal['original_entry'])
         original_detail = original_entry.subsidiary_lines.get()
@@ -218,8 +224,8 @@ def validate_journal(entry):
             or row.reference_label != detail.reference_label or row.source_code != detail.source_code
             or row.source_reference != str(request.public_id)
             or row.journal_line.account_id != detail.journal_line.account_id
-            or row.debit != (source.amount if correction else 0)
-            or row.credit != (0 if correction else source.amount)
+            or row.debit != (value if correction else 0)
+            or row.credit != (0 if correction else value)
             or row.source_snapshot.get('advance_refund_correction' if correction else 'advance_refund') != data):
         raise ValidationError('The refund subsidiary must retain its original officer, asset and exact amount.')
     if not correction:

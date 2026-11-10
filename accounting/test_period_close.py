@@ -14,11 +14,11 @@ from departments.models import Department
 from profiles.models import EmployeeProfile
 
 from .close_services import (
-    create_period_close_run, decide_period_close_policy, decide_period_close_run,
-    decide_period_reopen, request_period_reopen, submit_period_close_policy,
-    submit_period_close_run,
+    create_period_close_run, current_period_close_policy, decide_period_close_policy,
+    decide_period_close_run, decide_period_reopen, ensure_period_close_starter,
+    request_period_reopen, submit_period_close_policy, submit_period_close_run,
 )
-from .models import AccountingPeriod, Fund, JournalEntry, PeriodCloseEvent, PeriodClosePolicy, PeriodCloseRun
+from .models import AccountingAuditEvent, AccountingPeriod, Fund, JournalEntry, PeriodCloseEvent, PeriodClosePolicy, PeriodCloseRun
 
 
 class GovernedPeriodCloseTests(TestCase):
@@ -271,3 +271,90 @@ class GovernedPeriodCloseTests(TestCase):
             f'{reverse("accounting:period_close_workspace")}?attention=awaiting_review',
         )
         self.assertContains(source, "does not assign work, close a period, or approve a reopen")
+
+    def test_first_policy_activation_blocks_stale_sibling_candidates_and_supersedes_prior_active(self):
+        starter, created = ensure_period_close_starter(self.department, self.policy_maker)
+        self.assertTrue(created)
+        self.assertEqual(starter.status, PeriodClosePolicy.STARTER)
+        second = PeriodClosePolicy.objects.create(
+            department_id=self.department.pk, department_label=self.department.name,
+            version=2, supersedes=starter,
+            title="First candidate policy", mode=PeriodClosePolicy.ENFORCE,
+            description="First candidate.",
+            authority_reference="Memo ACCT-2028-02.",
+            local_acceptance_note="Accepted by the Municipal Accountant.",
+            created_by_id=self.policy_maker.pk, created_by_label=self.policy_maker.username,
+        )
+        third = PeriodClosePolicy.objects.create(
+            department_id=self.department.pk, department_label=self.department.name,
+            version=3, supersedes=starter,
+            title="Competing sibling policy", mode=PeriodClosePolicy.ENFORCE,
+            description="Second candidate superseding starter.",
+            authority_reference="Memo ACCT-2028-03.",
+            local_acceptance_note="Accepted by the Municipal Accountant.",
+            created_by_id=self.policy_maker.pk, created_by_label=self.policy_maker.username,
+        )
+        fourth = PeriodClosePolicy.objects.create(
+            department_id=self.department.pk, department_label=self.department.name,
+            version=4, supersedes=starter,
+            title="Stale draft policy", mode=PeriodClosePolicy.ENFORCE,
+            description="Draft pointing to starter.",
+            authority_reference="Memo ACCT-2028-04.",
+            local_acceptance_note="Accepted by the Municipal Accountant.",
+            created_by_id=self.policy_maker.pk, created_by_label=self.policy_maker.username,
+        )
+        submit_period_close_policy(second, self.policy_maker)
+        submit_period_close_policy(third, self.policy_maker)
+
+        activated = decide_period_close_policy(
+            second, self.policy_checker, approve=True, note="First active policy approved.",
+        )
+        self.assertEqual(activated.status, PeriodClosePolicy.ACTIVE)
+        self.assertEqual(current_period_close_policy(self.department.pk).pk, second.pk)
+
+        with self.assertRaisesMessage(ValidationError, "Another close policy version was already activated"):
+            decide_period_close_policy(
+                third, self.policy_checker, approve=True, note="Competing sibling approval must reject.",
+            )
+        third.refresh_from_db()
+        self.assertEqual(third.status, PeriodClosePolicy.SUBMITTED)
+        self.assertEqual(
+            PeriodClosePolicy.objects.filter(
+                department_id=self.department.pk, status=PeriodClosePolicy.ACTIVE,
+            ).count(),
+            1,
+        )
+
+        with self.assertRaisesMessage(ValidationError, "newer close policy is now current"):
+            submit_period_close_policy(fourth, self.policy_maker)
+
+        self.client.force_login(self.policy_maker)
+        response = self.client.post(reverse("accounting:period_close_policy_create"), {
+            "title": "Successor to active policy",
+            "description": "Supersedes v2.",
+            "mode": PeriodClosePolicy.ENFORCE,
+            "require_control_reconciliation": True,
+            "require_bank_reconciliation": True,
+            "require_statement_reports": True,
+            "require_handoff_clearance": True,
+            "require_year_end_closing_entries": True,
+            "authority_reference": "Memo ACCT-2028-05.",
+            "local_acceptance_note": "Accepted successor.",
+        })
+        self.assertEqual(response.status_code, 302)
+        fifth = PeriodClosePolicy.objects.get(department_id=self.department.pk, version=5)
+        self.assertEqual(fifth.supersedes_id, second.pk)
+        submit_period_close_policy(fifth, self.policy_maker)
+        decide_period_close_policy(
+            fifth, self.policy_checker, approve=True, note="Successor activated.",
+        )
+        second.refresh_from_db()
+        fifth.refresh_from_db()
+        self.assertEqual(second.status, PeriodClosePolicy.SUPERSEDED)
+        self.assertEqual(fifth.status, PeriodClosePolicy.ACTIVE)
+        self.assertEqual(
+            AccountingAuditEvent.objects.filter(
+                department_id=self.department.pk, action="close_policy_activated",
+            ).count(),
+            2,
+        )

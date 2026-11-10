@@ -2391,3 +2391,33 @@ class StandaloneAccountingTests(TestCase):
             evidence_note="Reviewed February statement, prior-item lineage, clearance, and zero-difference control.",
         )
         self.assertEqual(reconciled_february.status, BankStatementBatch.RECONCILED)
+
+    def test_printable_jev_copy_renders_lines_signatory_evidence_and_enforces_department_scope(self):
+        entry = self._entry(reference="PRINT-JEV-2027-01")
+        detail_url = reverse("accounting:entry_detail", args=(entry.public_id,))
+        print_url = reverse("accounting:entry_print", args=(entry.public_id,))
+
+        self.client.force_login(self.viewer)
+        detail_response = self.client.get(detail_url)
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertContains(detail_response, print_url)
+
+        draft_print = self.client.get(print_url)
+        self.assertEqual(draft_print.status_code, 200)
+        self.assertContains(draft_print, "PRINT-JEV-2027-01")
+        self.assertContains(draft_print, "Unposted working copy")
+        self.assertContains(draft_print, "SYN-101")
+        self.assertContains(draft_print, "SYN-401")
+        self.assertContains(draft_print, "100.00")
+
+        submit_entry(entry, self.preparer)
+        post_entry(entry, self.poster)
+        posted_print = self.client.get(print_url)
+        self.assertEqual(posted_print.status_code, 200)
+        self.assertNotContains(posted_print, "Unposted working copy")
+        self.assertContains(posted_print, self.preparer.username)
+        self.assertContains(posted_print, self.poster.username)
+        self.assertContains(posted_print, "Working printable JEV copy")
+
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(print_url).status_code, 404)

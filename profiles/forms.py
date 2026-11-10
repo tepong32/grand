@@ -1,6 +1,12 @@
 from django import forms
 from .models import EmployeeProfile, CitizenProfile
 
+
+class MemoInput(forms.ClearableFileInput):
+    # Never let the stock widget render the storage's public URL.
+    template_name = 'profiles/widgets/memo_input.html'
+
+
 class ProfileUpdateForm(forms.ModelForm):
 	class Meta:
 		model = EmployeeProfile
@@ -39,7 +45,7 @@ class EmploymentProfileUpdateForm(forms.ModelForm):
             'sss_id': forms.TextInput(attrs={'class': 'form-control'}),
             'jo_date_hired': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'reg_date_hired': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'assigned_department_memo': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+            'assigned_department_memo': MemoInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
         }
 
 

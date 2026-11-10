@@ -1,5 +1,12 @@
 # GRAND product roadmap
 
+Current development — 2026-10-24: the owner accepted security checkpoint f1711038
+and authorized Finance resumption. The isolated Budget integrity reconciliation
+(G7/G8 dated capacity/line validation plus current-state draft locking) precedes
+new numerical breadth. It is not primary integration or production acceptance.
+See [scope, evidence and unmatched work](FINANCE_BUDGET_RECONCILIATION_2026-10-24.md).
+
+
 2026-10-18 development mission: apply the durable [working doctrine](../AGENTS.md#working-doctrine--2026-10-18)
 and complete useful workflow slices with proportional verification and non-technical
 usability built in. Finance dependencies remain indexed in the consolidated

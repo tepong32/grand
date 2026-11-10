@@ -1,0 +1,15 @@
+{
+  "baseline": "f1711038e30c0e684e99b4fd5172eebacfe99436",
+  "prior_ci_test_methods": 9,
+  "current_ci_test_methods": 11,
+  "all_prior_ids_and_test_function_ASTs_unchanged": true,
+  "added_methods": [
+    "test_reviewed_current_owner_pin_rejects_any_other_original_owner",
+    "test_reviewed_current_owner_zero_keeps_intake_on_worker_six"
+  ],
+  "workflow_and_coverage_verifier_unchanged": {
+    ".github/workflows/security.yml": "0393240db90d98797828f7c7baebc3d6b8a6d521df68ec1859e39c12672ee650",
+    "scripts/verify_ci_coverage.py": "da951b3e81af3bf29c62d3c7b8adb2581060f8ae30d3e7569c60b2aba1c8258b"
+  },
+  "change_authorization": "owner explicitly approved compatibility repair; original owner0 still targets worker6; no job/gate/count/native-skip reduction"
+}

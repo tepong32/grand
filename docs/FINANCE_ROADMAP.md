@@ -1,5 +1,12 @@
 # GRAND Finance complete-cycle roadmap
 
+Current development — 2026-10-24: the owner accepted security checkpoint f1711038
+and authorized Finance resumption. The isolated Budget integrity reconciliation
+(G7/G8 dated capacity/line validation plus current-state draft locking) precedes
+new numerical breadth. It is not primary integration or production acceptance.
+See [scope, evidence and unmatched work](FINANCE_BUDGET_RECONCILIATION_2026-10-24.md).
+
+
 October 17 upstream ordinary-workflow follow-up:
 [OBR entry and independent certification](FINANCE_OBR_PAYABLE_HANDOFF.md#obr-entry-and-independent-certification-follow-up--2026-10-17)
 now have actual browser entry/rejection/correction/submission proof, separate from

@@ -227,3 +227,17 @@ def association_file(association):
     if isinstance(source, RequestDocument) and source.file and not source.is_removed:
         return source.file, source.file.name.rsplit("/", 1)[-1]
     return None, None
+
+
+def association_is_owned(association):
+    """Recheck ownership without revoking retained, superseded voucher outputs."""
+    source = association.content_object
+    if isinstance(source, VoucherOutput):
+        release = source.case.configuration_release
+        return bool(source.status in (VoucherOutput.OFFICIAL, VoucherOutput.SUPERSEDED)
+                    and release and release.department_id == association.record.department_id)
+    try:
+        department = source_department(source)
+    except RecordWorkflowError:
+        return False
+    return bool(department and department.pk == association.record.department_id)

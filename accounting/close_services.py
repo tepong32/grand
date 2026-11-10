@@ -62,14 +62,33 @@ def _assert_close_office(department_id, actor):
         raise PermissionDenied("This period-close record belongs to another Accounting office.")
 
 
+def _lock_department_close_policies(department_id):
+    return list(
+        PeriodClosePolicy.objects.select_for_update()
+        .filter(department_id=department_id)
+        .order_by("version", "pk")
+    )
+
+
+def _current_locked_policy(locked_policies):
+    for status in (PeriodClosePolicy.ACTIVE, PeriodClosePolicy.STARTER):
+        for item in reversed(locked_policies):
+            if item.status == status:
+                return item
+    return None
+
+
 @transaction.atomic(using=FINANCE_DB)
 def ensure_period_close_starter(department, actor):
-    if not can_prepare_period_close(actor):
+    if not can_prepare_period_close(actor) and not can_manage_period_close_policies(actor):
         raise PermissionDenied
     _assert_close_office(department.pk, actor)
-    existing = current_period_close_policy(department.pk)
+    locked_policies = _lock_department_close_policies(department.pk)
+    existing = _current_locked_policy(locked_policies)
     if existing:
         return existing, False
+    if locked_policies:
+        return locked_policies[0], False
     policy = PeriodClosePolicy.objects.create(
         department_id=department.pk, department_label=department.name, version=1,
         title="Monthly and year-end close checklist starter",
@@ -97,13 +116,40 @@ def ensure_period_close_starter(department, actor):
 
 
 @transaction.atomic(using=FINANCE_DB)
+def create_period_close_policy(department, actor, *, form):
+    if not can_manage_period_close_policies(actor):
+        raise PermissionDenied
+    _assert_close_office(department.pk, actor)
+    ensure_period_close_starter(department, actor)
+    locked_policies = _lock_department_close_policies(department.pk)
+    current = _current_locked_policy(locked_policies)
+    latest = locked_policies[-1] if locked_policies else None
+    policy = form.save(commit=False)
+    policy.department_id = department.pk
+    policy.department_label = department.name
+    policy.version = (latest.version if latest else 0) + 1
+    policy.supersedes = current or latest
+    policy.created_by_id = actor.pk
+    policy.created_by_label = actor_label(actor)
+    policy.full_clean()
+    policy.save()
+    return policy
+
+
+@transaction.atomic(using=FINANCE_DB)
 def submit_period_close_policy(policy, actor):
     if not can_manage_period_close_policies(actor):
         raise PermissionDenied
-    locked = PeriodClosePolicy.objects.select_for_update().get(pk=policy.pk)
-    _assert_close_office(locked.department_id, actor)
+    _assert_close_office(policy.department_id, actor)
+    locked_policies = _lock_department_close_policies(policy.department_id)
+    locked = next((item for item in locked_policies if item.pk == policy.pk), None)
+    if locked is None:
+        locked = PeriodClosePolicy.objects.select_for_update().get(pk=policy.pk)
     if not locked.is_editable:
         raise ValidationError("Only an editable close-policy draft can be submitted.")
+    current = _current_locked_policy(locked_policies)
+    if current and current.pk != locked.pk and locked.supersedes_id != current.pk:
+        raise ValidationError("A newer close policy is now current. Create a successor from the current policy.")
     locked.status = PeriodClosePolicy.SUBMITTED
     locked.submitted_by_id = actor.pk
     locked.submitted_by_label = actor_label(actor)
@@ -128,8 +174,11 @@ def submit_period_close_policy(policy, actor):
 def decide_period_close_policy(policy, actor, *, approve, note):
     if not can_approve_period_close_policies(actor):
         raise PermissionDenied
-    locked = PeriodClosePolicy.objects.select_for_update().get(pk=policy.pk)
-    _assert_close_office(locked.department_id, actor)
+    _assert_close_office(policy.department_id, actor)
+    locked_policies = _lock_department_close_policies(policy.department_id)
+    locked = next((item for item in locked_policies if item.pk == policy.pk), None)
+    if locked is None:
+        locked = PeriodClosePolicy.objects.select_for_update().get(pk=policy.pk)
     note = str(note or "").strip()
     if locked.status != PeriodClosePolicy.SUBMITTED:
         raise ValidationError("Only a submitted close policy can be reviewed.")
@@ -150,10 +199,17 @@ def decide_period_close_policy(policy, actor, *, approve, note):
     else:
         if not locked.authority_reference.strip() or not locked.local_acceptance_note.strip():
             raise ValidationError("Record the reviewed authority and local acceptance evidence before activation.")
-        prior = PeriodClosePolicy.objects.select_for_update().filter(
-            department_id=locked.department_id, status=PeriodClosePolicy.ACTIVE,
-        ).exclude(pk=locked.pk).first()
-        if prior:
+        current = _current_locked_policy(locked_policies)
+        if current and current.pk != locked.pk and locked.supersedes_id != current.pk:
+            raise ValidationError(
+                "Another close policy version was already activated for this Accounting office; "
+                "supersede the current active policy instead."
+            )
+        prior_active = [
+            item for item in locked_policies
+            if item.status == PeriodClosePolicy.ACTIVE and item.pk != locked.pk
+        ]
+        for prior in prior_active:
             prior.status = PeriodClosePolicy.SUPERSEDED
             prior.save(update_fields=("status", "updated_at"))
         locked.status = PeriodClosePolicy.ACTIVE

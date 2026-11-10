@@ -1,0 +1,20 @@
+{
+  "command": [
+    "C:\\xxx\\_INSTALLS\\_HERE\\_xxx\\grand-checkpoint209-pdf-venv\\Scripts\\python.exe",
+    "-B",
+    "C:\\Users\\Administrator\\Desktop\\GH\\workflow_version_manager\\version_manager.py",
+    "--repo",
+    "C:\\Users\\Administrator\\.codex\\worktrees\\grand-secure-phase-b-20261024-6ea2569a2637",
+    "preview",
+    "patch",
+    "Secure Phase B checkpoint",
+    "--category",
+    "fix"
+  ],
+  "exit_code": 0,
+  "stdout": "Version: v0.7.188\nCommit: Release v0.7.188: Secure Phase B checkpoint\nFiles to update:\n  - C:\\Users\\Administrator\\.codex\\worktrees\\grand-secure-phase-b-20261024-6ea2569a2637\\VERSION\n  - C:\\Users\\Administrator\\.codex\\worktrees\\grand-secure-phase-b-20261024-6ea2569a2637\\CHANGELOG.md\nTag: v0.7.188\n\nPreview only: no files or Git state changed.\n",
+  "stderr": "",
+  "release_execution": "NOT RUN: tags/releases prohibited",
+  "commit_only_api": "version_manager.git.GitService.commit",
+  "git_service_sha256": "6336519f43097ae0a8d58f4fab0c4d6a3c11e8507e5e9d37a825351c907b370a"
+}

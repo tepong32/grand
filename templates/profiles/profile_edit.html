@@ -49,18 +49,17 @@
             {% for field in hr_form %}
               <div class="form-group">
                 {% if field.name == "assigned_department_memo" %}
-                  <label>{{ field.label }}</label>
 
                   {% if viewed_user.employeeprofile.assigned_department_memo %}
                     <div class="mb-2">
                       <a href="#" data-toggle="modal" data-target="#memoModal">
-                        <img src="{{ viewed_user.employeeprofile.assigned_department_memo.url }}"
+                        <img src="{% url 'profile-department-memo' viewed_user.username %}"
                             alt="Memo Preview"
                             class="img-thumbnail gov-doc-preview">
                       </a>
                       <br>
-                      <a href="{{ viewed_user.employeeprofile.assigned_department_memo.url }}" target="_blank" class="d-block mt-1">
-                        <i class="fas fa-file-image mr-1"></i> {{ viewed_user.employeeprofile.assigned_department_memo.name|slice:"30:" }}
+                      <a href="{% url 'profile-department-memo' viewed_user.username %}" target="_blank" rel="noopener" class="d-block mt-1">
+                        <i class="fas fa-file-image mr-1"></i> Open department assignment memo
                       </a>
                       <small class="text-muted">Click to preview or download. Upload below to replace.</small>
                     </div>
@@ -71,7 +70,10 @@
                   {% endif %}
                 {% endif %}
 
-                {{ field.label_tag }} {{ field }}
+                {% if field.name == 'assigned_department_memo' %}
+                  <label for="{{ field.id_for_label }}">Replace memo</label>
+                {% else %}{{ field.label_tag }}{% endif %}
+                {{ field }}
                 {% if field.errors %}<div class="text-danger">{{ field.errors }}</div>{% endif %}
               </div>
             {% endfor %}
@@ -101,12 +103,16 @@
   </form>
 
   <!-- Memo Image Modal -->
-  {% if viewed_user.employeeprofile.assigned_department_memo %}
+  {% if hr_form and viewed_user.employeeprofile.assigned_department_memo %}
     <div class="modal fade" id="memoModal" tabindex="-1" role="dialog" aria-labelledby="memoModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
+          <div class="modal-header">
+            <h4 class="modal-title" id="memoModalLabel">Department assignment memo</h4>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          </div>
           <div class="modal-body text-center">
-            <img src="{{ viewed_user.employeeprofile.assigned_department_memo.url }}"
+            <img src="{% url 'profile-department-memo' viewed_user.username %}"
                 alt="Full Memo Image"
                 class="img-fluid rounded gov-profile-preview">
           </div>

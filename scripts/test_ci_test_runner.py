@@ -4,7 +4,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from scripts.ci_test_runner import partition, ShardedDiscoverRunner
+from scripts.ci_test_runner import partition, ShardedDiscoverRunner, FORM1_INTAKE_ORIGINAL_OWNER
 from scripts.verify_ci_coverage import verify_coverage
 
 
@@ -18,6 +18,11 @@ class Case:
 
 class ShardCoverageTests(unittest.TestCase):
     def setUp(self):
+        # Preserve the original synthetic owner-3 cases and their test identities.
+        # Production's separately reviewed owner-0 inventory is checked below.
+        owner = patch("scripts.ci_test_runner.FORM1_INTAKE_ORIGINAL_OWNER", 3)
+        self.addCleanup(owner.stop)
+        owner.start()
         self.tests = [Case(name) for name in ('app.Z.test_b', 'app.A.test_b', 'app.A.test_a', 'app.B.test_a')]
         self.records = [dict(schema=1, index=index, count=2, revision='candidate',
             discovered=[test.id() for test in self.tests],
@@ -127,3 +132,27 @@ class ShardCoverageTests(unittest.TestCase):
         for index in range(8):
             with self.subTest(index=index), self.assertRaisesRegex(ValueError, 'original owner 3'):
                 partition(tests, index, 8)
+
+
+    def test_reviewed_current_owner_zero_keeps_intake_on_worker_six(self):
+        self.assertEqual(FORM1_INTAKE_ORIGINAL_OWNER, 0)
+        tests = [test for test in self.intake_partition_tests() if not test.id().startswith("app.")]
+        intake = "budget.test_form1_package_intake.Form1PackageIntakeTests"
+        with patch("scripts.ci_test_runner.FORM1_INTAKE_ORIGINAL_OWNER", FORM1_INTAKE_ORIGINAL_OWNER):
+            records = []
+            for index in range(8):
+                selected = [test.id() for test in partition(tests, index, 8)]
+                self.assertEqual(any(name.rsplit(".", 1)[0] == intake for name in selected), index == 6)
+                records.append(dict(schema=1, index=index, count=8, revision="candidate",
+                    discovered=[test.id() for test in tests], selected=selected,
+                    executed=len(selected), successful=True, skipped=[]))
+            self.assertEqual(verify_coverage(records, count=8, revision="candidate", native=True), len(tests))
+
+    def test_reviewed_current_owner_pin_rejects_any_other_original_owner(self):
+        self.assertEqual(FORM1_INTAKE_ORIGINAL_OWNER, 0)
+        tests = [Case("app.Added.test_new"), *[
+            test for test in self.intake_partition_tests() if not test.id().startswith("app.")]]
+        with patch("scripts.ci_test_runner.FORM1_INTAKE_ORIGINAL_OWNER", FORM1_INTAKE_ORIGINAL_OWNER):
+            for index in range(8):
+                with self.subTest(index=index), self.assertRaisesRegex(ValueError, "original owner 0"):
+                    partition(tests, index, 8)

@@ -1,0 +1,12 @@
+{
+  "python": "3.11.5 (tags/v3.11.5:cce6ba9, Aug 24 2023, 14:38:34) [MSC v.1936 64 bit (AMD64)]",
+  "executable": "C:\\xxx\\_INSTALLS\\_HERE\\_xxx\\grand-checkpoint209-pdf-venv\\Scripts\\python.exe",
+  "packages": {
+    "Django": "5.2.18",
+    "PyMySQL": "1.1.1",
+    "python-telegram-bot": "22.8",
+    "Pillow": "13.0.0"
+  },
+  "mysql": "8.4.11 from native log; both disposable aliases destroyed",
+  "real_telegram_transport": "Forbidden by both verification runners"
+}

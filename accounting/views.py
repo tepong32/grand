@@ -61,9 +61,10 @@ from .services import (
     actor_label,
 )
 from .close_services import (
-    create_period_close_run, current_period_close_policy, decide_period_close_policy,
-    decide_period_close_run, decide_period_reopen, refresh_period_close_run,
-    request_period_reopen, submit_period_close_policy, submit_period_close_run,
+    create_period_close_policy, create_period_close_run, current_period_close_policy,
+    decide_period_close_policy, decide_period_close_run, decide_period_reopen,
+    refresh_period_close_run, request_period_reopen, submit_period_close_policy,
+    submit_period_close_run,
 )
 from .period_close_register import (
     apply_period_close_filters, build_period_close_register,
@@ -670,17 +671,8 @@ def period_close_policy_create(request):
     department = department_for_user(request.user)
     form = PeriodClosePolicyForm(request.POST or None, department=department)
     if request.method == "POST" and form.is_valid():
-        latest = PeriodClosePolicy.objects.filter(department_id=department.pk).order_by("-version").first()
-        policy = form.save(commit=False)
-        policy.department_id = department.pk
-        policy.department_label = department.name
-        policy.version = (latest.version if latest else 0) + 1
-        policy.supersedes = latest
-        policy.created_by_id = request.user.pk
-        policy.created_by_label = actor_label(request.user)
         try:
-            policy.full_clean()
-            policy.save()
+            policy = create_period_close_policy(department, request.user, form=form)
         except ValidationError as exc:
             form.add_error(None, " ".join(exc.messages))
         else:
@@ -1697,6 +1689,32 @@ def entry_detail(request, public_id):
         "debit_total": debit, "credit_total": credit, "balanced": debit > 0 and debit == credit,
         "can_prepare": can_prepare_journals(request.user), "can_post": can_post_journals(request.user),
         "reversal_entry": reversal_entry, "active_reversal_entry": active_reversal_entry,
+    })
+
+
+@require_GET
+@accounting_access_required
+def entry_print(request, public_id):
+    entry = _entry_for_department(request, public_id)
+    debit, credit = entry.totals
+    reversal_entries = JournalEntry.objects.filter(reversal_of=entry).order_by("-pk")
+    reversal_entry = reversal_entries.first()
+    active_reversal_entry = reversal_entries.exclude(status=JournalEntry.VOIDED).first()
+    lines = list(
+        entry.lines.select_related(
+            "account", "responsibility_center", "payable_origin__entry",
+        ).prefetch_related("subsidiary_posting").order_by("sequence", "pk")
+    )
+    return render(request, "accounting/entry_print.html", {
+        "entry": entry,
+        "lines": lines,
+        "debit_total": debit,
+        "credit_total": credit,
+        "balanced": debit > 0 and debit == credit,
+        "reversal_entry": reversal_entry,
+        "active_reversal_entry": active_reversal_entry,
+        "generated_by": actor_label(request.user),
+        "generated_at": timezone.now(),
     })
 
 

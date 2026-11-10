@@ -4,8 +4,8 @@ import json
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
-from django.db.models import Q
-from django.db import IntegrityError
+from django.db.models import F, Q
+from django.db import IntegrityError, transaction
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.text import slugify
@@ -61,6 +61,21 @@ def _csv_text(value):
     if value.startswith(("=", "+", "-", "@", "\t", "\r")):
         return "'" + value
     return value
+
+
+def _draft_for_mutation(request, queryset, **scope):
+    """Match existing office/state scope under the owning Finance write lock."""
+    rows = queryset._default_manager.all() if isinstance(queryset, type) else queryset
+    rows = rows.using("finance")
+    if request.method == "POST":
+        if not transaction.get_connection("finance").in_atomic_block:
+            raise RuntimeError("Budget draft changes require their owning transaction.")
+        # A no-op acquires InnoDB's owner row or SQLite's writer before reading.
+        # Staff submission/posting locks the same header; recheck after waiting.
+        if not rows.filter(**scope).update(state_version=F("state_version")):
+            raise Http404
+        rows = rows.select_for_update()
+    return get_object_or_404(rows, **scope)
 
 
 def _obligation_scope(user):
@@ -671,9 +686,10 @@ def allotment_create(request):
 
 
 @budget_permission_required("prepare_allotment_releases")
+@transaction.atomic(using="finance")
 def allotment_edit(request, public_id):
     department = department_for_user(request.user)
-    item = get_object_or_404(
+    item = _draft_for_mutation(request,
         AllotmentReleaseOrder, public_id=public_id, department_id=department.pk,
         status__in=(AllotmentReleaseOrder.DRAFT, AllotmentReleaseOrder.RETURNED),
     )
@@ -683,8 +699,9 @@ def allotment_edit(request, public_id):
         updated.fiscal_year = updated.authorization.version.fiscal_year
         updated.state_version += 1
         try:
-            updated.full_clean(); updated.save()
-            record_event(updated, "allotment_draft_edited", request.user, snapshot={"order_number": updated.order_number, "state_version": updated.state_version})
+            with transaction.atomic(using="finance"):
+                updated.full_clean(); updated.save()
+                record_event(updated, "allotment_draft_edited", request.user, snapshot={"order_number": updated.order_number, "state_version": updated.state_version})
         except ValidationError as exc:
             form.add_error(None, exc)
         else:
@@ -722,9 +739,10 @@ def allotment_detail(request, public_id):
 
 
 @budget_permission_required("prepare_allotment_releases")
+@transaction.atomic(using="finance")
 def allotment_line_create(request, public_id):
     department = department_for_user(request.user)
-    item = get_object_or_404(
+    item = _draft_for_mutation(request,
         AllotmentReleaseOrder.objects.select_related("authorization"), public_id=public_id,
         department_id=department.pk, status__in=(AllotmentReleaseOrder.DRAFT, AllotmentReleaseOrder.RETURNED),
     )
@@ -734,12 +752,13 @@ def allotment_line_create(request, public_id):
         line.order = item
         line.department_id, line.department_label = department.pk, department.name
         try:
-            line.full_clean(); line.save()
-            item.state_version += 1; item.save(update_fields=("state_version", "updated_at"))
-            record_event(item, "allotment_line_added", request.user, snapshot={
-                "appropriation_line_id": line.appropriation_line_id,
-                "movement_type": line.movement_type, "amount": str(line.amount),
-            })
+            with transaction.atomic(using="finance"):
+                line.full_clean(); line.save()
+                item.state_version += 1; item.save(update_fields=("state_version", "updated_at"))
+                record_event(item, "allotment_line_added", request.user, snapshot={
+                    "appropriation_line_id": line.appropriation_line_id,
+                    "movement_type": line.movement_type, "amount": str(line.amount),
+                })
         except ValidationError as exc:
             form.add_error(None, exc)
         else:
@@ -752,9 +771,10 @@ def allotment_line_create(request, public_id):
 
 
 @budget_permission_required("prepare_allotment_releases")
+@transaction.atomic(using="finance")
 def allotment_line_edit(request, public_id, line_id):
     department = department_for_user(request.user)
-    item = get_object_or_404(
+    item = _draft_for_mutation(request,
         AllotmentReleaseOrder.objects.select_related("authorization"), public_id=public_id,
         department_id=department.pk, status__in=(AllotmentReleaseOrder.DRAFT, AllotmentReleaseOrder.RETURNED),
     )
@@ -764,12 +784,13 @@ def allotment_line_edit(request, public_id, line_id):
     if request.method == "POST" and form.is_valid():
         updated = form.save(False)
         try:
-            updated.full_clean(); updated.save()
-            item.state_version += 1; item.save(update_fields=("state_version", "updated_at"))
-            record_event(item, "allotment_line_edited", request.user, snapshot={
-                "before": before,
-                "after": {"appropriation_line_id": updated.appropriation_line_id, "movement_type": updated.movement_type, "amount": str(updated.amount), "remarks": updated.remarks},
-            })
+            with transaction.atomic(using="finance"):
+                updated.full_clean(); updated.save()
+                item.state_version += 1; item.save(update_fields=("state_version", "updated_at"))
+                record_event(item, "allotment_line_edited", request.user, snapshot={
+                    "before": before,
+                    "after": {"appropriation_line_id": updated.appropriation_line_id, "movement_type": updated.movement_type, "amount": str(updated.amount), "remarks": updated.remarks},
+                })
         except ValidationError as exc:
             form.add_error(None, exc)
         else:
@@ -783,9 +804,10 @@ def allotment_line_edit(request, public_id, line_id):
 
 @require_POST
 @budget_permission_required("prepare_allotment_releases")
+@transaction.atomic(using="finance")
 def allotment_line_delete(request, public_id, line_id):
     department = department_for_user(request.user)
-    item = get_object_or_404(
+    item = _draft_for_mutation(request,
         AllotmentReleaseOrder, public_id=public_id, department_id=department.pk,
         status__in=(AllotmentReleaseOrder.DRAFT, AllotmentReleaseOrder.RETURNED),
     )
@@ -981,11 +1003,12 @@ def obligation_create(request):
 
 
 @budget_access_required
+@transaction.atomic(using="finance")
 def obligation_edit(request, public_id):
     if not can_act_on_budget(request.user, "initiate_obligation_requests"):
         raise PermissionDenied
     department = department_for_user(request.user)
-    item = get_object_or_404(
+    item = _draft_for_mutation(request,
         ObligationRequest, public_id=public_id, requesting_department_id=department.pk,
         status__in=(ObligationRequest.DRAFT, ObligationRequest.RETURNED),
     )
@@ -994,10 +1017,11 @@ def obligation_edit(request, public_id):
         updated = form.save(False)
         updated.state_version += 1
         try:
-            updated.full_clean(); updated.save()
-            record_event(updated, "obligation_draft_edited", request.user, snapshot={
-                "request_reference": updated.request_reference, "state_version": updated.state_version,
-            })
+            with transaction.atomic(using="finance"):
+                updated.full_clean(); updated.save()
+                record_event(updated, "obligation_draft_edited", request.user, snapshot={
+                    "request_reference": updated.request_reference, "state_version": updated.state_version,
+                })
         except ValidationError as exc:
             form.add_error(None, exc)
         else:
@@ -1030,11 +1054,12 @@ def obligation_detail(request, public_id):
 
 
 @budget_access_required
+@transaction.atomic(using="finance")
 def obligation_line_create(request, public_id):
     if not can_act_on_budget(request.user, "initiate_obligation_requests"):
         raise PermissionDenied
     department = department_for_user(request.user)
-    item = get_object_or_404(
+    item = _draft_for_mutation(request,
         ObligationRequest.objects.select_related("authorization"), public_id=public_id,
         requesting_department_id=department.pk, status__in=(ObligationRequest.DRAFT, ObligationRequest.RETURNED),
     )
@@ -1042,12 +1067,13 @@ def obligation_line_create(request, public_id):
     if request.method == "POST" and form.is_valid():
         line = form.save(False)
         try:
-            line.full_clean(); line.save()
-            item.state_version += 1; item.save(update_fields=("state_version", "updated_at"))
-            record_event(item, "obligation_line_added", request.user, snapshot={
-                "appropriation_line_id": line.appropriation_line_id, "movement_type": line.movement_type,
-                "amount": str(line.amount),
-            })
+            with transaction.atomic(using="finance"):
+                line.full_clean(); line.save()
+                item.state_version += 1; item.save(update_fields=("state_version", "updated_at"))
+                record_event(item, "obligation_line_added", request.user, snapshot={
+                    "appropriation_line_id": line.appropriation_line_id, "movement_type": line.movement_type,
+                    "amount": str(line.amount),
+                })
         except ValidationError as exc:
             form.add_error(None, exc)
         else:
@@ -1060,11 +1086,12 @@ def obligation_line_create(request, public_id):
 
 
 @budget_access_required
+@transaction.atomic(using="finance")
 def obligation_line_edit(request, public_id, line_id):
     if not can_act_on_budget(request.user, "initiate_obligation_requests"):
         raise PermissionDenied
     department = department_for_user(request.user)
-    item = get_object_or_404(
+    item = _draft_for_mutation(request,
         ObligationRequest.objects.select_related("authorization"), public_id=public_id,
         requesting_department_id=department.pk, status__in=(ObligationRequest.DRAFT, ObligationRequest.RETURNED),
     )
@@ -1074,12 +1101,13 @@ def obligation_line_edit(request, public_id, line_id):
     if request.method == "POST" and form.is_valid():
         updated = form.save(False)
         try:
-            updated.full_clean(); updated.save()
-            item.state_version += 1; item.save(update_fields=("state_version", "updated_at"))
-            record_event(item, "obligation_line_edited", request.user, snapshot={
-                "before": before, "after": {"appropriation_line_id": updated.appropriation_line_id,
-                "movement_type": updated.movement_type, "amount": str(updated.amount), "remarks": updated.remarks},
-            })
+            with transaction.atomic(using="finance"):
+                updated.full_clean(); updated.save()
+                item.state_version += 1; item.save(update_fields=("state_version", "updated_at"))
+                record_event(item, "obligation_line_edited", request.user, snapshot={
+                    "before": before, "after": {"appropriation_line_id": updated.appropriation_line_id,
+                    "movement_type": updated.movement_type, "amount": str(updated.amount), "remarks": updated.remarks},
+                })
         except ValidationError as exc:
             form.add_error(None, exc)
         else:
@@ -1093,11 +1121,12 @@ def obligation_line_edit(request, public_id, line_id):
 
 @require_POST
 @budget_access_required
+@transaction.atomic(using="finance")
 def obligation_line_delete(request, public_id, line_id):
     if not can_act_on_budget(request.user, "initiate_obligation_requests"):
         raise PermissionDenied
     department = department_for_user(request.user)
-    item = get_object_or_404(
+    item = _draft_for_mutation(request,
         ObligationRequest, public_id=public_id, requesting_department_id=department.pk,
         status__in=(ObligationRequest.DRAFT, ObligationRequest.RETURNED),
     )

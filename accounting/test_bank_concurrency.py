@@ -14,7 +14,13 @@ from django.db.models.query import QuerySet
 from django.test import Client, TransactionTestCase
 from django.urls import reverse
 
-from accounting.models import BankReconciliationEvent, BankStatementBatch, BankStatementMatch, BankStatementRow, PostingMapping
+from accounting.close_services import (
+    decide_period_close_policy, ensure_period_close_starter, submit_period_close_policy,
+)
+from accounting.models import (
+    AccountingAuditEvent, BankReconciliationEvent, BankStatementBatch, BankStatementMatch,
+    BankStatementRow, PeriodClosePolicy, PostingMapping,
+)
 from accounting.services import auto_match_bank_statement, post_entry, stage_bank_statement_csv, submit_entry
 from accounting import services as accounting_services, tests as accounting_tests
 
@@ -112,3 +118,63 @@ class BankMatchTransactionTests(TransactionTestCase):
             with self.assertRaises(OperationalError):
                 auto_match_bank_statement(batch, self.preparer)
         self.assertFalse(BankStatementMatch.objects.exists())
+
+    @skipUnless(connections["finance"].vendor == "mysql", "Native MySQL concurrency regression.")
+    def test_concurrent_first_period_close_policy_activations_serialize_on_starter(self):
+        accounting_tests.StandaloneAccountingTests.setUpTestData.__func__(type(self))
+        self._grant(self.preparer, 'manage_period_close_policies')
+        self._grant(self.poster, 'approve_period_close_policies')
+        starter, _ = ensure_period_close_starter(self.accounting_department, self.preparer)
+        candidates = []
+        for version in (2, 3):
+            policy = PeriodClosePolicy.objects.create(
+                department_id=self.accounting_department.pk,
+                department_label=self.accounting_department.name,
+                version=version,
+                supersedes=starter,
+                title=f'Concurrent close policy v{version}',
+                mode=PeriodClosePolicy.ENFORCE,
+                description='Concurrent first activation race.',
+                authority_reference=f'Memo ACCT-2027-0{version}.',
+                local_acceptance_note='Accepted by the Municipal Accountant.',
+                created_by_id=self.preparer.pk,
+                created_by_label=self.preparer.username,
+            )
+            submit_period_close_policy(policy, self.preparer)
+            candidates.append(policy.pk)
+        barrier = Barrier(2, timeout=20)
+
+        def worker(policy_pk):
+            connections.close_all()
+            try:
+                reviewer = accounting_tests.get_user_model().objects.get(pk=self.poster.pk)
+                target = PeriodClosePolicy.objects.get(pk=policy_pk)
+                barrier.wait()
+                decide_period_close_policy(
+                    target, reviewer, approve=True, note='Concurrent independent activation',
+                )
+                return 'activated'
+            except ValidationError as exc:
+                return '; '.join(exc.messages)
+            finally:
+                connections.close_all()
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            outcomes = list(pool.map(worker, candidates))
+        self.assertEqual(outcomes.count('activated'), 1, outcomes)
+        self.assertTrue(
+            any('Another close policy version was already activated' in item for item in outcomes),
+            outcomes,
+        )
+        self.assertEqual(
+            PeriodClosePolicy.objects.filter(
+                department_id=self.accounting_department.pk, status=PeriodClosePolicy.ACTIVE,
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            AccountingAuditEvent.objects.filter(
+                department_id=self.accounting_department.pk, action='close_policy_activated',
+            ).count(),
+            1,
+        )

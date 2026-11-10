@@ -31,6 +31,12 @@ gates remain mandatory. Report passed, failed, deferred, skipped and unavailable
 checks accurately with reasons; investigate failures without weakening gates.
 Propose costly CI-policy duplication separately, with evidence, not inside a feature.
 
+Every VM checkpoint includes the owner's quick local review of tracked and
+intended/staged content for credentials/keys. Remove exposed real secrets using
+existing private configuration, retain synthetic fixtures, print no values and
+flag any committed credential for rotation. Preserve private operator data and
+history; see [review boundary](docs/TESTING_AND_EVIDENCE_POLICY.md#sensitive-information-review-before-vm-commit).
+
 For every Codex implementation session, follow the actionable
 [testing session protocol](docs/TESTING_AND_EVIDENCE_POLICY.md#codex-session-protocol):
 inspect the current handoff and actual diff; classify risk before testing; run
@@ -83,6 +89,30 @@ development does not establish migration readiness. The consolidated decision lo
 owns these accepted choices; do not ask them again.
 
 ## Project context and documentation map
+
+Finance resumption (2026-10-24): security checkpoint f1711038 was explicitly
+accepted. Reconcile Budget G7/G8 dated capacity and line validation before new
+numerical breadth; draft header/line writes share their owning Finance lock with
+posting. Never use later restorations as earlier capacity or silently repair
+malformed historical lines. See [current reconciliation](docs/FINANCE_BUDGET_RECONCILIATION_2026-10-24.md).
+
+Private-file reconciliation: shared filesystem downloads use `src/file_integrity.py`
+and the original source authority; current legacy Assistance attachments and memos
+retain explicit missing-baseline status rather than invented checksums. Citizen
+access uses expiring request-scoped private links, with registered-email recovery;
+legacy PINs do not authorize access. Production storage and legacy external
+associations require separate operational qualification. See the
+[Phase B scope and validation](docs/PHASE_B_PRIVATE_ACCESS_RECONCILIATION_2026-10-23.md).
+
+Citizen mutations acquire the default-store request write lock before reading
+current credentials/eligibility; citizen forms write only name, email and phone.
+Document changes share that owning lock before document locks. Telegram credential
+binding requires a private chat; a binding is not notification qualification.
+See [P1 remediation and exact evidence](docs/PHASE_B_P1_REMEDIATION_2026-10-23.md).
+Privileged/unknown citizen fields are rejected. Telegram notification delivery is
+explicitly disabled for every current association until a reviewed qualification
+contract exists; neither chat IDs, private binding nor settings enable it. See
+[the secure checkpoint](docs/PHASE_B_SECURITY_CHECKPOINT_2026-10-24.md).
 
 Asset-cost worksheets divide explicit documentary amounts, not official valuation.
 Retain accepted receipt/source evidence, exact component quantities/units/amounts,

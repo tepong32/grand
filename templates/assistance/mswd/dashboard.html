@@ -106,9 +106,9 @@
                     <div class="small text-muted text-truncate mb-1">{{ doc.get_document_type_display }}</div>
                     {% with filename=doc.file.name|lower %}
                       {% if ".pdf" in filename %}
-                        <iframe src="{{ doc.file.url }}#view=FitH" class="w-100 border" style="height: 90px;" loading="lazy"></iframe>
+                        <iframe src="{% url 'assistance:mswd_document_download' doc_id=doc.pk %}#view=FitH" class="w-100 border" style="height: 90px;" loading="lazy"></iframe>
                       {% elif ".jpg" in filename or ".jpeg" in filename or ".png" in filename or ".gif" in filename or ".webp" in filename %}
-                        <img src="{{ doc.file.url }}" alt="{{ doc.file.name }}" class="img-thumbnail" style="max-height: 90px; width: 100%; object-fit: cover;">
+                        <img src="{% url 'assistance:mswd_document_download' doc_id=doc.pk %}" alt="{{ doc.file.name }}" class="img-thumbnail" style="max-height: 90px; width: 100%; object-fit: cover;">
                       {% else %}
                         <div class="small text-muted">Unsupported preview</div>
                       {% endif %}

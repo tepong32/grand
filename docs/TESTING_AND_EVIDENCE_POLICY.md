@@ -64,6 +64,23 @@ For each meaningful checkpoint, record concise evidence in `CONTINUE.md` or the 
 
 Use unambiguous statuses such as PASS, FAIL - CAUSED BY CURRENT WORK, FAIL - PRE-EXISTING (with evidence), NOT RUN - OUT OF SCOPE (with rationale), NOT RUN - ENVIRONMENTAL (with limitation), SKIPPED BY BACKEND, and CANCELLED. A skip, cancellation, unperformed human acceptance, or missing environment is never a pass.
 
+## Sensitive-information review before VM commit
+
+Owner instruction, 2026-10-24: perform a quick local review of repository-tracked
+content and the final intended/staged commit for credentials, tokens, API/private
+keys and similar sensitive information. Inspect findings without printing values.
+Remove exposed real secrets from source using the existing environment/private
+configuration pattern; preserve legitimate synthetic fixtures and placeholders.
+Re-scan the final candidate. Record scope, redacted classifications and limitations.
+
+Keep unrelated ignored private configuration, operator databases and recovery
+archives in place and out of commits/logs/uploads. A quick text scan does not
+establish exhaustive detection or inspect binary/database records. If a real
+credential was already committed/published, flag revocation/rotation: current-file
+removal cannot revoke it or erase history. Published-history rewriting, protected
+data deletion and service credential changes require separate authorization.
+This review supplements all existing checks; it does not replace any CI gate.
+
 ## GRAND-specific safety boundary
 
 Finance remains NO-GO until its documented financial-rule, native persistence, cross-office, output, human acceptance, and operational gates are satisfied. Risk-based local testing does not certify official accounting interpretations, forms, signatures, production readiness, migration readiness, backup/recovery, or LGU acceptance. Do not deploy or run production operations without explicit authorization.

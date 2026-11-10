@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Journal Entry Voucher · {{ entry.reference }}</title>
+  <style>
+    @page { size: A4; margin: 16mm; }
+    body { font: 12px/1.45 Arial, sans-serif; color: #111; margin: 24px auto; max-width: 780px; }
+    h1 { font-size: 20px; margin: 2px 0 4px; }
+    h2 { font-size: 14px; margin: 20px 0 8px; }
+    table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+    th, td { border: 1px solid #888; padding: 6px 8px; text-align: left; vertical-align: top; }
+    thead { display: table-header-group; background: #f5f5f5; }
+    tr { break-inside: avoid; }
+    .amount { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .metadata { color: #444; font-size: 11px; margin-bottom: 4px; }
+    .banner { border: 1px solid #666; background: #fafafa; padding: 8px 10px; margin: 10px 0; font-size: 11px; }
+    .signatories td { width: 50%; height: 64px; }
+    .actions { margin-bottom: 14px; }
+    footer { margin-top: 24px; border-top: 1px solid #888; padding-top: 8px; font-size: 10px; color: #333; overflow-wrap: anywhere; }
+    @media print {
+      body { margin: 0; max-width: none; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="actions no-print">
+    <a href="{% url 'accounting:entry_detail' entry.public_id %}">&larr; Back to JEV detail</a>
+    &middot;
+    <button type="button" onclick="window.print()">Print / Save as PDF</button>
+  </div>
+
+  <p class="metadata">GRAND Accounting &middot; {{ entry.department_label }} &middot; Working Journal Entry Voucher Copy</p>
+  <h1>Journal Entry Voucher (JEV) &middot; {{ entry.reference }}</h1>
+  <p class="metadata">Status: <strong>{{ entry.get_status_display }}</strong> &middot; Source: {{ entry.get_source_type_display }}{% if entry.source_reference %} ({{ entry.source_reference }}){% endif %}</p>
+
+  {% if entry.status != 'posted' %}
+  <div class="banner">
+    <strong>Unposted working copy ({{ entry.get_status_display }}):</strong>
+    This journal entry has not been posted to the general ledger. Do not use this working sheet as a posted accounting record.
+  </div>
+  {% endif %}
+
+  {% if entry.reversal_of_id %}
+  <div class="banner">
+    <strong>Reversing JEV:</strong> Reverses {{ entry.reversal_of.reference }}. Reason: {{ entry.reversal_reason }}
+  </div>
+  {% endif %}
+  {% if reversal_entry %}
+  <div class="banner">
+    <strong>Correction lineage:</strong> Reversing entry {{ reversal_entry.reference }} ({{ reversal_entry.get_status_display }}).
+  </div>
+  {% endif %}
+
+  <table>
+    <tbody>
+      <tr>
+        <th>JEV No.</th>
+        <td><strong>{{ entry.reference }}</strong></td>
+        <th>Entry Date</th>
+        <td>{{ entry.entry_date|date:"Y-m-d" }}</td>
+      </tr>
+      <tr>
+        <th>Fund</th>
+        <td>{{ entry.fund.code }} &mdash; {{ entry.fund.name }}</td>
+        <th>Accounting Period</th>
+        <td>{{ entry.period }}</td>
+      </tr>
+      <tr>
+        <th>Particulars / Explanation</th>
+        <td colspan="3">{{ entry.description }}</td>
+      </tr>
+      {% if entry.source_type == 'voucher' and entry.source_snapshot %}
+      <tr>
+        <th>Voucher Reference</th>
+        <td>{{ entry.source_snapshot.voucher_reference|default:"—" }} / {{ entry.source_snapshot.dv_number|default:"—" }}</td>
+        <th>Posting Event</th>
+        <td>{{ entry.source_snapshot.posting_event|default:"—" }} ({{ entry.source_snapshot.recognition_decision|default:"—" }})</td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
+
+  <h2>Accounting Entries</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 36px;">#</th>
+        <th>Responsibility Center</th>
+        <th>Account Code</th>
+        <th>Account Title &amp; Subsidiary / Memo</th>
+        <th class="amount">Debit</th>
+        <th class="amount">Credit</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for line in lines %}
+      <tr>
+        <td>{{ line.sequence }}</td>
+        <td>{% if line.responsibility_center %}{{ line.responsibility_center.code }} &mdash; {{ line.responsibility_center.name }}{% else %}&mdash;{% endif %}</td>
+        <td><strong>{{ line.account.code }}</strong></td>
+        <td>
+          {{ line.account.title }}
+          {% if line.memo %}<div class="metadata">Memo: {{ line.memo }}</div>{% endif %}
+          {% if line.payable_claim_reference %}<div class="metadata">Claim: {{ line.payable_claim_reference }} / {{ line.payable_party_key }}</div>{% endif %}
+          {% if line.subsidiary_posting %}<div class="metadata">{{ line.subsidiary_posting.get_category_display }}: {{ line.subsidiary_posting.reference_label }} ({{ line.subsidiary_posting.reference_key }})</div>{% endif %}
+        </td>
+        <td class="amount">{{ line.debit|floatformat:2 }}</td>
+        <td class="amount">{{ line.credit|floatformat:2 }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="6">No journal lines recorded.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <th colspan="4">Total ({% if balanced %}Balanced{% else %}Unbalanced{% endif %})</th>
+        <th class="amount">{{ debit_total|floatformat:2 }}</th>
+        <th class="amount">{{ credit_total|floatformat:2 }}</th>
+      </tr>
+    </tfoot>
+  </table>
+
+  <table class="signatories">
+    <tbody>
+      <tr>
+        <td>
+          <strong>Prepared by (System Actor):</strong><br>
+          {{ entry.created_by_label }}<br>
+          <span class="metadata">Created: {{ entry.created_at|date:"Y-m-d H:i" }}{% if entry.submitted_by_label %} &middot; Submitted by {{ entry.submitted_by_label }} ({{ entry.submitted_at|date:"Y-m-d H:i" }}){% endif %}</span><br><br>
+          <span class="metadata">Paper signature / local designation: ___________________________</span>
+        </td>
+        <td>
+          <strong>Independently Reviewed / Posted by (System Actor):</strong><br>
+          {% if entry.posted_at %}{{ entry.posted_by_label }}<br><span class="metadata">Posted: {{ entry.posted_at|date:"Y-m-d H:i" }}</span>{% else %}Not yet posted{% endif %}<br><br>
+          <span class="metadata">Certified Correct / Municipal Accountant: ___________________________</span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <footer>
+    Generated {{ generated_at|date:"Y-m-d H:i" }} by {{ generated_by }} &middot; JEV UUID: {{ entry.public_id }}.<br>
+    Working printable JEV copy from GRAND's Finance database. System preparation/posting actors do not replace wet or locally accepted signatures; exact local JEV form parity remains governed by Local Form Acceptance (F10).
+  </footer>
+</body>
+</html>
+

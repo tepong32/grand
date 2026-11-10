@@ -1,0 +1,21 @@
+{
+  "status": "PROPOSED ONLY; current guard still fails; no CI source changed or gate bypassed",
+  "method": "If separately approved, update reviewed original-owner expectation from 3 to 0 while retaining intake effective worker 6 and all full-discovery/coverage checks",
+  "total_tests": 3061,
+  "total_classes": 374,
+  "proposed_test_counts": {
+    "0": 347,
+    "1": 230,
+    "2": 446,
+    "3": 271,
+    "4": 524,
+    "5": 458,
+    "6": 383,
+    "7": 402
+  },
+  "all_prior_ids_retained": true,
+  "new_method_count": 32,
+  "intake_test_count": 6,
+  "runtime_balance": "NOT CHECKED; static counts are not elapsed-time evidence",
+  "approval": "separate owner decision required by TESTING_AND_EVIDENCE_POLICY.md"
+}

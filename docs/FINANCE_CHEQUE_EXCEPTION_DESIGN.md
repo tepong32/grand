@@ -7,7 +7,11 @@ Later checkpoints cover [principal redemption/internal custody](FINANCE_CHEQUE_R
 [mixed cash-purpose components](FINANCE_CHEQUE_COMPONENTS_IN_PROGRESS.md),
 [officer cheque reservations/clearing](FINANCE_OFFICER_CHEQUES_IN_PROGRESS.md) and
 [officer bank returns/corrections/replacement](FINANCE_OFFICER_CHEQUE_RETURNS_IN_PROGRESS.md).
-Combined fees/penalties and external physical delivery remain separate boundaries.
+October19 ordinary assessed charges are covered by the
+[retained-component contract](FINANCE_REDEMPTION_CHARGES_2026-10-19.md); the
+[officer extension](FINANCE_OFFICER_REDEMPTION_CHARGES.md) is implemented locally with
+separate whole-instrument and advance amounts. External physical delivery remains
+open. CONTINUE.md owns current validation and local checkpoint evidence.
 This does not establish LGU acceptance.
 
 The user has no local procedure to supply and authorizes research-led development.
@@ -114,8 +118,10 @@ remains visible and cannot authorize a second posting.
 
 The [principal and internal-custody implementation](FINANCE_CHEQUE_REDEMPTIONS_IN_PROGRESS.md)
 now connects new receipts and versioned TracePoint item associations. Its validation
-record distinguishes supported principal/internal handovers from still-open combined
-penalties, mixed purposes, external delivery and officer timing. The design below remains
+record retains the historical principal/internal-handover scope. Mixed-purpose and
+officer-return adapters have their own linked checkpoints; October19 adds
+[ordinary assessed components](FINANCE_REDEMPTION_CHARGES_2026-10-19.md).
+External delivery and combined officer charges remain open. The design below is
 the intended complete boundary, not a claim that every adapter is implemented.
 
 Add `vouchers/cheque_redemptions.py` as an adapter over receipt capture, charges and bank

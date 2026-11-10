@@ -3,7 +3,8 @@
 {% block content %}
 <div class="container-fluid pb-4">
   <a href="{% url 'accounting:workspace' %}" class="small"><i class="fas fa-arrow-left mr-1"></i>Back to journal register</a>
-  {% if entry.status == 'posted' and entry.statement_source_type != 'opening' %}<a href="{% url 'accounting:cash_classification' entry.public_id %}" class="btn btn-sm btn-outline-secondary ml-3">Cash-flow purposes / review</a>{% endif %}
+  <a href="{% url 'accounting:entry_print' entry.public_id %}" class="btn btn-sm btn-outline-primary ml-3"><i class="fas fa-print mr-1"></i>Printable JEV copy</a>
+  {% if entry.status == 'posted' and entry.statement_source_type != 'opening' %}<a href="{% url 'accounting:cash_classification' entry.public_id %}" class="btn btn-sm btn-outline-secondary ml-2">Cash-flow purposes / review</a>{% endif %}
   {% if entry.status == 'posted' and entry.source_type != 'voucher' and entry.source_type != 'remittance' and not entry.reversal_of_id %}
   <div class="my-2">{% for line in lines %}{% if line.credit and line.account.account_type == 'liability' and not line.payable_origin_id %}<a class="btn btn-sm btn-outline-secondary mr-2" href="{% url 'accounting:claim_attribution' line.pk %}">Claim attribution / review · line {{ line.sequence }}</a>{% endif %}{% endfor %}</div>
   {% endif %}

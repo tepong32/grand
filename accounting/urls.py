@@ -140,6 +140,7 @@ urlpatterns = [
     path("bank-reconciliation/<uuid:public_id>/export/", views.bank_reconciliation_export, name="bank_reconciliation_export"),
     path("journals/new/", views.entry_create, name="entry_create"),
     path("journals/<uuid:public_id>/", views.entry_detail, name="entry_detail"),
+    path("journals/<uuid:public_id>/print/", views.entry_print, name="entry_print"),
     path("journals/<uuid:public_id>/edit/", views.entry_edit, name="entry_edit"),
     path("journals/<uuid:public_id>/lines/new/", views.line_create, name="line_create"),
     path("journals/<uuid:public_id>/lines/<int:pk>/edit/", views.line_edit, name="line_edit"),

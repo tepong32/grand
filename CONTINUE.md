@@ -1,3 +1,189 @@
+## Finance reconciliation, D-064 close-policy serialization, cheque redemption charges, and printable JEV view — 2026-11-10
+
+Consolidated working branch `codex/finance-reconciliation-20261110` on top of
+`origin/codex/finance-budget-integrity-20261024` (`029b17a`):
+
+1. **Universal Version Manager (`tools/version_manager.py` v2.0.0 & `tools/auto_merge.py`)**:
+   Added the zero-dependency universal release/checkpoint toolkit.
+2. **Accounting Period-Close Policy Serialization (`D-064`)**:
+   `accounting/close_services.py` and `accounting/views.py` now lock all existing
+   `PeriodClosePolicy` rows for the department in ascending `(version, pk)` order
+   before seeding a starter, creating a successor draft, submitting, or deciding a
+   policy. First activation and successor activation verify `supersedes_id` against
+   the current active/starter head and reject stale sibling candidates rather than
+   allowing concurrent activations. Covered by `accounting.test_period_close` and
+   `accounting.test_bank_concurrency`.
+3. **Cheque Redemption Charges & Officer Principal Separation (`49af4e1` & `ec5a640`)**:
+   Reconciled `vouchers/redemption_charges.py`, `vouchers/officer_receipt_components.py`,
+   collection/cheque return/redemption services, views, templates, and tests
+   (`vouchers.test_cheque_redemptions`, `vouchers.test_cheque_components`,
+   `vouchers.test_advance_cheque_returns`, `finance.test_work_tasks`).
+4. **Printable Individual JEV Working Copy (`FG-06`)**:
+   Added `accounting:entry_print` (`accounting/urls.py`, `accounting/views.py`,
+   `templates/accounting/entry_print.html`, linked from `templates/accounting/entry_detail.html`)
+   with department-scoped read access, draft/unposted banner, balanced line-by-line
+   account/center/subsidiary details, and system actor vs. paper signatory blocks.
+5. **CI Discovery & Partition Verification**:
+   `scripts/test_ci_test_runner.py` (11/11) and complete 8-shard discovery (3,095
+   tests across 374 classes, `FORM1_INTAKE_ORIGINAL_OWNER = 0` → worker 6) pass.
+   Production remains NO-GO pending LGU local form/rule and operational acceptance.
+
+---
+
+## Finance Budget integrity checkpoint — 2026-10-24
+
+The user explicitly accepted security checkpoint
+`f1711038e30c0e684e99b4fd5172eebacfe99436` and authorized Finance resumption.
+The older acceptance hold below is historical and satisfied. Finance stays NO-GO.
+
+Current independent workspace:
+`C:/Users/Administrator/.codex/worktrees/grand-finance-budget-20261024-6d195553f3ea`,
+branch `codex/finance-budget-integrity-20261024`, parent f1711038.
+[Scope, source reconciliation, evidence and next work](docs/FINANCE_BUDGET_RECONCILIATION_2026-10-24.md).
+Canonical v112 is an ancestor; its dirty handoff/database, untracked Accounting
+test/nine artifacts, four stashes and all originals/archive remain preserved.
+
+G7/G8 from 5ad07d052324b744332164cd894592fa597b64d5 and
+f1b32ff7c95e0f60804ba3b6feec835788be8c05: dated Budget capacity checks every
+affected day-end; final obligation services enforce existing line rules. Eight
+draft header/line writes lock their owning Finance header against posting and
+roll back audit failures. No schema, financial recipe, grant or dashboard change.
+
+The owner separately approved the [CI compatibility repair](docs/FINANCE_CI_OWNERSHIP_BLOCKER_2026-10-24.md)
+after a pre-existing owner-pin failure was reproduced. Original owner 0 still moves
+intake to worker 6. All required jobs/gates, eight workers, coverage aggregation,
+native zero-skip checks and all nine original CI test bodies remain; two checks added.
+
+Risk: Finance calculations/writes, permissions, audit/transactions/concurrency;
+approved CI compatibility. Final native 02 PASS 297/297, zero skips, 357.957s.
+Focused SQLite 02 PASS 22 /12 native-only skips (34), 4.931s. Fresh CI unit 11/11.
+Static complete discovery/partition PASS 3,061 application IDs /374 classes, all
+old IDs retained and each assigned once; this is not 3,061 executed passes.
+[Portable exact commands/IDs/logs/helpers](docs/evidence/finance-budget-2026-10-24/README.md).
+Final 1,506-file source/helper fingerprint:
+`82cac93e93ad2cfcbf7d4742d6e59719405576128f0104b19d946c6ca182b1fd`.
+SQLite 02 fingerprint 106f90cb differs only in the later two CI files; exact reuse
+proof binds unchanged application/test/helper bytes and assumptions. Earlier 01
+passes/failed CI discovery are retained; no historical pass is relabeled current.
+Both stores destroyed, owned server/port stopped, source template unchanged.
+
+The new global VM preference requires quick local tracked/intended/staged secret
+review. Extended text scan 1,978 files /133 reviewed synthetic/vendor/placeholder
+flags, no real secret identified or removed; private ignored data/database/binary
+contents and history excluded. Final staged review precedes the local commit.
+VM release preview proposes a tag, prohibited; use only existing commit helper
+for this local checkpoint. No VERSION/CHANGELOG, integration/push, release/tag,
+deployment, production data, eGAPS or real Telegram operation.
+
+Next: reproduce D-064 close-policy first activation on supported native fixtures;
+preserve the original untracked test and stop dependent work on a verified critical
+defect. The functional Form 1 numerical milestone still requires applicable reviewed
+source rules. Other feature groups/stashes/artifacts are not automatically adopted.
+Hosted exact-candidate/primary CI, whole-project integration, local-rule/form,
+browser/paper/operational/recovery/LGU gates remain open. Finance stays NO-GO.
+
+---
+
+## Secure Phase B checkpoint — 2026-10-24
+
+Current isolated clone: `C:/Users/Administrator/.codex/worktrees/grand-secure-phase-b-20261024-6ea2569a2637`,
+branch `codex/secure-phase-b-20261024`, parent `5600a554b5f2333b089a7a9b168a8e93c5e44580`.
+Original 48-file Phase B candidate, P1 workspace/evidence, recovery archive,
+operator databases, original worktrees/refs/stashes remain preserved.
+
+[Final implementation, evidence, VM procedure and Finance next step](docs/PHASE_B_SECURITY_CHECKPOINT_2026-10-24.md).
+Citizen mutation locking/current authority remains; forbidden fields now reject
+rather than silently ignore. Document failure cleanup/re-upload respects the
+existing identity and original evidence. Unsupported private storage returns
+unavailable before opening. Private Telegram binding requires a real token;
+both staff callers use an explicit deny-all delivery gate. Binding or settings
+cannot qualify a destination; no async/real delivery is enabled.
+
+Fresh focused SQLite PASS 32 /10 native-only skips (42 discovered). Affected
+native PASS 328/328, zero skips, including all ten deterministic races, shared
+access/authorization and the original own-custody dashboard regression. Both
+aliases destroyed; owned native server stopped; source template unchanged.
+AST 1,121 files /whitespace PASS. Frozen 1,499-file source/helper fingerprint:
+`35c8b18b6584e6701249cc875d20d68453f7ac2789cf58da56038aaeb55a3c53`.
+Portable evidence: `docs/evidence/phase-b-security-2026-10-24/`.
+
+The installed VM release CLI proposes a version bump/tag, prohibited here. Use
+only its existing `GitService.commit` helper with the reviewed explicit paths,
+parent/tree/message to create a tag-free checkpoint; no VERSION/CHANGELOG, master
+merge, tag or deployment. This is a checkpoint, not an accepted VM release.
+The owner's explicit checkpoint review/acceptance is still required. The active
+goal must not begin Finance before that acceptance; pause/resume stays user-controlled.
+
+After acceptance: reconcile preserved canonical Finance v112 (`ce0c7243...`) and
+unmatched v188-v210 history against the accepted security baseline before choosing
+implementation. The current Finance roadmap's next functional milestone is an
+evidence-backed Form 1 numerical treatment via its existing source-finding route;
+verify it against that reconciled state, never infer acceptance from old notes.
+No Finance implementation occurred in this security session. Full-project/hosted
+CI, browser/production storage/logging/recovery and LGU acceptance remain NOT RUN.
+Finance remains NO-GO. Historical checkpoints below retain their original scope.
+
+---
+
+## Phase B P1 checkpoint — 2026-10-23
+
+Resume in `C:/Users/Administrator/.codex/worktrees/grand-p1-20261023-2408aa82de6e`,
+branch `codex/phase-b-p1-remediation-20261023`, base
+`04b25bf7b1c18a1d3932596597ba629e240ba252`. The original 48-file candidate,
+its evidence and original worktrees remain unchanged. The user requested a
+checkpoint commit after the focused native run, then a remote branch push for
+another device, and a pause. No master merge, release, tag or deployment.
+
+[Remediation design, actual evidence and remaining gates](docs/PHASE_B_P1_REMEDIATION_2026-10-23.md):
+citizen edits/document writes serialize on the current default-store request and
+save only permitted fields; Telegram credential handling rejects non-private
+chats before parsing, with fresh authority checked again at binding.
+Fresh focused SQLite PASS 22 /10 native race skips; native PASS 32/32 with all
+10 races executed and zero skips. Same 1,491-file source/helper fingerprint:
+`694a0b0ba89e3371e05c776c5e564f2f69b9682b938f80daca6774030c2ccd42`.
+Exact command arrays, identities, log hashes, helper snapshots and source manifests
+are portable in `docs/evidence/phase-b-p1-2026-10-23/`; original recovery data is
+not published. Native owned server stopped and source template remained unchanged.
+
+DEFERRED by the user's pause: expanded Assistance/Records/Profiles/Reporting/auth/
+GSO/dashboard regression on SQLite and native. NOT RUN: full-project/hosted CI,
+browser/production storage/logging/recovery or operational/LGU acceptance. Telegram
+delivery remains unchanged/nonfunctional; qualify associations and deny legacy
+destinations before any repair could enable sending. Do not infer qualification
+from a successful private binding. Both P1 fixes have focused evidence; broader
+acceptance and integration readiness remain pending. Finance remains NO-GO.
+
+Next session: restore helpers from the portable evidence if needed, run the
+recorded expanded scope on disposable stores, then perform a separate readiness
+review. Do not begin Phase C or integration without explicit authorization.
+
+---
+
+## Phase B private-file reconciliation — 2026-10-23
+
+Local branch `codex/reconcile-private-file-access-20261023`, based on exact
+`04b25bf7b1c18a1d3932596597ba629e240ba252`. G5/G6 only, reconciled as a patch;
+no commit, tag, publication or deployment. Master's custody card/test and testing
+policy remain unchanged. The existing handoff/history below is preserved.
+
+[Scope, complete file inventory, assumptions and fresh evidence](docs/PHASE_B_PRIVATE_ACCESS_RECONCILIATION_2026-10-23.md)
+is authoritative for this local slice. Initial Records PASS 32/32 before the
+additional alternate-stream rejection. Final affected SQLite PASS: 291 executed,
+288 passed/3 native-only skips, 73.495s. Same native MySQL scope PASS 291/291,
+zero skips, 86.599s. Five mocked Telegram cases pass within each expanded run.
+Both test aliases destroyed; owned server stopped/port closed; original native
+system-only template and both operator DB hashes unchanged. No operator migration.
+The rejected-path red probe and diagnostic exception mismatch remain recorded.
+
+Candidate fingerprint (1,461 runtime/test/dependency files):
+`315642c5b1f3be812aceb93aefe8d183a594fd00aa21af7e9810ceb17655a865`.
+Tests cover this uncommitted source, not a new commit or hosted CI revision.
+Full-project/hosted CI, new browser/production storage/recovery and formal
+acceptance are unperformed. Review Phase B, then wait for explicit direction;
+do not start Phase C or another feature group. Finance remains NO-GO.
+
+---
+
 # GRAND continuation handoff
 
 ## Current reconciliation checkpoint — 2026-10-23

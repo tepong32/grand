@@ -19,9 +19,10 @@ from .access import (
     records_access_required, records_permission_required,
 )
 from .forms import DepartmentRecordForm, RecordFileForm, RetentionForm
+from .files import open_associated_file, open_record_file
 from .models import DepartmentRecord, RecordEvent, RecordFile
 from .services import (
-    RecordWorkflowError, add_record_file, association_file, association_label, association_url,
+    RecordWorkflowError, add_record_file, association_file, association_is_owned, association_label, association_url,
     create_record, file_approved_report, source_department, transition_record,
 )
 
@@ -90,8 +91,13 @@ def record_detail(request, public_id):
     record = _record(request.user, public_id)
     associations = []
     for item in record.associations.select_related("content_type", "created_by"):
+        if not association_is_owned(item):
+            associations.append({"item": item, "label": "Linked source unavailable in this department.",
+                                 "url": "", "downloadable": False})
+            continue
         file_field, filename = association_file(item)
-        associations.append({"item": item, "label": association_label(item), "url": association_url(item), "downloadable": bool(file_field), "filename": filename})
+        associations.append({"item": item, "label": association_label(item), "url": association_url(item), "downloadable": bool(file_field), "filename": filename,
+                             "current_attachment": isinstance(item.content_object, RequestDocument)})
     replacements = _visible_records(request.user).filter(status=DepartmentRecord.APPROVED).exclude(pk=record.pk)
     return render(request, "records/record_detail.html", {
         "record": record, "associations": associations, "file_form": RecordFileForm(),
@@ -205,8 +211,18 @@ def download_file(request, public_id, file_id):
     if not can_download_records(request.user) or record.status == DepartmentRecord.DISPOSED:
         raise PermissionDenied
     item = get_object_or_404(RecordFile, pk=file_id, record=record, is_active=True)
-    RecordEvent.objects.create(record=record, actor=request.user, action="downloaded_file", from_status=record.status, to_status=record.status, note=f"Downloaded {item.display_name}.", metadata={"file_id": item.pk, "checksum": item.checksum})
-    return FileResponse(item.file.open("rb"), as_attachment=True, filename=item.display_name)
+    try:
+        source = open_record_file(item)
+    except (OSError, ValueError, ValidationError, NotImplementedError, AttributeError):
+        raise Http404("The retained document is unavailable.")
+    try:
+        response = FileResponse(source, as_attachment=True, filename=item.display_name)
+        RecordEvent.objects.create(record=record, actor=request.user, action="downloaded_file", from_status=record.status, to_status=record.status, note=f"Downloaded {item.display_name}.", metadata={"file_id": item.pk, "checksum": item.checksum})
+    except Exception:
+        source.close()
+        raise
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 @records_access_required
@@ -215,11 +231,19 @@ def download_source(request, public_id, association_id):
     if not can_download_records(request.user) or record.status == DepartmentRecord.DISPOSED:
         raise PermissionDenied
     association = get_object_or_404(record.associations.select_related("content_type"), pk=association_id)
-    file_field, filename = association_file(association)
-    if not file_field:
-        raise Http404
-    RecordEvent.objects.create(record=record, actor=request.user, action="downloaded_source", from_status=record.status, to_status=record.status, note=f"Downloaded linked source {filename}.", metadata={"association_id": association.pk})
-    return FileResponse(file_field.open("rb"), as_attachment=True, filename=filename)
+    try:
+        source, filename, checksum = open_associated_file(association)
+    except (OSError, ValueError, ValidationError, NotImplementedError, AttributeError):
+        raise Http404("The retained document is unavailable.")
+    try:
+        response = FileResponse(source, as_attachment=True, filename=filename)
+        RecordEvent.objects.create(record=record, actor=request.user, action="downloaded_source", from_status=record.status, to_status=record.status, note=f"Downloaded linked source {filename}.", metadata={"association_id": association.pk, "checksum": checksum})
+    except Exception:
+        source.close()
+        raise
+    response["Cache-Control"] = "private, no-store"
+    response["X-GRAND-File-Integrity"] = "sha256-verified" if checksum else "not-recorded"
+    return response
 
 
 @records_permission_required(can_manage_records)

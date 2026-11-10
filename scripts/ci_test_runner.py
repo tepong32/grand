@@ -6,6 +6,11 @@ from pathlib import Path
 from django.test.runner import DiscoverRunner, iter_test_cases
 
 
+# Reviewed 2026-10-24 after the accepted security classes changed complete discovery.
+# Keep Form1 intake on worker 6; a later inventory change must be reviewed again.
+FORM1_INTAKE_ORIGINAL_OWNER = 0
+
+
 def partition(tests, index, count):
     if not 0 <= index < count or count < 1:
         raise ValueError('Require 0 <= shard index < shard count.')
@@ -20,8 +25,11 @@ def partition(tests, index, count):
     # classes. Indices are zero-based and shared by SQLite and native MySQL.
     intake_class = 'budget.test_form1_package_intake.Form1PackageIntakeTests'
     if intake_class in owners:
-        if count != 8 or owners[intake_class] != 3:
-            raise ValueError('Review the Form1 intake reassignment: require eight shards and original owner 3.')
+        if count != 8 or owners[intake_class] != FORM1_INTAKE_ORIGINAL_OWNER:
+            raise ValueError(
+                "Review the Form1 intake reassignment: require eight shards and "
+                f"original owner {FORM1_INTAKE_ORIGINAL_OWNER}."
+            )
         owners[intake_class] = 6
     return [test for test in tests if owners[test.id().rsplit('.', 1)[0]] == index]
 

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load assistance_extras %}
 {% block title_ext %} - Edit Locked{% endblock %}
 
 {% block content %}
@@ -15,8 +16,8 @@
           <h5>📂 Uploaded Documents</h5>
           <ul class="list-group text-start">
             {% for doc in documents %}
-              <li class="list-group-item d-flex justify-content-between align-items-center">
-                <a href="{{ doc.file.url }}" target="_blank">{{ doc.file.name|basename }}</a>
+              <li class="list-group-item d-flex flex-wrap gap-2 text-break justify-content-between align-items-center">
+                <a href="{% url 'assistance:citizen_document' edit_code=access_token doc_id=doc.pk %}" target="_blank">{{ doc.file.name|basename }}</a>
                 <span class="text-muted small">{{ doc.uploaded_at|date:"M d, Y H:i" }}</span>
               </li>
             {% endfor %}

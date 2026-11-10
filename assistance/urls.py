@@ -16,6 +16,8 @@ urlpatterns = [
     path('upload/<str:edit_code>/ajax/', views.upload_document_ajax, name='upload_document_ajax'),
 
 
+    path('file/<str:edit_code>/<int:doc_id>/', views.citizen_document, name='citizen_document'),
+    path('mswd/document/<int:doc_id>/download/', views.mswd_document_download, name='mswd_document_download'),
     path('mswd/dashboard/', views.mswd_dashboard_view, name='mswd_dashboard'),
     path('mswd/citizens/', views.citizen_profile_list_view, name='citizen_profile_list'),
     path('mswd/citizens/<int:profile_id>/', views.citizen_profile_detail_view, name='citizen_profile_detail'),
