@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.7.188] - 2026-11-10
+### Added
+- Reconcile Budget integrity, close-policy concurrency, cheque redemption charges, and printable JEV view
+
 ## [0.7.187] - 2026-10-18
 ### Fixed
 - fix(gso): keep maintenance review navigation within authorized access

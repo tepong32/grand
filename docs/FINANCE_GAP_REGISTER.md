@@ -1,5 +1,14 @@
 # Finance gap register
 
+Current development — 2026-11-10: building on `029b17a` (Phase B security + Budget
+G7/G8 integrity + CI owner-pin repair), this branch resolves the `D-064` period-close
+policy first-activation race by serializing department close-policy transitions in
+ascending `(version, pk)` lock order and verifying `supersedes_id` against the current
+active/starter policy head, reconciles the cheque redemption charge and officer
+principal separation slices (`49af4e1`, `ec5a640`), and adds a read-only printable
+individual JEV working view (`accounting:entry_print` / `FG-06`). Production remains
+NO-GO pending local LGU rule, form, and operational acceptance.
+
 Current development — 2026-10-24: security checkpoint f1711038 is explicitly
 accepted and Finance has resumed in a separate branch. G7/G8 address source
 FIN-GAP-039/040 (dated Budget capacity and final obligation-line validation),

@@ -1,3 +1,35 @@
+## Finance reconciliation, D-064 close-policy serialization, cheque redemption charges, and printable JEV view — 2026-11-10
+
+Consolidated working branch `codex/finance-reconciliation-20261110` on top of
+`origin/codex/finance-budget-integrity-20261024` (`029b17a`):
+
+1. **Universal Version Manager (`tools/version_manager.py` v2.0.0 & `tools/auto_merge.py`)**:
+   Added the zero-dependency universal release/checkpoint toolkit.
+2. **Accounting Period-Close Policy Serialization (`D-064`)**:
+   `accounting/close_services.py` and `accounting/views.py` now lock all existing
+   `PeriodClosePolicy` rows for the department in ascending `(version, pk)` order
+   before seeding a starter, creating a successor draft, submitting, or deciding a
+   policy. First activation and successor activation verify `supersedes_id` against
+   the current active/starter head and reject stale sibling candidates rather than
+   allowing concurrent activations. Covered by `accounting.test_period_close` and
+   `accounting.test_bank_concurrency`.
+3. **Cheque Redemption Charges & Officer Principal Separation (`49af4e1` & `ec5a640`)**:
+   Reconciled `vouchers/redemption_charges.py`, `vouchers/officer_receipt_components.py`,
+   collection/cheque return/redemption services, views, templates, and tests
+   (`vouchers.test_cheque_redemptions`, `vouchers.test_cheque_components`,
+   `vouchers.test_advance_cheque_returns`, `finance.test_work_tasks`).
+4. **Printable Individual JEV Working Copy (`FG-06`)**:
+   Added `accounting:entry_print` (`accounting/urls.py`, `accounting/views.py`,
+   `templates/accounting/entry_print.html`, linked from `templates/accounting/entry_detail.html`)
+   with department-scoped read access, draft/unposted banner, balanced line-by-line
+   account/center/subsidiary details, and system actor vs. paper signatory blocks.
+5. **CI Discovery & Partition Verification**:
+   `scripts/test_ci_test_runner.py` (11/11) and complete 8-shard discovery (3,095
+   tests across 374 classes, `FORM1_INTAKE_ORIGINAL_OWNER = 0` → worker 6) pass.
+   Production remains NO-GO pending LGU local form/rule and operational acceptance.
+
+---
+
 ## Finance Budget integrity checkpoint — 2026-10-24
 
 The user explicitly accepted security checkpoint

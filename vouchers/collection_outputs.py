@@ -76,6 +76,8 @@ def generate(*, source, actor, include_custody=False):
     snapshot['cheque_returns'] = history(source)
     if source.kind == Source.CHEQUE_RETURN:
         snapshot['original_cheque'] = source.proposal['original_cheque']
+        if source.proposal.get('officer_charge_returns'):
+            snapshot['officer_charge_returns'] = source.proposal['officer_charge_returns']
         snapshot['applicability_reference'] = source.proposal['applicability_reference']
         from .cheque_redemptions import history
         snapshot['redemption_receipts'] = history(source)
@@ -85,6 +87,7 @@ def generate(*, source, actor, include_custody=False):
     if source.proposal.get('redemption'):
         from .cheque_redemptions import settlement, OR_DISPOSITIONS
         snapshot['redemption'] = source.proposal['redemption']
+        snapshot['redemption_charges'] = source.proposal.get('redemption_charges', [])
         snapshot['redemption_settlement'] = settlement(source)
         snapshot['old_receipt_disposition'] = OR_DISPOSITIONS[source.proposal['old_receipt_disposition']]
         snapshot['old_receipt_evidence'] = source.proposal['old_receipt_evidence']
