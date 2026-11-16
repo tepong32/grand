@@ -14,7 +14,7 @@ crispy-bootstrap4==2024.1
 cryptography==50.0.2
 Django==5.2.18
 django-adminlte4==0.1.1
-django-allauth==65.21.1
+django-allauth==65.22.0
 django-ckeditor==6.7.4
 django-ckeditor-5==0.2.20
 django-crispy-forms==2.7
@@ -33,7 +33,7 @@ pillow==13.0.0
 prompt_toolkit==3.0.53
 pycparser==2.22
 PyJWT==2.15.1
-PyMySQL==1.2.3
+PyMySQL==1.2.4
 pypdf==6.21.4
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.4
